@@ -77,6 +77,34 @@
   margin: 0 0 var(--espacio-3);
 }
 
+/* Formularios dentro de panel */
+.panel > form,
+form.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-3);
+}
+
+.panel label,
+form label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-1);
+}
+
+.panel input,
+form input {
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-control);
+  background: var(--superficie);
+  padding: var(--espacio-2);
+}
+
+.panel input[type="checkbox"],
+form input[type="checkbox"] {
+  width: auto;
+}
+
 /* Botón */
 .boton {
   display: inline-flex;
