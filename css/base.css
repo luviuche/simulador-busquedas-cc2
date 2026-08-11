@@ -1,0 +1,71 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--fuente-texto);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--estado-rango-borde);
+  outline-offset: 2px;
+}
+
+/* Escala tipográfica (CLAUDE.md 8.3): una etiqueta nunca es más pequeña
+   que el contenido que etiqueta — se diferencian por peso y color. */
+.texto-nivel-1 {
+  font: 600 20px/1.2 var(--fuente-condensada);
+  font-variant-caps: small-caps;
+  letter-spacing: .08em;
+  color: var(--tinta);
+}
+
+.texto-nivel-2 {
+  font: 600 13px/1.2 var(--fuente-condensada);
+  font-variant-caps: small-caps;
+  letter-spacing: .08em;
+  color: var(--tinta-suave);
+}
+
+.texto-nivel-3 {
+  font: 500 13px/1.4 var(--fuente-texto);
+  color: var(--tinta);
+}
+
+.texto-nivel-4 {
+  font: 400 13px/1.4 var(--fuente-texto);
+  color: var(--tinta);
+}
+
+.texto-nivel-5 {
+  font: 400 12px/1.4 var(--fuente-texto);
+  color: var(--tinta-suave);
+}
+
+.texto-mono {
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}

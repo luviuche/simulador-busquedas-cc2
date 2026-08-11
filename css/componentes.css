@@ -1,0 +1,182 @@
+/* Casilla — cada estado lleva refuerzo no cromático (CLAUDE.md 8.1 y 8.2) */
+.casilla {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 var(--espacio-2);
+  border-radius: var(--radio-casilla);
+  border: 1px solid var(--borde);
+  background: var(--superficie);
+  color: var(--tinta);
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.casilla--vacia {
+  border: 1px dashed var(--estado-vacia-borde);
+  background: var(--estado-vacia-relleno);
+  color: var(--tinta-suave);
+}
+
+.casilla--ocupada {
+  border-color: var(--estado-ocupada-borde);
+  background: var(--estado-ocupada-relleno);
+}
+
+.casilla--rango-activo {
+  border-color: var(--estado-rango-borde);
+  background: var(--estado-rango-relleno);
+}
+
+.casilla--en-evaluacion {
+  border-width: 2px;
+  border-color: var(--estado-evaluacion-borde);
+  background: var(--estado-evaluacion-relleno);
+}
+
+.casilla--descartada {
+  border-color: var(--estado-descartada-borde);
+  background: var(--estado-descartada-relleno);
+  opacity: .5;
+}
+
+.casilla--encontrada {
+  border-color: var(--estado-encontrada-borde);
+  background: var(--estado-encontrada-relleno);
+}
+
+.casilla--encontrada::after {
+  content: '✓';
+  margin-left: var(--espacio-1);
+}
+
+.casilla--colision {
+  border-color: var(--estado-colision-borde);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--estado-colision-relleno),
+    var(--estado-colision-relleno) 4px,
+    #F8E3E8 4px,
+    #F8E3E8 8px
+  );
+}
+
+/* Panel */
+.panel {
+  background: var(--superficie);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-panel);
+  box-shadow: var(--elev-1);
+  padding: var(--espacio-4);
+}
+
+.panel__titulo {
+  margin: 0 0 var(--espacio-3);
+}
+
+/* Botón */
+.boton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  border-radius: var(--radio-control);
+  border: 1px solid var(--borde-fuerte);
+  background: var(--superficie);
+  color: var(--tinta);
+  padding: var(--espacio-2) var(--espacio-3);
+  cursor: pointer;
+  transition: background var(--duracion-interfaz) var(--curva-interfaz);
+}
+
+.boton:hover {
+  background: var(--superficie-hundida);
+}
+
+.boton:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.boton--primario {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: var(--superficie);
+}
+
+.boton--primario:hover {
+  background: #1A232B;
+}
+
+/* Alerta — nunca reutiliza los colores de estado del algoritmo (CLAUDE.md 8.1) */
+.alerta {
+  display: flex;
+  gap: var(--espacio-3);
+  align-items: flex-start;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--tinta);
+  border-radius: var(--radio-control);
+  padding: var(--espacio-3) var(--espacio-4);
+}
+
+.alerta__icono {
+  flex: none;
+  font-family: var(--fuente-mono);
+  line-height: 1;
+}
+
+.alerta--advertencia {
+  border-left-color: var(--alerta-advertencia-borde);
+}
+
+.alerta--error {
+  border-left-color: var(--alerta-error-borde);
+}
+
+.alerta--info {
+  border-left-color: var(--alerta-info-borde);
+}
+
+/* Métrica */
+.metrica {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-1);
+}
+
+.metrica__valor {
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Bitácora */
+.bitacora {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.bitacora__fila {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--espacio-2);
+  padding: var(--espacio-2) 0;
+  border-bottom: 1px solid var(--borde);
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.bitacora__fila:last-child {
+  border-bottom: none;
+}
+
+.bitacora__hora {
+  color: var(--tinta-suave);
+}

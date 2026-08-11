@@ -1,0 +1,116 @@
+.pantalla {
+  min-height: 100vh;
+}
+
+/* Menú */
+.pantalla-menu {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--espacio-7) var(--espacio-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-5);
+}
+
+.catalogo-modulos {
+  display: grid;
+  gap: var(--espacio-3);
+}
+
+.tarjeta-modulo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.tarjeta-modulo:disabled {
+  cursor: default;
+}
+
+.tarjeta-modulo__estado {
+  align-self: flex-start;
+}
+
+/* Módulo (pantalla de trabajo de un algoritmo) */
+.pantalla-modulo {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  grid-template-rows: auto 1fr;
+  gap: var(--espacio-5);
+  padding: var(--espacio-5);
+  min-height: 100vh;
+}
+
+.pantalla-modulo__encabezado {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pantalla-modulo__lienzo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-3);
+  background: var(--superficie-hundida);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-panel);
+  padding: var(--espacio-6);
+  overflow: auto;
+}
+
+.pantalla-modulo__panel-lateral {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+}
+
+.pantalla-modulo__controles {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  flex-wrap: wrap;
+}
+
+.pantalla-modulo__metricas {
+  display: flex;
+  gap: var(--espacio-5);
+}
+
+/* Estructura horizontal (secuencial, binaria) */
+.estructura-horizontal {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--espacio-2);
+}
+
+.tramo-elidido {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 var(--espacio-2);
+  color: var(--tinta-suave);
+  font-family: var(--fuente-mono);
+  font-size: 12px;
+  border-left: 1px dashed var(--borde-fuerte);
+  border-right: 1px dashed var(--borde-fuerte);
+}
+
+.escala {
+  display: flex;
+  gap: var(--espacio-2);
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--tinta-suave);
+}
+
+.escala__marca--mayor {
+  color: var(--tinta);
+  font-weight: 500;
+}

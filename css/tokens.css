@@ -1,0 +1,94 @@
+:root {
+  /* Paleta (CLAUDE.md 8.2) */
+  --papel: #EDF0F3;
+  --superficie: #FFFFFF;
+  --superficie-hundida: #E4E8EC;
+  --tinta: #24303B;
+  --tinta-suave: #5C6B78;
+  --borde: #C6D0D8;
+  --borde-fuerte: #9AA8B4;
+
+  /* Estados del algoritmo: únicos, no se reutilizan fuera de la casilla (CLAUDE.md 8.1) */
+  --estado-vacia-borde: #B7C2CB;
+  --estado-vacia-relleno: var(--superficie-hundida);
+  --estado-ocupada-borde: #24303B;
+  --estado-ocupada-relleno: #FFFFFF;
+  --estado-rango-borde: #2F6E96;
+  --estado-rango-relleno: #DCE9F1;
+  --estado-evaluacion-borde: #C77C1E;
+  --estado-evaluacion-relleno: #F7E2BD;
+  --estado-descartada-borde: #97A3AC;
+  --estado-descartada-relleno: #E5E9EC;
+  --estado-encontrada-borde: #1B7A63;
+  --estado-encontrada-relleno: #CFE9E1;
+  --estado-colision-borde: #A8324A;
+  --estado-colision-relleno: #F3D6DC;
+
+  /* Alertas: deliberadamente distintas de los colores de estado del algoritmo (CLAUDE.md 8.1) */
+  --alerta-info-borde: #35507A;
+  --alerta-advertencia-borde: #8A5A12;
+  --alerta-error-borde: #7A2338;
+
+  /* Elevación (CLAUDE.md 8.4) */
+  --elev-1: 0 1px 2px rgba(36, 48, 59, .08);
+  --elev-2: 0 3px 10px rgba(36, 48, 59, .12);
+
+  /* Radios */
+  --radio-casilla: 3px;
+  --radio-control: 6px;
+  --radio-panel: 10px;
+
+  /* Espaciado: escala cerrada, no usar valores fuera de ella */
+  --espacio-1: 4px;
+  --espacio-2: 8px;
+  --espacio-3: 12px;
+  --espacio-4: 16px;
+  --espacio-5: 24px;
+  --espacio-6: 32px;
+  --espacio-7: 40px;
+
+  /* Tipografía */
+  --fuente-condensada: 'Plex Sans Condensed', 'Arial Narrow', sans-serif;
+  --fuente-texto: 'Plex Sans', system-ui, sans-serif;
+  --fuente-mono: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+
+  /* Animación de interfaz (CLAUDE.md 7): paneles, alertas, hover — no el algoritmo */
+  --duracion-interfaz: 180ms;
+  --curva-interfaz: ease-out;
+}
+
+/*
+  Tipografías locales (CLAUDE.md 8, stack sin dependencias): copiar los .woff2
+  reales a fuentes/ con estos nombres de archivo. Mientras no existan, el
+  navegador cae al stack de respaldo declarado arriba y la app sigue legible.
+*/
+@font-face {
+  font-family: 'Plex Sans Condensed';
+  src: url('../fuentes/PlexSansCondensed-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Plex Sans Condensed';
+  src: url('../fuentes/PlexSansCondensed-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Plex Sans';
+  src: url('../fuentes/PlexSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Plex Sans';
+  src: url('../fuentes/PlexSans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fuentes/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}

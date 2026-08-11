@@ -1,0 +1,9 @@
+{
+  "name": "simulador-busquedas-cc2",
+  "version": "1.0.0",
+  "description": "Simulador didáctico de algoritmos de búsqueda — Ciencias de la Computación II",
+  "private": true,
+  "scripts": {
+    "test": "node --test pruebas/*.test.js"
+  }
+}
