@@ -4,7 +4,7 @@ const CC2 = require('./apoyo.js');
 
 const { limites, clave, estructura } = CC2.dominio;
 
-test('rangoValido deriva el rango desde L', () => {
+test('rangoValido deriva el rango desde l', () => {
   assert.deepEqual(limites.rangoValido(4), { min: 1000, max: 9999 });
 });
 
@@ -13,7 +13,7 @@ test('validarTamano rechaza n por encima del límite duro', () => {
   assert.equal(resultado.valido, false);
 });
 
-test('validarTamano rechaza n imposible para L = 2', () => {
+test('validarTamano rechaza n imposible para l = 2', () => {
   const resultado = limites.validarTamano(150, 2);
   assert.equal(resultado.valido, false);
   assert.match(resultado.mensaje, /90 claves distintas/);
@@ -30,7 +30,7 @@ test('validarClaveNumerica rechaza ceros a la izquierda', () => {
   assert.equal(resultado.valido, false);
 });
 
-test('validarClaveNumerica acepta clave con L dígitos', () => {
+test('validarClaveNumerica acepta clave con l dígitos', () => {
   const resultado = clave.validarClaveNumerica('4096', 4);
   assert.equal(resultado.valido, true);
   assert.equal(resultado.valor, 4096);
@@ -48,7 +48,7 @@ test('validarClaveAlfabetica rechaza la Ñ', () => {
 });
 
 test('estructura mantiene orden ascendente al insertar', () => {
-  const { estructura: e } = estructura.crearEstructura({ n: 5, L: 4, tipoClave: 'numerica' });
+  const { estructura: e } = estructura.crearEstructura({ n: 5, l: 4, tipoClave: 'numerica' });
   estructura.insertar(e, 5000);
   estructura.insertar(e, 1000);
   estructura.insertar(e, 3000);
@@ -56,7 +56,7 @@ test('estructura mantiene orden ascendente al insertar', () => {
 });
 
 test('estructura rechaza duplicados', () => {
-  const { estructura: e } = estructura.crearEstructura({ n: 5, L: 4, tipoClave: 'numerica' });
+  const { estructura: e } = estructura.crearEstructura({ n: 5, l: 4, tipoClave: 'numerica' });
   estructura.insertar(e, 1000);
   const resultado = estructura.insertar(e, 1000);
   assert.equal(resultado.exito, false);
@@ -64,7 +64,7 @@ test('estructura rechaza duplicados', () => {
 });
 
 test('estructura rechaza inserción al llegar a n', () => {
-  const { estructura: e } = estructura.crearEstructura({ n: 1, L: 4, tipoClave: 'numerica' });
+  const { estructura: e } = estructura.crearEstructura({ n: 1, l: 4, tipoClave: 'numerica' });
   estructura.insertar(e, 1000);
   const resultado = estructura.insertar(e, 2000);
   assert.equal(resultado.exito, false);
@@ -72,7 +72,7 @@ test('estructura rechaza inserción al llegar a n', () => {
 });
 
 test('insertar devuelve el índice en base 1', () => {
-  const { estructura: e } = estructura.crearEstructura({ n: 5, L: 4, tipoClave: 'numerica' });
+  const { estructura: e } = estructura.crearEstructura({ n: 5, l: 4, tipoClave: 'numerica' });
   const resultado = estructura.insertar(e, 1000);
   assert.equal(resultado.indice, 1);
 });

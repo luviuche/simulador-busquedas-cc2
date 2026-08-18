@@ -25,16 +25,22 @@ Estos términos son fijos. No usar sinónimos ni en el código ni en la interfaz
 | Término | Significado | En código |
 |---|---|---|
 | **Tamaño de la estructura (n)** | Cantidad de casillas | `n` |
-| **Longitud de clave (L)** | Dígitos o letras por clave | `L` |
-| **Rango válido** | Derivado de `L`. Con `L = 4` numérico: `1000–9999` | `rangoValido(L)` |
+| **Longitud de clave (l)** | Dígitos o letras por clave | `l` |
+| **Rango válido** | Derivado de `l`. Con `l = 4` numérico: `1000–9999` | `rangoValido(l)` |
 | **Clave** | Cada dato individual | `clave` |
 | **Casilla** | Cada posición de la estructura | `casilla` |
 | **Dirección** | Posición calculada por una función hash | `direccion` |
 | **Elisión** | Compresión visual de casillas no relevantes | `elision` |
 | **Bitácora** | Registro cronológico de la sesión | `bitacora` |
 | **Traza** | Secuencia de pasos que produce un algoritmo | `traza` |
+| **Tema** | Cada algoritmo del catálogo (búsqueda binaria, función módulo…) | `tema` |
+| **Unidad** | Cada división del programa que agrupa temas | `unidad` |
 
 Nunca decir *celda* por casilla, ni *dato* por clave, ni *índice* por dirección.
+
+**Los temas no son "módulos" ni se numeran** (decisión del docente, 2026-08-18). Se identifican por su nombre: ni el catálogo ni el encabezado de la pantalla de trabajo llevan `01`, `02`, … ni la palabra *módulo*. La numeración sobrevive solo en las **unidades**, que sí son divisiones del programa del curso.
+
+La palabra *módulo* se reserva para dos usos que no tienen que ver con el catálogo y que sí son correctos: los **módulos ES** de JavaScript (sección 4) y la **función hash módulo** (sección 5.3).
 
 ---
 
@@ -51,28 +57,28 @@ Estas cuatro condiciones se cumplen siempre. Cualquier operación que las rompa 
 1. `claves.length ≤ n`
 2. **Sin duplicados.** Ninguna clave aparece dos veces.
 3. **Siempre ordenada ascendente.** Aplica tanto a secuencial como a binaria (decisión del docente).
-4. Toda clave cumple exactamente la longitud `L`.
+4. Toda clave cumple exactamente la longitud `l`.
 
 La restricción de unicidad no es cosmética: en binaria los duplicados hacen ambiguo el resultado y no comparable el conteo de comparaciones; en hash un duplicado se confunde visualmente con una colisión. Aplica también al llenado automático y a la carga desde archivo.
 
 ### 3.3 Claves numéricas
 
-- Exactamente `L` dígitos.
-- **Sin ceros a la izquierda.** Con `L = 4`, `0521` es inválido.
-- Rango válido: `10^(L−1)` a `10^L − 1`. Con `L = 4`: `1000–9999`.
+- Exactamente `l` dígitos.
+- **Sin ceros a la izquierda.** Con `l = 4`, `0521` es inválido.
+- Rango válido: `10^(l−1)` a `10^l − 1`. Con `l = 4`: `1000–9999`.
 - Sin negativos ni decimales.
 
 ### 3.4 Claves alfabéticas
 
 *Implementación diferida. Mantener el tipo en el modelo y en la interfaz, deshabilitado.*
 
-- Exactamente `L` letras.
+- Exactamente `l` letras.
 - Normalización a mayúsculas.
 - Tildes a letra base: Á→A, É→E, Í→I, Ó→O, Ú→U, Ü→U.
 - Alfabeto A–Z, 26 letras. **La Ñ se rechaza** con advertencia.
 - **Mapeo posicional:** cada letra a su posición en dos dígitos (`A=01` … `Z=26`), concatenados.
   `CASA` → `03 01 19 01` → `3011901`
-  Este mapeo permite que **todas las funciones hash operen sobre números** sin lógica especial para texto. El orden numérico resultante coincide con el lexicográfico, y todas las palabras de longitud `L` producen claves transformadas de igual cantidad de dígitos, lo cual es indispensable para truncamiento y plegamiento.
+  Este mapeo permite que **todas las funciones hash operen sobre números** sin lógica especial para texto. El orden numérico resultante coincide con el lexicográfico, y todas las palabras de longitud `l` producen claves transformadas de igual cantidad de dígitos, lo cual es indispensable para truncamiento y plegamiento.
 - La interfaz debe poder mostrar la clave transformada junto a la palabra original, con fines didácticos.
 
 ### 3.5 Límites de `n`
@@ -81,9 +87,9 @@ La restricción de unicidad no es cosmética: en binaria los duplicados hacen am
 |---|---|---|
 | Límite duro | 10 000 casillas | Guarda de seguridad |
 | Umbral de advertencia | 500 casillas | Sobre esto la ejecución paso a paso deja de ser observable; se advierte sin bloquear |
-| Límite derivado de `L` | Claves distintas posibles | Consecuencia de la unicidad |
+| Límite derivado de `l` | Claves distintas posibles | Consecuencia de la unicidad |
 
-**El límite derivado se valida al crear la estructura, no al insertar.** Como no hay duplicados, `n` no puede exceder la cantidad de claves distintas que existen para esa longitud: `9 × 10^(L−1)` para numéricas. Con `L = 2` solo existen 90 claves (10–99), así que `n = 150` es imposible de llenar por definición y debe rechazarse en el formulario.
+**El límite derivado se valida al crear la estructura, no al insertar.** Como no hay duplicados, `n` no puede exceder la cantidad de claves distintas que existen para esa longitud: `9 × 10^(l−1)` para numéricas. Con `l = 2` solo existen 90 claves (10–99), así que `n = 150` es imposible de llenar por definición y debe rechazarse en el formulario.
 
 No preguntar al usuario por la memoria de su equipo. El costo no está en almacenar el arreglo sino en dibujarlo, y la elisión ya acota el dibujado.
 
@@ -160,7 +166,7 @@ Reglas concretas:
 ```js
 // js/dominio/clave.js
 (function () {
-  function validarClave(valor, L) { … }
+  function validarClave(valor, l) { … }
 
   window.CC2 = window.CC2 || {};
   window.CC2.dominio = window.CC2.dominio || {};
@@ -189,9 +195,9 @@ Sin framework hace falta disciplina para no repetir. Un componente es **una func
 
 Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o actualiza el existente. Los componentes no despachan acciones ni conocen el modelo.
 
-### La pantalla de módulo es una sola, parametrizada
+### La pantalla de tema es una sola, parametrizada
 
-`vista/pantallas/modulo-busqueda.js` contiene **toda** la pantalla de trabajo —configurar, insertar, llenado automático, reproducir la traza, elidir, métricas, bitácora, alertas— y la comparten todos los módulos de búsqueda interna. Un módulo nuevo no escribe pantalla: escribe una entrada en `MODULOS` (en `app.js`) con lo único que le es propio:
+`vista/pantallas/tema-busqueda.js` contiene **toda** la pantalla de trabajo —configurar, insertar, llenado automático, reproducir la traza, elidir, métricas, bitácora, alertas— y la comparten todos los temas de búsqueda interna. Un tema nuevo no escribe pantalla: escribe una entrada en `TEMAS` (en `app.js`) con lo único que le es propio:
 
 ```js
 {
@@ -204,9 +210,9 @@ Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o act
 }
 ```
 
-Es decir: **lo único que distingue un módulo de otro es cómo se lee su traza.** Secuencial y binaria ya se construyen así; hash y colisiones deben entrar por la misma puerta, cambiando `orientacion` a vertical.
+Es decir: **lo único que distingue un tema de otro es cómo se lee su traza.** Secuencial y binaria ya se construyen así; hash y colisiones deben entrar por la misma puerta, cambiando `orientacion` a vertical.
 
-El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada pantalla, no en variables del módulo `app.js`: dos módulos abiertos en sucesión no comparten nada, y volver al menú no deja temporizadores corriendo.
+El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada pantalla, no en variables del módulo `app.js`: dos temas abiertos en sucesión no comparten nada, y volver al menú no deja temporizadores corriendo.
 
 **Estados y modificadores de casilla son cosas distintas.** El estado pinta (`ocupada`, `en-evaluacion`, `descartada`, `encontrada`…) y es uno solo. Los modificadores marcan pertenencias independientes del color: el corchete del rango activo en binaria (`en-rango`, `en-rango-inicio`, `en-rango-fin`) cubre también la casilla en evaluación, que ya tiene su propio color, y por eso no puede ser un estado más.
 
@@ -220,13 +226,13 @@ El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada
 │   ├── tokens.css          variables de color, tipografía, espaciado
 │   ├── base.css            reset y elementos base
 │   ├── componentes.css     casilla, panel, botón, alerta, bitácora
-│   ├── pantallas.css       menú, módulo, alertas
+│   ├── pantallas.css       menú, tema, alertas
 │   └── impresion.css       hoja de estilos del PDF
 ├── js/
 │   ├── dominio/
 │   │   ├── clave.js        validación, normalización, mapeo alfabético
 │   │   ├── estructura.js   invariantes, insertar, eliminar, ordenar
-│   │   └── limites.js      rango derivado de L, límites de n
+│   │   └── limites.js      rango derivado de l, límites de n
 │   ├── algoritmos/
 │   │   ├── traza.js        contrato de paso y utilidades
 │   │   ├── secuencial.js
@@ -236,32 +242,41 @@ El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada
 │   ├── vista/
 │   │   ├── componentes/    casilla, panel, alerta, métrica, bitácora
 │   │   ├── pantallas/
-│   │   │   ├── menu.js             catálogo de módulos y recientes
-│   │   │   └── modulo-busqueda.js  pantalla de trabajo, parametrizada
+│   │   │   ├── menu.js           catálogo de temas y recientes
+│   │   │   └── tema-busqueda.js  pantalla de trabajo, parametrizada
 │   │   ├── elision.js      cálculo de casillas visibles
 │   │   ├── reproductor.js  reproduce la traza: paso, continuo, velocidad
 │   │   └── animacion.js    FLIP y utilidades de movimiento
 │   ├── persistencia/
 │   │   ├── archivo.js      serializar y leer .cc2
 │   │   └── recientes.js    almacenamiento del navegador
-│   └── app.js              catálogo, configuración de módulos y enrutamiento
+│   └── app.js              catálogo, configuración de temas y enrutamiento
 ├── fuentes/
 └── pruebas/
     ├── *.test.js           dominio y algoritmos, con `npm test`
-    └── humo.html           integración de la vista, en el navegador
+    ├── humo.html           integración de la vista, en el navegador
+    └── captura.html        deja la app en un estado concreto para fotografiarla
 ```
 
 ### Cómo se prueba
 
 `npm test` (`node --test`, sin dependencias) cubre dominio, algoritmos y elisión: todo lo que es cálculo puro. `pruebas/apoyo.js` simula `window` para poder requerir esos archivos tal como los carga el navegador.
 
-La vista no entra ahí —necesita DOM— y se cubre con `pruebas/humo.html`, que recorre la aplicación real por el DOM: entra al módulo desde el menú, crea la estructura, inserta claves, avanza la traza y verifica estados, métricas y bitácora. Se abre con doble clic o sin ventana:
+La vista no entra ahí —necesita DOM— y se cubre con `pruebas/humo.html`, que recorre la aplicación real por el DOM: entra al tema desde el menú, crea la estructura, inserta claves, avanza la traza y verifica estados, métricas y bitácora. Se abre con doble clic o sin ventana:
 
 ```
 msedge --headless --disable-gpu --virtual-time-budget=8000 --dump-dom "file:///…/pruebas/humo.html"
 ```
 
-Al tocar la pantalla de módulo, correr las dos.
+Al tocar la pantalla de tema, correr las dos. La prueba de humo también verifica el layout —que la pantalla se ancle al viewport y que la estructura entre completa— porque es una regresión que no se ve en el DOM y sí arruina la proyección en clase.
+
+Para revisar diseño hay `pruebas/captura.html`, que deja la aplicación en un estado concreto (`?vista=menu|secuencial|binaria`) y se fotografía sin abrir ventana:
+
+```
+msedge --headless --disable-gpu --hide-scrollbars --window-size=1500,950 \
+       --screenshot=salida.png --virtual-time-budget=8000 \
+       "file:///…/pruebas/captura.html?vista=binaria"
+```
 
 `dominio/` y `algoritmos/` no importan nada de `vista/`. Esa regla es la que permite probar los algoritmos sin abrir el navegador.
 
@@ -287,7 +302,7 @@ El paso final `no-encontrada` no lleva rango —ya no existe— y sí `descartad
 
 ### 5.3 Funciones hash
 
-Todas devuelven una **dirección en base 1** dentro de `1..n`, y deben exponer los pasos intermedios del cálculo, que son el contenido didáctico central de estos módulos.
+Todas devuelven una **dirección en base 1** dentro de `1..n`, y deben exponer los pasos intermedios del cálculo, que son el contenido didáctico central de estos temas.
 
 | Función | Cálculo |
 |---|---|
@@ -333,6 +348,10 @@ Solo se dibuja lo relevante del paso actual. Es lo que permite que `n` no tenga 
 - Control "Ver estructura completa" que desactiva la elisión.
 
 La estructura se dibuja **centrada** en el lienzo, horizontal y verticalmente. Es el foco de atención durante toda la clase.
+
+**La pantalla de tema se ancla al alto del viewport y la página nunca scrollea.** El desplazamiento vive dentro del panel lateral. Si scrollea la página, el panel lateral —que acumula configuración, inserción, búsqueda, métricas y bitácora— estira el lienzo y empuja la estructura fuera de la pantalla: al proyectar en el salón se pierde justo lo que la aplicación existe para mostrar.
+
+Detalle que hace falta y es fácil de omitir: las filas del grid van con `minmax(0, 1fr)`, no `1fr`. Sin el `minmax(0, …)` una fila de grid no puede encogerse por debajo de su contenido, y el panel lateral vuelve a estirar el lienzo aunque la pantalla tenga el alto fijado.
 
 ### 6.3 Regla de índices
 
@@ -409,7 +428,7 @@ El profesor evalúa explícitamente que los bloques se muevan. Estas son las ani
 
 | Nivel | Uso | Tamaño | Familia y peso |
 |---|---|---|---|
-| 1 | Título de pantalla o módulo | 20 px | Plex Sans Condensed 600, versalitas, `tracking .08em` |
+| 1 | Título de pantalla o tema | 20 px | Plex Sans Condensed 600, versalitas, `tracking .08em` |
 | 2 | Rótulo de panel | 13 px | Plex Sans Condensed 600, versalitas, `tracking .08em`, `--tinta-suave` |
 | 3 | Etiqueta de campo o grupo | 13 px | Plex Sans 500, `--tinta` |
 | 4 | Contenido, opciones, botones | 13 px | Plex Sans 400, `--tinta` |
@@ -447,13 +466,13 @@ Sombras cortas y definidas, nunca difusas. Sin gradientes ni glassmorphism. Tema
 |---|---|
 | Estructura llena | *Estructura saturada: capacidad máxima de n casillas alcanzada.* |
 | Clave repetida | *Clave duplicada: la clave ya reside en la posición i.* |
-| Longitud incorrecta | *Longitud de clave inválida: se esperan L dígitos.* |
+| Longitud incorrecta | *Longitud de clave inválida: se esperan l dígitos.* |
 | Carácter no permitido | *Carácter no admitido en el alfabeto definido (A–Z).* |
 | Búsqueda sin resultado | *Clave no localizada en la estructura tras k comparaciones.* |
 | Colisión | *Colisión en la dirección d: se aplica tratamiento por [método].* |
 | Estructura vacía | *Estructura no inicializada: no existen claves para procesar.* |
-| `n` imposible | *Tamaño inviable: para L = 2 solo existen 90 claves distintas.* |
-| Archivo incompatible | *Archivo no compatible con el módulo activo.* |
+| `n` imposible | *Tamaño inviable: para l = 2 solo existen 90 claves distintas.* |
+| Archivo incompatible | *Archivo no compatible con el tema activo.* |
 
 ---
 
@@ -465,10 +484,10 @@ Sombras cortas y definidas, nunca difusas. Sin gradientes ni glassmorphism. Tema
 {
   "version": 1,
   "nombre": "Práctica de hash",
-  "modulo": "hash-modulo",
+  "tema": "hash-modulo",
   "tipoClave": "numerica",
   "n": 30,
-  "L": 4,
+  "l": 4,
   "claves": [1024, 2048, 4096],
   "funcionHash": "modulo",
   "metodoColisiones": "reasignacion",
@@ -493,7 +512,7 @@ Hasta 5, en almacenamiento del navegador. **No son la copia real**: si el estudi
 
 ### Al cargar
 
-Validar integridad y correspondencia con el módulo activo. Si no corresponde, informar sin cargar.
+Validar integridad y correspondencia con el tema activo. Si no corresponde, informar sin cargar.
 
 ### Bitácora
 
@@ -517,9 +536,9 @@ El documento incluye: encabezado con datos de la asignatura, configuración de l
 
 Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamiento, plegamiento, conversión de bases) en decimal y binario · tratamiento de colisiones (reasignación, arreglos anidados, encadenamiento secuencial) · otras búsquedas internas (residuos, árboles de búsqueda digital, residuos múltiples, tablas de índices, rejilla, árboles 2D).
 
-**Orden de construcción confirmado: primero búsqueda secuencial, luego binaria.** Secuencial es el módulo anterior a binaria en el orden de la asignatura, y sirve como la primera plantilla end-to-end (dominio → traza → elisión → animación → bitácora); binaria reutiliza ese mismo patrón, no al revés.
+**Orden de construcción confirmado: primero búsqueda secuencial, luego binaria.** Secuencial es el tema anterior a binaria en el orden de la asignatura, y sirve como la primera plantilla end-to-end (dominio → traza → elisión → animación → bitácora); binaria reutiliza ese mismo patrón, no al revés.
 
-**Estado de construcción:** secuencial y binaria implementadas y disponibles en el menú. La plantilla que dejó secuencial ya está extraída en `vista/pantallas/modulo-busqueda.js`; el siguiente módulo —funciones hash— debe entrar por ahí, con `orientacion: 'vertical'`.
+**Estado de construcción:** secuencial y binaria implementadas y disponibles en el menú. La plantilla que dejó secuencial ya está extraída en `vista/pantallas/tema-busqueda.js`; el siguiente tema —funciones hash— debe entrar por ahí, con `orientacion: 'vertical'`.
 
 Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al stack de respaldo), y ni `css/impresion.css` ni `persistencia/archivo.js` (.cc2) están construidos.
 

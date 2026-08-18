@@ -2,13 +2,13 @@
   const ALFABETO = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const TILDES = { 'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ü': 'U' };
 
-  function validarClaveNumerica(entrada, L) {
+  function validarClaveNumerica(entrada, l) {
     const texto = String(entrada).trim();
     if (!/^[0-9]+$/.test(texto)) {
       return { valido: false, mensaje: 'Carácter no admitido: solo se aceptan dígitos.' };
     }
-    if (texto.length !== L) {
-      return { valido: false, mensaje: `Longitud de clave inválida: se esperan ${L} dígitos.` };
+    if (texto.length !== l) {
+      return { valido: false, mensaje: `Longitud de clave inválida: se esperan ${l} dígitos.` };
     }
     // Sin ceros a la izquierda (CLAUDE.md 3.3): rechazarlo aquí evita distinguir
     // "0521" de "521" más adelante, donde ya son el mismo número.
@@ -29,11 +29,11 @@
   }
 
   // Implementación diferida (CLAUDE.md 3.4): el tipo se mantiene en el modelo,
-  // deshabilitado en la interfaz, hasta que se habilite el módulo alfabético.
-  function validarClaveAlfabetica(entrada, L) {
+  // deshabilitado en la interfaz, hasta que se habiliten las claves alfabéticas.
+  function validarClaveAlfabetica(entrada, l) {
     const texto = String(entrada).trim();
-    if (texto.length !== L) {
-      return { valido: false, mensaje: `Longitud de clave inválida: se esperan ${L} letras.` };
+    if (texto.length !== l) {
+      return { valido: false, mensaje: `Longitud de clave inválida: se esperan ${l} letras.` };
     }
     const letras = [];
     for (const caracter of texto) {

@@ -2,12 +2,12 @@
   const LIMITE_DURO_N = 10000;
   const UMBRAL_ADVERTENCIA_N = 500;
 
-  function rangoValido(L) {
-    return { min: Math.pow(10, L - 1), max: Math.pow(10, L) - 1 };
+  function rangoValido(l) {
+    return { min: Math.pow(10, l - 1), max: Math.pow(10, l) - 1 };
   }
 
-  function clavesDistintasPosibles(L) {
-    return 9 * Math.pow(10, L - 1);
+  function clavesDistintasPosibles(l) {
+    return 9 * Math.pow(10, l - 1);
   }
 
   // Cota superior de comparaciones de la búsqueda binaria: ⌈log₂ n⌉ (CLAUDE.md 5.2).
@@ -17,19 +17,19 @@
     return Math.ceil(Math.log2(n));
   }
 
-  // El límite derivado de L se valida al crear la estructura, no al insertar (CLAUDE.md 3.5).
-  function validarTamano(n, L) {
+  // El límite derivado de l se valida al crear la estructura, no al insertar (CLAUDE.md 3.5).
+  function validarTamano(n, l) {
     if (n > LIMITE_DURO_N) {
       return {
         valido: false,
         mensaje: `Tamaño inviable: el límite máximo de la estructura es ${LIMITE_DURO_N} casillas.`
       };
     }
-    const maxDistintas = clavesDistintasPosibles(L);
+    const maxDistintas = clavesDistintasPosibles(l);
     if (n > maxDistintas) {
       return {
         valido: false,
-        mensaje: `Tamaño inviable: para L = ${L} solo existen ${maxDistintas} claves distintas.`
+        mensaje: `Tamaño inviable: para l = ${l} solo existen ${maxDistintas} claves distintas.`
       };
     }
     return {

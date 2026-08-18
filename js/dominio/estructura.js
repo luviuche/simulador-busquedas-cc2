@@ -1,13 +1,13 @@
 (function () {
-  function crearEstructura({ n, L, tipoClave }) {
-    const validacion = window.CC2.dominio.limites.validarTamano(n, L);
+  function crearEstructura({ n, l, tipoClave }) {
+    const validacion = window.CC2.dominio.limites.validarTamano(n, l);
     if (!validacion.valido) {
       return { exito: false, mensaje: validacion.mensaje };
     }
     return {
       exito: true,
       advertencia: validacion.advertencia,
-      estructura: { n, L, tipoClave, claves: [] }
+      estructura: { n, l, tipoClave, claves: [] }
     };
   }
 

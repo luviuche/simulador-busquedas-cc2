@@ -4,8 +4,11 @@
   const vista = window.CC2.vista;
   const persistencia = window.CC2.persistencia;
 
-  // Catálogo de módulos (CLAUDE.md 5 y 12). `disponible` refleja el estado
-  // real de esta compilación, no el alcance final de la asignatura.
+  // Catálogo de temas (CLAUDE.md 5 y 12). `disponible` refleja el estado real
+  // de esta compilación, no el alcance final de la asignatura.
+  //
+  // Los temas no se numeran: se identifican por su nombre. La numeración
+  // sobrevive solo en las unidades, que sí son divisiones del programa.
   const CATALOGO = [
     {
       numero: '01',
@@ -14,30 +17,30 @@
       grupos: [
         {
           titulo: 'Búsquedas internas',
-          modulos: [
-            { id: 'secuencial', numero: '01', titulo: 'Búsqueda secuencial', descripcion: 'Recorrido lineal, clave por clave', disponible: true },
-            { id: 'binaria', numero: '02', titulo: 'Búsqueda binaria', descripcion: 'División sobre arreglo ordenado', disponible: true }
+          temas: [
+            { id: 'secuencial', titulo: 'Búsqueda secuencial', descripcion: 'Recorrido lineal, clave por clave', disponible: true },
+            { id: 'binaria', titulo: 'Búsqueda binaria', descripcion: 'División sobre arreglo ordenado', disponible: true }
           ]
         },
         {
           titulo: 'Transformación de claves · funciones hash',
-          modulos: [
-            { id: 'hash-modulo', numero: '03', titulo: 'Función módulo', descripcion: 'Dirección por residuo de n', disponible: false },
-            { id: 'hash-cuadrado', numero: '04', titulo: 'Función cuadrado', descripcion: 'Cifras centrales del cuadrado', disponible: false },
-            { id: 'hash-truncamiento', numero: '05', titulo: 'Función truncamiento', descripcion: 'Selección de dígitos de la clave', disponible: false },
-            { id: 'hash-plegamiento', numero: '06', titulo: 'Función plegamiento', descripcion: 'Suma de particiones de la clave', disponible: false },
-            { id: 'hash-bases', numero: '07', titulo: 'Conversión de bases', descripcion: 'Cambio de base y truncamiento', disponible: false }
+          temas: [
+            { id: 'hash-modulo', titulo: 'Función módulo', descripcion: 'Dirección por residuo de n', disponible: false },
+            { id: 'hash-cuadrado', titulo: 'Función cuadrado', descripcion: 'Cifras centrales del cuadrado', disponible: false },
+            { id: 'hash-truncamiento', titulo: 'Función truncamiento', descripcion: 'Selección de dígitos de la clave', disponible: false },
+            { id: 'hash-plegamiento', titulo: 'Función plegamiento', descripcion: 'Suma de particiones de la clave', disponible: false },
+            { id: 'hash-bases', titulo: 'Conversión de bases', descripcion: 'Cambio de base y truncamiento', disponible: false }
           ]
         },
         {
           titulo: 'Otras búsquedas internas',
-          modulos: [
-            { id: 'residuos', numero: '08', titulo: 'Búsqueda por residuos', descripcion: 'Ramificación por dígitos binarios', disponible: false },
-            { id: 'arbol-digital', numero: '09', titulo: 'Árboles de búsqueda digital', descripcion: 'Inserción bit a bit', disponible: false },
-            { id: 'residuos-multiples', numero: '10', titulo: 'Residuos múltiples', descripcion: 'Ramificación por bloques de bits', disponible: false },
-            { id: 'tablas-indices', numero: '11', titulo: 'Tablas de índices', descripcion: 'Acceso mediante tabla auxiliar', disponible: false },
-            { id: 'rejilla', numero: '12', titulo: 'Método de la rejilla', descripcion: 'Partición del espacio en celdas', disponible: false },
-            { id: 'arbol-2d', numero: '13', titulo: 'Árboles 2D', descripcion: 'Búsqueda en dos dimensiones', disponible: false }
+          temas: [
+            { id: 'residuos', titulo: 'Búsqueda por residuos', descripcion: 'Ramificación por dígitos binarios', disponible: false },
+            { id: 'arbol-digital', titulo: 'Árboles de búsqueda digital', descripcion: 'Inserción bit a bit', disponible: false },
+            { id: 'residuos-multiples', titulo: 'Residuos múltiples', descripcion: 'Ramificación por bloques de bits', disponible: false },
+            { id: 'tablas-indices', titulo: 'Tablas de índices', descripcion: 'Acceso mediante tabla auxiliar', disponible: false },
+            { id: 'rejilla', titulo: 'Método de la rejilla', descripcion: 'Partición del espacio en celdas', disponible: false },
+            { id: 'arbol-2d', titulo: 'Árboles 2D', descripcion: 'Búsqueda en dos dimensiones', disponible: false }
           ]
         }
       ]
@@ -49,22 +52,22 @@
       grupos: [
         {
           titulo: 'Búsquedas externas',
-          modulos: [
-            { id: 'externa-sec-bin', numero: '14', titulo: 'Búsqueda secuencial y binaria externa', descripcion: '', disponible: false },
-            { id: 'indices', numero: '15', titulo: 'Índices primarios, secundarios y multinivel', descripcion: '', disponible: false }
+          temas: [
+            { id: 'externa-sec-bin', titulo: 'Búsqueda secuencial y binaria externa', descripcion: '', disponible: false },
+            { id: 'indices', titulo: 'Índices primarios, secundarios y multinivel', descripcion: '', disponible: false }
           ]
         },
         {
           titulo: 'Grafos',
-          modulos: [
-            { id: 'grafos-def', numero: '16', titulo: 'Definiciones, recorridos e isomorfismo', descripcion: '', disponible: false },
-            { id: 'grafos-euler', numero: '17', titulo: 'Circuitos de Euler y Hamilton', descripcion: '', disponible: false },
-            { id: 'grafos-operaciones', numero: '18', titulo: 'Operaciones entre grafos', descripcion: '', disponible: false },
-            { id: 'grafos-expansion', numero: '19', titulo: 'Árboles de expansión — Prim y Kruskal', descripcion: '', disponible: false },
-            { id: 'grafos-corte', numero: '20', titulo: 'Conjuntos de corte y conectividad', descripcion: '', disponible: false },
-            { id: 'grafos-matricial', numero: '21', titulo: 'Representación matricial', descripcion: '', disponible: false },
-            { id: 'grafos-coloreado', numero: '22', titulo: 'Coloreado y particionamiento', descripcion: '', disponible: false },
-            { id: 'grafos-pareamientos', numero: '23', titulo: 'Pareamientos y envolventes', descripcion: '', disponible: false }
+          temas: [
+            { id: 'grafos-def', titulo: 'Definiciones, recorridos e isomorfismo', descripcion: '', disponible: false },
+            { id: 'grafos-euler', titulo: 'Circuitos de Euler y Hamilton', descripcion: '', disponible: false },
+            { id: 'grafos-operaciones', titulo: 'Operaciones entre grafos', descripcion: '', disponible: false },
+            { id: 'grafos-expansion', titulo: 'Árboles de expansión — Prim y Kruskal', descripcion: '', disponible: false },
+            { id: 'grafos-corte', titulo: 'Conjuntos de corte y conectividad', descripcion: '', disponible: false },
+            { id: 'grafos-matricial', titulo: 'Representación matricial', descripcion: '', disponible: false },
+            { id: 'grafos-coloreado', titulo: 'Coloreado y particionamiento', descripcion: '', disponible: false },
+            { id: 'grafos-pareamientos', titulo: 'Pareamientos y envolventes', descripcion: '', disponible: false }
           ]
         }
       ]
@@ -84,12 +87,11 @@
     valor: ({ paso }) => (paso ? String(paso.accesos) : '0')
   };
 
-  // Configuración de cada módulo sobre la pantalla común de búsqueda. Lo único
+  // Configuración de cada tema sobre la pantalla común de búsqueda. Lo único
   // propio de un algoritmo es cómo se lee su traza: qué casillas son relevantes
   // para la elisión y en qué estado queda cada una en el paso actual.
-  const MODULOS = {
+  const TEMAS = {
     secuencial: {
-      numero: '01',
       titulo: 'BÚSQUEDA SECUENCIAL',
       descripcion: 'Recorrido lineal, clave por clave',
       buscar: (claves, objetivo) => algoritmos.secuencial.buscarSecuencial(claves, objetivo),
@@ -105,7 +107,6 @@
     },
 
     binaria: {
-      numero: '02',
       titulo: 'BÚSQUEDA BINARIA',
       descripcion: 'División sobre arreglo ordenado',
       buscar: (claves, objetivo) => algoritmos.binaria.buscarBinaria(claves, objetivo),
@@ -155,13 +156,13 @@
     raiz.appendChild(pantalla);
   }
 
-  function mostrarModulo(modulo) {
-    const config = MODULOS[modulo.id];
-    if (!modulo.disponible || !config) {
-      mostrarAlertaMenu('info', `Módulo en construcción: "${modulo.titulo}" aún no está implementado.`);
+  function mostrarTema(tema) {
+    const config = TEMAS[tema.id];
+    if (!tema.disponible || !config) {
+      mostrarAlertaMenu('info', `Tema en construcción: "${tema.titulo}" aún no está implementado.`);
       return;
     }
-    montarPantalla(vista.pantallas.moduloBusqueda.crearPantallaModulo(config, mostrarMenu));
+    montarPantalla(vista.pantallas.temaBusqueda.crearPantallaTema(config, mostrarMenu));
   }
 
   function mostrarAlertaMenu(tipo, mensaje) {
@@ -177,7 +178,7 @@
     const pantalla = vista.pantallas.menu.crearPantallaMenu({
       catalogo: CATALOGO,
       recientes: persistencia.recientes.obtener(),
-      alSeleccionarModulo: mostrarModulo,
+      alSeleccionarTema: mostrarTema,
       alVerAlertas: () => mostrarAlertaMenu('info', 'Sin alertas activas en esta sesión.')
     });
 

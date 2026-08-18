@@ -3,19 +3,19 @@
   const vista = window.CC2.vista;
   const persistencia = window.CC2.persistencia;
 
-  // Pantalla de trabajo común a los módulos de búsqueda interna. Secuencial la
+  // Pantalla de trabajo común a los temas de búsqueda interna. Secuencial la
   // estrenó; binaria la reutiliza (CLAUDE.md 12). Lo único que cambia entre
-  // módulos entra por `config`; todo lo demás —configurar, insertar, llenar,
+  // temas entra por `config`; todo lo demás —configurar, insertar, llenar,
   // reproducir, elidir, bitácora— vive aquí una sola vez.
   //
   // config = {
-  //   numero, titulo, descripcion, orientacion,
+  //   titulo, descripcion, orientacion,
   //   buscar(claves, objetivo) -> pasos,
   //   casillasRelevantes(paso) -> [indices base 1],
   //   describirCasilla({ paso, indice, ocupada }) -> { estado, modificadores },
   //   metricas: [{ id, etiqueta, valor({ estructura, paso }) -> string }]
   // }
-  function crearPantallaModulo(config, alVolver) {
+  function crearPantallaTema(config, alVolver) {
     const estado = {
       estructura: null,
       reproductor: null,
@@ -121,7 +121,7 @@
     }
 
     function insertarClave(texto) {
-      const validacion = dominio.clave.validarClaveNumerica(texto, estado.estructura.L);
+      const validacion = dominio.clave.validarClaveNumerica(texto, estado.estructura.l);
       if (!validacion.valido) {
         mostrarAlerta('error', validacion.mensaje);
         return;
@@ -141,7 +141,7 @@
     // Llenado numérico (CLAUDE.md 12: el alfabético queda diferido). Inserta de
     // a una para que la animación de inserción se vea, no un salto al estado final.
     function llenarAutomaticamente() {
-      const { min, max } = dominio.limites.rangoValido(estado.estructura.L);
+      const { min, max } = dominio.limites.rangoValido(estado.estructura.l);
       const objetivo = estado.estructura.n - estado.estructura.claves.length;
       if (objetivo <= 0) {
         mostrarAlerta('error', `Estructura saturada: capacidad máxima de ${estado.estructura.n} casillas alcanzada.`);
@@ -174,7 +174,7 @@
     }
 
     function iniciarBusqueda(texto) {
-      const validacion = dominio.clave.validarClaveNumerica(texto, estado.estructura.L);
+      const validacion = dominio.clave.validarClaveNumerica(texto, estado.estructura.l);
       if (!validacion.valido) {
         mostrarAlerta('error', validacion.mensaje);
         return;
@@ -214,10 +214,10 @@
         <label class="texto-nivel-3">Tamaño de la estructura (n)
           <input type="number" name="n" min="1" required>
         </label>
-        <label class="texto-nivel-3">Longitud de clave (L)
-          <input type="number" name="L" min="1" required>
+        <label class="texto-nivel-3">Longitud de clave (l)
+          <input type="number" name="l" min="1" required>
         </label>
-        <div class="pantalla-modulo__controles">
+        <div class="pantalla-tema__controles">
           <button type="submit" class="boton boton--primario">Crear estructura</button>
         </div>
       `;
@@ -226,8 +226,8 @@
         const datos = new FormData(contenedor);
         const nombre = String(datos.get('nombre')).trim();
         const n = Number(datos.get('n'));
-        const L = Number(datos.get('L'));
-        const resultado = dominio.estructura.crearEstructura({ n, L, tipoClave: 'numerica' });
+        const l = Number(datos.get('l'));
+        const resultado = dominio.estructura.crearEstructura({ n, l, tipoClave: 'numerica' });
         if (!resultado.exito) {
           mostrarAlerta('error', resultado.mensaje);
           return;
@@ -237,8 +237,8 @@
         invalidarReproduccion();
         limpiarAlerta();
         if (resultado.advertencia) mostrarAlerta('advertencia', resultado.advertencia);
-        registrarBitacora(`Estructura creada: n = ${n}, L = ${L}.`);
-        persistencia.recientes.registrar({ nombre, moduloTitulo: config.titulo, n, L });
+        registrarBitacora(`Estructura creada: n = ${n}, l = ${l}.`);
+        persistencia.recientes.registrar({ nombre, temaTitulo: config.titulo, n, l });
         renderizarEstructura(null);
         actualizarMetricas(null);
       });
@@ -253,7 +253,7 @@
         <label class="texto-nivel-3">Clave
           <input type="text" name="clave" inputmode="numeric" required>
         </label>
-        <div class="pantalla-modulo__controles">
+        <div class="pantalla-tema__controles">
           <button type="submit" class="boton boton--primario">Insertar clave</button>
           <button type="button" class="boton" data-accion="llenado-automatico">Llenado automático</button>
         </div>
@@ -280,10 +280,10 @@
         <label class="texto-nivel-3">Clave objetivo
           <input type="text" name="objetivo" inputmode="numeric" required>
         </label>
-        <div class="pantalla-modulo__controles">
+        <div class="pantalla-tema__controles">
           <button type="submit" class="boton boton--primario">Buscar clave</button>
         </div>
-        <div class="pantalla-modulo__controles" data-seccion="reproduccion" hidden>
+        <div class="pantalla-tema__controles" data-seccion="reproduccion" hidden>
           <button type="button" class="boton" data-accion="anterior">◀ Paso anterior</button>
           <button type="button" class="boton" data-accion="siguiente">Paso siguiente ▶</button>
           <button type="button" class="boton" data-accion="reproducir">Reproducir</button>
@@ -325,7 +325,7 @@
 
     function crearPanelMetricas() {
       const contenedorMetricas = document.createElement('div');
-      contenedorMetricas.className = 'pantalla-modulo__metricas';
+      contenedorMetricas.className = 'pantalla-tema__metricas';
 
       for (const metrica of config.metricas) {
         const el = vista.componentes.panel.crearMetrica({
@@ -341,7 +341,7 @@
 
     function crearControlElision() {
       const etiqueta = document.createElement('label');
-      etiqueta.className = 'texto-nivel-5';
+      etiqueta.className = 'lienzo__control texto-nivel-5';
       etiqueta.innerHTML = `<input type="checkbox" data-control="mostrar-completa"> Ver estructura completa`;
       etiqueta.querySelector('input').addEventListener('change', (evento) => {
         estado.mostrarCompleta = evento.target.checked;
@@ -350,46 +350,43 @@
       return etiqueta;
     }
 
+    // Sin rótulo ni numeración: el tema se identifica por su nombre.
     function crearEncabezado() {
       const encabezado = document.createElement('header');
-      encabezado.className = 'pantalla-modulo__encabezado';
+      encabezado.className = 'pantalla-tema__encabezado';
 
       const botonVolver = document.createElement('button');
       botonVolver.type = 'button';
-      botonVolver.className = 'pantalla-modulo__volver texto-nivel-4';
+      botonVolver.className = 'pantalla-tema__volver texto-nivel-4';
       botonVolver.textContent = '← Menú';
       botonVolver.addEventListener('click', () => {
         invalidarReproduccion();
         alVolver();
       });
 
-      const rotulo = document.createElement('span');
-      rotulo.className = 'pantalla-modulo__rotulo texto-nivel-2';
-      rotulo.textContent = `Módulo ${config.numero}`;
-
       const tituloEl = document.createElement('h1');
       tituloEl.className = 'texto-nivel-1';
       tituloEl.textContent = config.titulo;
 
       const subtituloEl = document.createElement('span');
-      subtituloEl.className = 'pantalla-modulo__subtitulo texto-nivel-5';
+      subtituloEl.className = 'pantalla-tema__subtitulo texto-nivel-5';
       subtituloEl.textContent = config.descripcion;
 
-      encabezado.append(botonVolver, rotulo, tituloEl, subtituloEl);
+      encabezado.append(botonVolver, tituloEl, subtituloEl);
       return encabezado;
     }
 
     const pantalla = document.createElement('div');
-    pantalla.className = 'pantalla pantalla-modulo';
+    pantalla.className = 'pantalla pantalla-tema';
 
     const lienzo = document.createElement('div');
-    lienzo.className = 'pantalla-modulo__lienzo';
+    lienzo.className = 'pantalla-tema__lienzo';
     dom.estructuraEl = document.createElement('div');
     dom.estructuraEl.className = 'estructura-horizontal';
     lienzo.append(crearControlElision(), dom.estructuraEl);
 
     const panelLateral = document.createElement('div');
-    panelLateral.className = 'pantalla-modulo__panel-lateral';
+    panelLateral.className = 'pantalla-tema__panel-lateral';
     dom.alertas = document.createElement('div');
     dom.bitacora = vista.componentes.bitacora.crearBitacora();
 
@@ -409,5 +406,5 @@
   window.CC2 = window.CC2 || {};
   window.CC2.vista = window.CC2.vista || {};
   window.CC2.vista.pantallas = window.CC2.vista.pantallas || {};
-  window.CC2.vista.pantallas.moduloBusqueda = { crearPantallaModulo };
+  window.CC2.vista.pantallas.temaBusqueda = { crearPantallaTema };
 })();

@@ -50,12 +50,12 @@
   gap: var(--espacio-4);
 }
 
-.unidad--atenuada .modulo-item__titulo {
+.unidad--atenuada .tema-item__titulo {
   font-weight: 400;
   color: var(--tinta-suave);
 }
 
-.unidad--atenuada .modulo-item {
+.unidad--atenuada .tema-item {
   cursor: default;
 }
 
@@ -93,13 +93,13 @@
   border-style: dashed;
 }
 
-.grupo-modulos {
+.grupo-temas {
   display: flex;
   flex-direction: column;
   gap: var(--espacio-2);
 }
 
-.lista-modulos {
+.lista-temas {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -107,34 +107,31 @@
   flex-direction: column;
 }
 
-.modulo-item {
-  display: grid;
-  grid-template-columns: 24px 1fr;
-  column-gap: var(--espacio-3);
-  align-items: baseline;
+/* Sin número que lo anteceda, el tema se identifica por su nombre: título y
+   descripción se apilan, y la sangría sostiene la jerarquía bajo el grupo. */
+.tema-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-1);
   width: 100%;
-  padding: var(--espacio-1) 0;
+  padding: var(--espacio-1) 0 var(--espacio-1) var(--espacio-3);
   border: none;
+  border-left: 2px solid transparent;
   background: none;
   text-align: left;
   cursor: pointer;
 }
 
-.modulo-item:disabled {
+.tema-item:disabled {
   cursor: default;
 }
 
-.modulo-item:not(:disabled):hover .modulo-item__titulo {
+.tema-item:not(:disabled):hover {
+  border-left-color: var(--estado-rango-borde);
+}
+
+.tema-item:not(:disabled):hover .tema-item__titulo {
   color: var(--estado-rango-borde);
-}
-
-.modulo-item__numero {
-  color: var(--tinta-suave);
-  font-size: 12px;
-}
-
-.modulo-item__descripcion {
-  grid-column: 2;
 }
 
 /* Recientes */
@@ -166,17 +163,24 @@
   gap: var(--espacio-2);
 }
 
-/* Módulo (pantalla de trabajo de un algoritmo) */
-.pantalla-modulo {
+/* Tema (pantalla de trabajo de un algoritmo) */
+/* La estructura es el foco de atención de la clase: tiene que estar visible al
+   abrir el tema, sin scroll. Por eso la pantalla se ancla al alto del viewport
+   y el desplazamiento vive dentro del panel lateral, nunca en la página — si
+   scrollea la página, el algoritmo se va de pantalla al proyectar.
+   `minmax(0, 1fr)` en vez de `1fr`: sin él la fila no puede encogerse por
+   debajo de su contenido y el panel lateral vuelve a estirar el lienzo. */
+.pantalla-tema {
   display: grid;
   grid-template-columns: 1fr 340px;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: var(--espacio-5);
   padding: var(--espacio-5);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
-.pantalla-modulo__encabezado {
+.pantalla-tema__encabezado {
   grid-column: 1 / -1;
   display: flex;
   align-items: baseline;
@@ -185,7 +189,7 @@
   border-bottom: 1px solid var(--borde);
 }
 
-.pantalla-modulo__volver {
+.pantalla-tema__volver {
   border: none;
   background: none;
   cursor: pointer;
@@ -193,41 +197,50 @@
   align-self: center;
 }
 
-.pantalla-modulo__rotulo {
+.pantalla-tema__rotulo {
   align-self: center;
 }
 
-.pantalla-modulo__subtitulo {
+.pantalla-tema__subtitulo {
   align-self: center;
 }
 
-.pantalla-modulo__lienzo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+/* El control de elisión se fija arriba y la estructura se centra en el resto,
+   para que no se desplace verticalmente al cambiar de paso. */
+.pantalla-tema__lienzo {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: var(--espacio-3);
   background: var(--superficie-hundida);
   border: 1px solid var(--borde);
   border-radius: var(--radio-panel);
-  padding: var(--espacio-6);
-  overflow: auto;
+  padding: var(--espacio-5);
+  min-height: 0;
+  overflow: hidden;
 }
 
-.pantalla-modulo__panel-lateral {
+.lienzo__control {
+  justify-self: end;
+}
+
+.pantalla-tema__panel-lateral {
   display: flex;
   flex-direction: column;
   gap: var(--espacio-4);
+  min-height: 0;
+  overflow-y: auto;
+  /* Aire para que la barra de desplazamiento no se monte sobre los paneles. */
+  padding-right: var(--espacio-2);
 }
 
-.pantalla-modulo__controles {
+.pantalla-tema__controles {
   display: flex;
   align-items: center;
   gap: var(--espacio-2);
   flex-wrap: wrap;
 }
 
-.pantalla-modulo__metricas {
+.pantalla-tema__metricas {
   display: flex;
   gap: var(--espacio-5);
 }
@@ -240,6 +253,11 @@
   /* Deja aire arriba para el corchete del rango activo, que se dibuja fuera
      del flujo sobre las casillas. */
   padding-top: var(--espacio-4);
+  /* Centrada en el lienzo (CLAUDE.md 6.2). Si aun con elisión no cabe a lo
+     ancho, scrollea ella y no la página. */
+  place-self: center;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 /* Cada casilla viaja con su marca de escala: así la numeración sigue rotulando

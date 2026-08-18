@@ -14,30 +14,29 @@
     return el;
   }
 
-  function crearItemModulo(modulo, interactivo, alSeleccionarModulo) {
+  // Las temáticas no se numeran: el docente pidió que se identifiquen por su
+  // nombre. La numeración sobrevive solo en las unidades, que sí son divisiones
+  // del programa del curso.
+  function crearItemTema(tema, interactivo, alSeleccionarTema) {
     const li = document.createElement('li');
     const boton = document.createElement('button');
     boton.type = 'button';
-    boton.className = 'modulo-item';
-
-    const numero = document.createElement('span');
-    numero.className = 'modulo-item__numero texto-mono';
-    numero.textContent = modulo.numero;
+    boton.className = 'tema-item';
 
     const titulo = document.createElement('span');
-    titulo.className = 'modulo-item__titulo texto-nivel-3';
-    titulo.textContent = modulo.titulo;
+    titulo.className = 'tema-item__titulo texto-nivel-3';
+    titulo.textContent = tema.titulo;
 
     const descripcion = document.createElement('span');
-    descripcion.className = 'modulo-item__descripcion texto-nivel-5';
-    descripcion.textContent = modulo.descripcion;
+    descripcion.className = 'tema-item__descripcion texto-nivel-5';
+    descripcion.textContent = tema.descripcion;
 
-    boton.append(numero, titulo, descripcion);
-    // Unidad 02 está en desarrollo (CLAUDE.md 12): sus módulos no responden al
-    // clic. Dentro de la unidad disponible, los módulos aún no construidos sí
+    boton.append(titulo, descripcion);
+    // Unidad 02 está en desarrollo (CLAUDE.md 12): sus temas no responden al
+    // clic. Dentro de la unidad disponible, los temas aún no construidos sí
     // responden, para poder avisar en vez de quedarse mudos.
     if (interactivo) {
-      boton.addEventListener('click', () => alSeleccionarModulo(modulo));
+      boton.addEventListener('click', () => alSeleccionarTema(tema));
     } else {
       boton.tabIndex = -1;
     }
@@ -45,22 +44,22 @@
     return li;
   }
 
-  function crearGrupo(grupo, interactivo, alSeleccionarModulo) {
+  function crearGrupo(grupo, interactivo, alSeleccionarTema) {
     const contenedor = document.createElement('div');
-    contenedor.className = 'grupo-modulos';
+    contenedor.className = 'grupo-temas';
     const titulo = document.createElement('h3');
     titulo.className = 'texto-nivel-2';
     titulo.textContent = grupo.titulo;
     const lista = document.createElement('ul');
-    lista.className = 'lista-modulos';
-    for (const modulo of grupo.modulos) {
-      lista.appendChild(crearItemModulo(modulo, interactivo, alSeleccionarModulo));
+    lista.className = 'lista-temas';
+    for (const tema of grupo.temas) {
+      lista.appendChild(crearItemTema(tema, interactivo, alSeleccionarTema));
     }
     contenedor.append(titulo, lista);
     return contenedor;
   }
 
-  function crearUnidad(unidad, alSeleccionarModulo) {
+  function crearUnidad(unidad, alSeleccionarTema) {
     const seccion = document.createElement('section');
     const enDesarrollo = unidad.estado === 'desarrollo';
     seccion.className = `unidad${enDesarrollo ? ' unidad--atenuada' : ''}`;
@@ -76,19 +75,19 @@
     titulo.className = 'texto-nivel-1';
     titulo.textContent = unidad.titulo;
 
-    const totalModulos = unidad.grupos.reduce((total, grupo) => total + grupo.modulos.length, 0);
+    const totalTemas = unidad.grupos.reduce((total, grupo) => total + grupo.temas.length, 0);
     const metadatos = document.createElement('div');
     metadatos.className = 'unidad__metadatos';
     const contador = document.createElement('span');
     contador.className = 'texto-nivel-5';
-    contador.textContent = `${totalModulos} módulos`;
+    contador.textContent = `${totalTemas} temas`;
     metadatos.append(crearInsignia(unidad.estado), contador);
 
     encabezado.append(etiqueta, titulo, metadatos);
     seccion.appendChild(encabezado);
 
     for (const grupo of unidad.grupos) {
-      seccion.appendChild(crearGrupo(grupo, !enDesarrollo, alSeleccionarModulo));
+      seccion.appendChild(crearGrupo(grupo, !enDesarrollo, alSeleccionarTema));
     }
     return seccion;
   }
@@ -112,7 +111,7 @@
 
     const detalle = document.createElement('span');
     detalle.className = 'reciente-item__detalle texto-nivel-5';
-    detalle.textContent = `${item.moduloTitulo} · n = ${item.n} · L = ${item.L}`;
+    detalle.textContent = `${item.temaTitulo} · n = ${item.n} · l = ${item.l}`;
 
     li.append(fila, detalle);
     return li;
@@ -132,7 +131,7 @@
     if (recientes.length === 0) {
       const vacio = document.createElement('p');
       vacio.className = 'texto-nivel-5';
-      vacio.textContent = 'Para crear una estructura, seleccione un módulo del catálogo.';
+      vacio.textContent = 'Para crear una estructura, seleccione un tema del catálogo.';
       aside.appendChild(vacio);
       return aside;
     }
@@ -146,7 +145,7 @@
     return aside;
   }
 
-  function crearPantallaMenu({ catalogo, recientes, alSeleccionarModulo, alVerAlertas }) {
+  function crearPantallaMenu({ catalogo, recientes, alSeleccionarTema, alVerAlertas }) {
     const pantalla = document.createElement('div');
     pantalla.className = 'pantalla pantalla-menu-app';
 
@@ -177,7 +176,7 @@
     const columnaCatalogo = document.createElement('div');
     columnaCatalogo.className = 'pantalla-menu__catalogo';
     for (const unidad of catalogo) {
-      columnaCatalogo.appendChild(crearUnidad(unidad, alSeleccionarModulo));
+      columnaCatalogo.appendChild(crearUnidad(unidad, alSeleccionarTema));
     }
 
     cuerpo.append(columnaCatalogo, crearPanelRecientes(recientes));

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Captura — simulador CC2</title>
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/componentes.css">
+  <link rel="stylesheet" href="../css/pantallas.css">
+</head>
+<body>
+  <!--
+    Deja la aplicación en un estado concreto para fotografiarla. El estado se
+    elige con el parámetro ?vista= de la URL:
+      menu      → catálogo (por defecto)
+      binaria   → búsqueda binaria a media traza
+      secuencial→ búsqueda secuencial a media traza
+
+    Uso:
+      msedge --headless --disable-gpu --window-size=1600,1000 \
+             --screenshot=salida.png --virtual-time-budget=8000 \
+             "file:///…/pruebas/captura.html?vista=binaria"
+  -->
+  <div id="app"></div>
+
+  <script src="../js/dominio/limites.js"></script>
+  <script src="../js/dominio/clave.js"></script>
+  <script src="../js/dominio/estructura.js"></script>
+  <script src="../js/algoritmos/traza.js"></script>
+  <script src="../js/algoritmos/secuencial.js"></script>
+  <script src="../js/algoritmos/binaria.js"></script>
+  <script src="../js/persistencia/recientes.js"></script>
+  <script src="../js/vista/componentes/casilla.js"></script>
+  <script src="../js/vista/componentes/panel.js"></script>
+  <script src="../js/vista/componentes/bitacora.js"></script>
+  <script src="../js/vista/elision.js"></script>
+  <script src="../js/vista/reproductor.js"></script>
+  <script src="../js/vista/animacion.js"></script>
+  <script src="../js/vista/pantallas/menu.js"></script>
+  <script src="../js/vista/pantallas/tema-busqueda.js"></script>
+  <script src="../js/app.js"></script>
+
+  <script>
+    function enviar(formulario, valores) {
+      for (const [nombre, valor] of Object.entries(valores)) {
+        formulario.querySelector(`[name="${nombre}"]`).value = valor;
+      }
+      formulario.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const vista = new URLSearchParams(location.search).get('vista') || 'menu';
+      if (vista === 'menu') return;
+
+      const nombreTema = vista === 'binaria' ? 'Búsqueda binaria' : 'Búsqueda secuencial';
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes(nombreTema))
+        .click();
+
+      const formularios = [...document.querySelectorAll('form.panel')];
+      enviar(formularios[0], { nombre: 'Práctica de clase', n: 24, l: 2 });
+      for (const clave of [10, 18, 24, 31, 37, 42, 50, 63, 71, 84, 90, 97]) {
+        enviar(formularios[1], { clave });
+      }
+
+      enviar(formularios[2], { objetivo: 84 });
+      // Detenerse a media traza: es donde la visualización dice más.
+      const siguiente = formularios[2].querySelector('[data-accion="siguiente"]');
+      siguiente.click();
+    });
+  </script>
+</body>
+</html>

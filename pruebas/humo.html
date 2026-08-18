@@ -3,10 +3,14 @@
 <head>
   <meta charset="utf-8">
   <title>Prueba de humo — simulador CC2</title>
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/componentes.css">
+  <link rel="stylesheet" href="../css/pantallas.css">
 </head>
 <body>
   <!--
-    Prueba de integración de la pantalla de módulo: entra desde el menú, crea
+    Prueba de integración de la pantalla de tema: entra desde el menú, crea
     una estructura, inserta claves y recorre la traza, todo por el DOM real.
     `node --test` sólo cubre dominio y algoritmos; esto cubre la vista sin
     añadir una sola dependencia al proyecto.
@@ -32,7 +36,7 @@
   <script src="../js/vista/reproductor.js"></script>
   <script src="../js/vista/animacion.js"></script>
   <script src="../js/vista/pantallas/menu.js"></script>
-  <script src="../js/vista/pantallas/modulo-busqueda.js"></script>
+  <script src="../js/vista/pantallas/tema-busqueda.js"></script>
   <script src="../js/app.js"></script>
 
   <script>
@@ -66,20 +70,47 @@
       }).join(' ');
     }
 
-    function ejercitarModulo(nombreModulo, { n, L, claves, objetivo, comparacionesEsperadas }) {
-      registro.push('', `── ${nombreModulo} ──`);
+    function ejercitarTema(nombreTema, { n, l, claves, objetivo, comparacionesEsperadas }) {
+      registro.push('', `── ${nombreTema} ──`);
 
-      const item = [...document.querySelectorAll('.modulo-item')]
-        .find((el) => el.textContent.includes(nombreModulo));
+      const item = [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes(nombreTema));
       item.click();
-      afirmar(!!document.querySelector('.pantalla-modulo'), 'la pantalla del módulo se monta');
+      afirmar(!!document.querySelector('.pantalla-tema'), 'la pantalla del tema se monta');
+
+      afirmar(
+        !document.querySelector('.pantalla-tema__encabezado').textContent.includes('Módulo'),
+        'el encabezado no rotula el tema como módulo'
+      );
 
       const formularios = [...document.querySelectorAll('form.panel')];
-      enviar(formularios[0], { nombre: 'Prueba de humo', n, L });
+      enviar(formularios[0], { nombre: 'Prueba de humo', n, l });
       for (const clave of claves) enviar(formularios[1], { clave });
 
       const dibujadas = [...document.querySelectorAll('.casilla')].length;
       afirmar(dibujadas <= n, `la elisión acota lo dibujado (${dibujadas} de ${n} casillas)`);
+
+      // La estructura es el foco de la clase: tiene que verse sin scroll, o al
+      // proyectar se pierde justo lo que la aplicación existe para mostrar.
+      // Se mide la pantalla contra el viewport y no el documento entero, porque
+      // este informe vive en la misma página y falsearía la altura.
+      const pantalla = document.querySelector('.pantalla-tema');
+      afirmar(
+        pantalla.getBoundingClientRect().height <= window.innerHeight + 1,
+        `la pantalla se ancla al viewport (mide ${Math.round(pantalla.getBoundingClientRect().height)} de ${window.innerHeight})`
+      );
+
+      const lateral = document.querySelector('.pantalla-tema__panel-lateral');
+      afirmar(
+        getComputedStyle(lateral).overflowY === 'auto',
+        'el desplazamiento vive en el panel lateral, no en la página'
+      );
+
+      const caja = document.querySelector('.estructura-horizontal').getBoundingClientRect();
+      afirmar(
+        caja.top >= 0 && caja.bottom <= window.innerHeight,
+        `la estructura entra completa en el viewport (${Math.round(caja.top)}–${Math.round(caja.bottom)} de ${window.innerHeight})`
+      );
 
       enviar(formularios[2], { objetivo });
       const siguiente = formularios[2].querySelector('[data-accion="siguiente"]');
@@ -108,17 +139,22 @@
       afirmar(ultimas[0] !== ultimas[1], 'la bitácora no repite el último mensaje al agotar la traza');
       registro.push('  bitácora final: ' + filas[filas.length - 1]);
 
-      document.querySelector('.pantalla-modulo__volver').click();
+      document.querySelector('.pantalla-tema__volver').click();
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      ejercitarModulo('Búsqueda secuencial', {
-        n: 16, L: 2, claves: [10, 20, 30, 40, 50, 60, 70, 80],
+      // El catálogo no numera los temas: ese es el pedido del docente.
+      const numerados = [...document.querySelectorAll('.tema-item')]
+        .filter((el) => /^\s*\d/.test(el.textContent));
+      afirmar(numerados.length === 0, 'ningún tema del catálogo aparece numerado');
+
+      ejercitarTema('Búsqueda secuencial', {
+        n: 16, l: 2, claves: [10, 20, 30, 40, 50, 60, 70, 80],
         objetivo: 70, comparacionesEsperadas: 7
       });
 
-      ejercitarModulo('Búsqueda binaria', {
-        n: 16, L: 2, claves: [10, 20, 30, 40, 50, 60, 70, 80],
+      ejercitarTema('Búsqueda binaria', {
+        n: 16, l: 2, claves: [10, 20, 30, 40, 50, 60, 70, 80],
         objetivo: 70, comparacionesEsperadas: 3
       });
 
