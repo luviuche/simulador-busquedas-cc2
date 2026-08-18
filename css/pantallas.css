@@ -297,3 +297,45 @@
 .escala__marca--tramo {
   font-size: 10px;
 }
+
+/* Estructuras apiladas (CLAUDE.md 6.3): una fila por paso, cada una con el
+   tramo que sobrevivió al descarte. Un solo grid para todas las filas — no un
+   grid por fila — porque es lo que hace que cada casilla caiga en la misma
+   columna que ocupaba en la estructura original, y que el acortamiento se lea
+   como tal. */
+.estructura-apilada {
+  display: grid;
+  column-gap: var(--espacio-2);
+  row-gap: var(--espacio-1);
+  align-items: center;
+  justify-content: center;
+  /* Centrada en el lienzo mientras quepa; cuando el apilado crece más que el
+     espacio disponible, scrollea ella y no la página. */
+  place-self: center;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--espacio-2);
+}
+
+.estructura-apilada .casilla {
+  width: 100%;
+}
+
+.estructura-apilada .escala__marca {
+  text-align: center;
+  /* Separa cada paso del siguiente sin romper el row-gap uniforme del grid. */
+  padding-bottom: var(--espacio-3);
+}
+
+.apilada__rotulo {
+  padding-right: var(--espacio-3);
+  padding-bottom: var(--espacio-3);
+  white-space: nowrap;
+  text-align: right;
+}
+
+.apilada__cierre {
+  padding-bottom: var(--espacio-3);
+  font-style: italic;
+}

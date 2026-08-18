@@ -353,7 +353,24 @@ La estructura se dibuja **centrada** en el lienzo, horizontal y verticalmente. E
 
 Detalle que hace falta y es fácil de omitir: las filas del grid van con `minmax(0, 1fr)`, no `1fr`. Sin el `minmax(0, …)` una fila de grid no puede encogerse por debajo de su contenido, y el panel lateral vuelve a estirar el lienzo aunque la pantalla tenga el alto fijado.
 
-### 6.3 Regla de índices
+### 6.3 Estructuras apiladas (binaria)
+
+**Pedido del docente (2026-08-18): binaria no muestra una estructura que cambia, sino una estructura por paso, apiladas.** Cada fila es la estructura *resultante* de ese paso: solo el tramo que sobrevivió al descarte. Al terminar la búsqueda, el apilado completo es el paso a paso del algoritmo, legible de un vistazo — que es como se explica en el tablero.
+
+- Cada fila se acorta respecto de la anterior, y eso hace visible la reducción a la mitad.
+- Las filas se alinean por columna: la casilla 7 cae bajo la casilla 7 de la fila de arriba. Sin esa alineación se pierde la noción de *dónde* está lo que sobrevivió.
+- Las filas aparecen **una por paso** al avanzar, y retroceder las quita. El apilado sigue al reproductor, no lo reemplaza.
+- La fila de una búsqueda fallida no tiene rango: anuncia *Rango vacío: no quedan casillas por examinar* en lugar de quedar en blanco.
+- El corchete de rango activo no se dibuja aquí: la fila entera **es** el rango, y repetirlo sería ruido.
+
+Dos decisiones de implementación que hay que respetar al tocar esto:
+
+1. **Un solo grid para todo el apilado**, no un grid por fila. Con grids independientes las columnas de cada fila se dimensionan por separado y dejan de corresponderse, que es justo lo que la vista necesita.
+2. **Las columnas se calculan una vez por búsqueda**, con las casillas relevantes de la traza completa. Si se recalcularan paso a paso, las columnas se moverían bajo las filas ya dibujadas.
+
+El modo lo activa la configuración del tema (`apilada.rangoDePaso`); los temas que no lo declaran siguen con una estructura única, como secuencial.
+
+### 6.4 Regla de índices
 
 Bajo la estructura horizontal —y al costado de la vertical— corre una escala continua que numera las posiciones, con marcas mayores cada 5. Cuando hay elisión, la escala se comprime pero **mantiene visible la numeración real**: un tramo comprimido se rotula con el rango que oculta (`22–39`). Es el elemento distintivo del producto.
 

@@ -110,6 +110,14 @@
       titulo: 'BÚSQUEDA BINARIA',
       descripcion: 'División sobre arreglo ordenado',
       buscar: (claves, objetivo) => algoritmos.binaria.buscarBinaria(claves, objetivo),
+      // Cada paso deja su propia estructura a la vista, con solo el tramo que
+      // sobrevivió al descarte (pedido del docente): el apilado completo es el
+      // paso a paso del algoritmo, legible de un vistazo al terminar.
+      apilada: {
+        rangoDePaso: (paso) => (
+          paso.inicio === undefined ? null : { desde: paso.inicio, hasta: paso.fin }
+        )
+      },
       casillasRelevantes: (paso) => [paso.inicio, paso.medio, paso.fin].filter(Boolean),
       describirCasilla: ({ paso, indice, ocupada }) => {
         if (!paso) return { estado: ocupada ? 'ocupada' : 'vacia' };

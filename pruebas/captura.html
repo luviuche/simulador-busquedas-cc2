@@ -64,9 +64,11 @@
       }
 
       enviar(formularios[2], { objetivo: 84 });
-      // Detenerse a media traza: es donde la visualización dice más.
+      // Avanzar hasta donde pida la URL: ?paso=fin recorre la traza completa,
+      // que es lo que hay que mirar en la vista apilada.
       const siguiente = formularios[2].querySelector('[data-accion="siguiente"]');
-      siguiente.click();
+      const hasta = new URLSearchParams(location.search).get('paso') === 'fin' ? 20 : 1;
+      for (let i = 0; i < hasta; i++) siguiente.click();
     });
   </script>
 </body>

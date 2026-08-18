@@ -20,6 +20,11 @@
       estructura: null,
       reproductor: null,
       pasoActual: null,
+      indicePaso: -1,
+      // Traza en curso y columnas del apilado; ambas viven mientras dure la
+      // búsqueda y se descartan al invalidarla.
+      pasos: null,
+      segmentosApilado: null,
       mostrarCompleta: false
     };
     const dom = { metricas: {} };
@@ -54,23 +59,52 @@
       if (estado.reproductor) estado.reproductor.detener();
       estado.reproductor = null;
       estado.pasoActual = null;
+      estado.indicePaso = -1;
+      estado.pasos = null;
+      estado.segmentosApilado = null;
       if (dom.seccionReproduccion) dom.seccionReproduccion.hidden = true;
     }
 
-    function renderizarEstructura(paso) {
-      const claves = estado.estructura.claves;
-      const n = estado.estructura.n;
-      const segmentos = vista.elision.calcularSegmentos({
-        n,
-        relevantes: paso ? config.casillasRelevantes(paso) : [],
+    function esMarcaMayor(indice, n) {
+      return indice === 1 || indice === n || indice % 5 === 0;
+    }
+
+    function crearMarca(indice, n) {
+      const el = document.createElement('span');
+      el.className = 'escala__marca' + (esMarcaMayor(indice, n) ? ' escala__marca--mayor' : '');
+      el.textContent = String(indice);
+      return el;
+    }
+
+    function crearTramo(desde, hasta) {
+      const el = document.createElement('div');
+      el.className = 'tramo-elidido';
+      el.textContent = `⋯ ${hasta - desde + 1} ⋯`;
+      return el;
+    }
+
+    function segmentosDe(relevantes) {
+      return vista.elision.calcularSegmentos({
+        n: estado.estructura.n,
+        relevantes,
         orientacion: config.orientacion || 'horizontal',
         mostrarCompleta: estado.mostrarCompleta
       });
+    }
+
+    // Vista de una sola estructura: la que usan los temas que no acumulan
+    // (secuencial), y también binaria mientras no hay una búsqueda en curso.
+    function renderizarFilaUnica(paso) {
+      const claves = estado.estructura.claves;
+      const n = estado.estructura.n;
+      const segmentos = segmentosDe(paso ? config.casillasRelevantes(paso) : []);
 
       // Casilla y marca de la escala se dibujan en la misma columna: es lo que
       // mantiene la numeración alineada con lo que rotula cuando hay elisión
-      // y los tramos comprimidos tienen ancho propio (CLAUDE.md 6.3).
+      // y los tramos comprimidos tienen ancho propio (CLAUDE.md 6.4).
       vista.animacion.animarFlip(dom.estructuraEl, () => {
+        dom.estructuraEl.className = 'estructura-horizontal';
+        dom.estructuraEl.removeAttribute('style');
         dom.estructuraEl.innerHTML = '';
 
         for (const segmento of segmentos) {
@@ -78,15 +112,10 @@
           columna.className = 'columna-casilla';
 
           if (segmento.tipo === 'tramo') {
-            const tramoEl = document.createElement('div');
-            tramoEl.className = 'tramo-elidido';
-            tramoEl.textContent = `⋯ ${segmento.cantidad} ⋯`;
-
             const marcaEl = document.createElement('span');
             marcaEl.className = 'escala__marca escala__marca--tramo';
             marcaEl.textContent = `${segmento.desde}–${segmento.hasta}`;
-
-            columna.append(tramoEl, marcaEl);
+            columna.append(crearTramo(segmento.desde, segmento.hasta), marcaEl);
             dom.estructuraEl.appendChild(columna);
             continue;
           }
@@ -95,11 +124,6 @@
           const clave = claves[indice - 1];
           const descripcion = config.describirCasilla({ paso, indice, ocupada: clave !== undefined });
 
-          const marcaEl = document.createElement('span');
-          marcaEl.className = 'escala__marca'
-            + ((indice === 1 || indice === n || indice % 5 === 0) ? ' escala__marca--mayor' : '');
-          marcaEl.textContent = String(indice);
-
           columna.append(
             vista.componentes.casilla.crearCasilla({
               clave,
@@ -107,11 +131,136 @@
               estado: descripcion.estado,
               modificadores: descripcion.modificadores
             }),
-            marcaEl
+            crearMarca(indice, n)
           );
           dom.estructuraEl.appendChild(columna);
         }
       });
+    }
+
+    // Vista apilada: una estructura por paso, cada una con solo el tramo que
+    // sobrevivió al descarte (pedido del docente). Todas las filas comparten
+    // un único grid —no un grid por fila— porque es lo que alinea cada casilla
+    // con su posición real en la estructura original; con grids independientes
+    // las columnas no se corresponden entre filas.
+    //
+    // Los segmentos se calculan una sola vez, sobre las casillas relevantes de
+    // la traza completa, para que las columnas no se muevan mientras el
+    // estudiante avanza los pasos.
+    function renderizarApilado(indicePaso) {
+      const claves = estado.estructura.claves;
+      const n = estado.estructura.n;
+      const segmentos = estado.segmentosApilado;
+
+      dom.estructuraEl.className = 'estructura-apilada';
+      dom.estructuraEl.style.gridTemplateColumns = `auto repeat(${segmentos.length}, minmax(40px, max-content))`;
+      dom.estructuraEl.innerHTML = '';
+
+      const elementosUltimaFila = [];
+      const agregar = (orden, ...elementos) => {
+        dom.estructuraEl.append(...elementos);
+        if (orden === indicePaso) elementosUltimaFila.push(...elementos);
+      };
+
+      for (let orden = 0; orden <= indicePaso; orden++) {
+        const paso = estado.pasos[orden];
+        const rango = config.apilada.rangoDePaso(paso);
+        const filaCasillas = orden * 2 + 1;
+
+        const rotulo = document.createElement('span');
+        rotulo.className = 'apilada__rotulo texto-nivel-5';
+        rotulo.textContent = `Paso ${orden + 1}`;
+        rotulo.style.gridColumn = '1';
+        rotulo.style.gridRow = `${filaCasillas} / span 2`;
+        agregar(orden, rotulo);
+
+        // El paso final sin rango es el que agotó la búsqueda: no queda
+        // estructura que dibujar, y decirlo es más claro que una fila vacía.
+        if (!rango) {
+          const cierre = document.createElement('span');
+          cierre.className = 'apilada__cierre texto-nivel-5';
+          cierre.textContent = 'Rango vacío: no quedan casillas por examinar.';
+          cierre.style.gridColumn = `2 / span ${segmentos.length}`;
+          cierre.style.gridRow = `${filaCasillas} / span 2`;
+          agregar(orden, cierre);
+          continue;
+        }
+
+        segmentos.forEach((segmento, posicion) => {
+          const columna = String(posicion + 2);
+
+          if (segmento.tipo === 'tramo') {
+            const desde = Math.max(segmento.desde, rango.desde);
+            const hasta = Math.min(segmento.hasta, rango.hasta);
+            if (desde > hasta) return;
+
+            const tramoEl = crearTramo(desde, hasta);
+            tramoEl.style.gridColumn = columna;
+            tramoEl.style.gridRow = String(filaCasillas);
+
+            const marcaEl = document.createElement('span');
+            marcaEl.className = 'escala__marca escala__marca--tramo';
+            marcaEl.textContent = desde === hasta ? String(desde) : `${desde}–${hasta}`;
+            marcaEl.style.gridColumn = columna;
+            marcaEl.style.gridRow = String(filaCasillas + 1);
+
+            agregar(orden, tramoEl, marcaEl);
+            return;
+          }
+
+          const indice = segmento.indice;
+          if (indice < rango.desde || indice > rango.hasta) return;
+
+          const clave = claves[indice - 1];
+          const descripcion = config.describirCasilla({ paso, indice, ocupada: clave !== undefined });
+          // El corchete de rango sobra aquí: la fila entera ya es el rango.
+          const casillaEl = vista.componentes.casilla.crearCasilla({
+            clave,
+            indice,
+            estado: descripcion.estado
+          });
+          casillaEl.style.gridColumn = columna;
+          casillaEl.style.gridRow = String(filaCasillas);
+
+          const marcaEl = crearMarca(indice, n);
+          marcaEl.style.gridColumn = columna;
+          marcaEl.style.gridRow = String(filaCasillas + 1);
+
+          agregar(orden, casillaEl, marcaEl);
+        });
+      }
+
+      // Solo la fila recién agregada entra animada; las anteriores ya estaban.
+      if (!vista.animacion.prefiereMovimientoReducido()) {
+        for (const el of elementosUltimaFila) {
+          vista.animacion.reemplazarAnimacion(el, [
+            { opacity: 0, transform: 'translateY(-6px)' },
+            { opacity: 1, transform: 'translateY(0)' }
+          ], { duration: 180, easing: 'ease-out' });
+        }
+      }
+
+      dom.estructuraEl.scrollTop = dom.estructuraEl.scrollHeight;
+    }
+
+    function renderizarEstructura(paso, indicePaso) {
+      if (config.apilada && estado.pasos && indicePaso >= 0) {
+        renderizarApilado(indicePaso);
+        return;
+      }
+      renderizarFilaUnica(paso);
+    }
+
+    // Las columnas del apilado se fijan una vez por búsqueda, con las casillas
+    // relevantes de la traza entera: si se recalcularan paso a paso, las
+    // columnas se moverían bajo las filas ya dibujadas.
+    function calcularSegmentosApilado() {
+      if (!config.apilada || !estado.pasos) return;
+      const relevantes = [];
+      for (const paso of estado.pasos) {
+        relevantes.push(...config.casillasRelevantes(paso));
+      }
+      estado.segmentosApilado = segmentosDe(relevantes);
     }
 
     function actualizarMetricas(paso) {
@@ -187,15 +336,18 @@
       invalidarReproduccion();
 
       const pasos = config.buscar(estado.estructura.claves, validacion.valor);
+      estado.pasos = pasos;
+      calcularSegmentosApilado();
       dom.seccionReproduccion.hidden = false;
       registrarBitacora(`Búsqueda iniciada: clave objetivo ${validacion.valor}.`);
 
       estado.reproductor = vista.reproductor.crearReproductor({
         pasos,
         velocidadMs: Number(dom.controlVelocidad.value),
-        alCambiarPaso: (paso) => {
+        alCambiarPaso: (paso, indice) => {
           estado.pasoActual = paso;
-          renderizarEstructura(paso);
+          estado.indicePaso = indice;
+          renderizarEstructura(paso, indice);
           actualizarMetricas(paso);
           if (paso) registrarBitacora(paso.mensaje);
         }
@@ -345,7 +497,9 @@
       etiqueta.innerHTML = `<input type="checkbox" data-control="mostrar-completa"> Ver estructura completa`;
       etiqueta.querySelector('input').addEventListener('change', (evento) => {
         estado.mostrarCompleta = evento.target.checked;
-        if (estado.estructura) renderizarEstructura(estado.pasoActual);
+        if (!estado.estructura) return;
+        calcularSegmentosApilado();
+        renderizarEstructura(estado.pasoActual, estado.indicePaso);
       });
       return etiqueta;
     }

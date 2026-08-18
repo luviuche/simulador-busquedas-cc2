@@ -60,17 +60,44 @@
       formulario.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     }
 
+    const estadoDe = (casilla) =>
+      casilla.className.replace(/casilla(--)?/g, '').trim().replace(/\s+/g, '+');
+
     // Resume el paso actual como "índice:estados" por columna dibujada.
     function retratarEstructura() {
+      const apilada = document.querySelector('.estructura-apilada');
+      if (apilada) return retratarApilado().join(' // ');
+
       return [...document.querySelectorAll('.columna-casilla')].map((columna) => {
         const casilla = columna.querySelector('.casilla');
         const marca = columna.querySelector('.escala__marca').textContent;
         if (!casilla) return `[${marca}]`;
-        return marca + ':' + casilla.className.replace(/casilla(--)?/g, '').trim().replace(/\s+/g, '+');
+        return marca + ':' + estadoDe(casilla);
       }).join(' ');
     }
 
-    function ejercitarTema(nombreTema, { n, l, claves, objetivo, comparacionesEsperadas }) {
+    // En la vista apilada cada paso deja su propia fila: se retrata una cadena
+    // por fila, leyendo la fila del grid a la que pertenece cada casilla.
+    function retratarApilado() {
+      const filaDe = (el) => parseInt(el.style.gridRow, 10);
+      const porFila = new Map();
+
+      for (const casilla of document.querySelectorAll('.estructura-apilada .casilla')) {
+        const fila = filaDe(casilla);
+        if (!porFila.has(fila)) porFila.set(fila, []);
+        porFila.get(fila).push(casilla);
+      }
+
+      return [...porFila.keys()].sort((a, b) => a - b).map((fila) => {
+        const marcas = [...document.querySelectorAll('.estructura-apilada .escala__marca')]
+          .filter((m) => filaDe(m) === fila + 1)
+          .map((m) => m.textContent);
+        const estados = porFila.get(fila).map(estadoDe);
+        return `${marcas.join(',')} → ${estados.join(',')}`;
+      });
+    }
+
+    function ejercitarTema(nombreTema, { n, l, claves, objetivo, comparacionesEsperadas, apilada }) {
       registro.push('', `── ${nombreTema} ──`);
 
       const item = [...document.querySelectorAll('.tema-item')]
@@ -114,12 +141,18 @@
 
       enviar(formularios[2], { objetivo });
       const siguiente = formularios[2].querySelector('[data-accion="siguiente"]');
+      const anteriorBoton = formularios[2].querySelector('[data-accion="anterior"]');
+
+      const filas = () => document.querySelectorAll('.apilada__rotulo').length;
 
       let paso = 1;
       let anterior = null;
       let retrato = retratarEstructura();
       while (retrato !== anterior && paso <= 40) {
         registro.push(`  paso ${paso}: ${retrato}`);
+        if (apilada) {
+          afirmar(filas() === paso, `el paso ${paso} deja ${paso} estructura(s) a la vista`);
+        }
         anterior = retrato;
         siguiente.click();
         retrato = retratarEstructura();
@@ -128,21 +161,50 @@
 
       afirmar(retrato.includes('encontrada'), `localiza la clave ${objetivo}`);
 
+      if (apilada) {
+        // Cada estructura resultante descarta parte de la anterior: ninguna
+        // fila puede tener más casillas que la de arriba.
+        const anchos = retratarApilado().map((fila) => fila.split('→')[1].split(',').length);
+        afirmar(
+          anchos.every((ancho, i) => i === 0 || ancho <= anchos[i - 1]),
+          `cada estructura es más corta que la anterior (${anchos.join(' → ')})`
+        );
+
+        const antesDeRetroceder = filas();
+        anteriorBoton.click();
+        afirmar(
+          filas() === antesDeRetroceder - 1,
+          `retroceder quita la última estructura (${antesDeRetroceder} → ${filas()})`
+        );
+        siguiente.click();
+      }
+
       const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
       afirmar(
         metricas[0] === String(comparacionesEsperadas),
         `usa ${comparacionesEsperadas} comparaciones (reporta ${metricas[0]})`
       );
 
-      const filas = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
-      const ultimas = filas.slice(-2);
+      const filasBitacora = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
+      const ultimas = filasBitacora.slice(-2);
       afirmar(ultimas[0] !== ultimas[1], 'la bitácora no repite el último mensaje al agotar la traza');
-      registro.push('  bitácora final: ' + filas[filas.length - 1]);
+      registro.push('  bitácora final: ' + filasBitacora[filasBitacora.length - 1]);
 
       document.querySelector('.pantalla-tema__volver').click();
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      try {
+        ejecutar();
+      } catch (error) {
+        fallas++;
+        registro.push(`EXCEPCIÓN: ${error && error.stack ? error.stack : error}`);
+      }
+      registro.unshift(fallas === 0 ? 'RESULTADO: sin fallas' : `RESULTADO: ${fallas} fallas`);
+      document.getElementById('salida').textContent = registro.join('\n');
+    });
+
+    function ejecutar() {
       // El catálogo no numera los temas: ese es el pedido del docente.
       const numerados = [...document.querySelectorAll('.tema-item')]
         .filter((el) => /^\s*\d/.test(el.textContent));
@@ -155,12 +217,40 @@
 
       ejercitarTema('Búsqueda binaria', {
         n: 16, l: 2, claves: [10, 20, 30, 40, 50, 60, 70, 80],
-        objetivo: 70, comparacionesEsperadas: 3
+        objetivo: 70, comparacionesEsperadas: 3, apilada: true
       });
 
-      registro.unshift(fallas === 0 ? 'RESULTADO: sin fallas' : `RESULTADO: ${fallas} fallas`);
-      document.getElementById('salida').textContent = registro.join('\n');
-    });
+      binariaSinResultado();
+    }
+
+    // El último paso de una búsqueda fallida no tiene rango que dibujar: la
+    // fila debe decirlo en lugar de quedar vacía y parecer un error de dibujo.
+    function binariaSinResultado() {
+      registro.push('', '── Búsqueda binaria · clave ausente ──');
+
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes('Búsqueda binaria'))
+        .click();
+
+      const formularios = [...document.querySelectorAll('form.panel')];
+      enviar(formularios[0], { nombre: 'Sin resultado', n: 16, l: 2 });
+      for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) enviar(formularios[1], { clave });
+
+      enviar(formularios[2], { objetivo: 45 });
+      const siguiente = formularios[2].querySelector('[data-accion="siguiente"]');
+      for (let i = 0; i < 10; i++) siguiente.click();
+
+      const cierre = document.querySelector('.apilada__cierre');
+      afirmar(!!cierre, 'la última estructura anuncia el rango vacío');
+      if (cierre) registro.push('  cierre: ' + cierre.textContent);
+
+      afirmar(
+        !document.querySelector('.estructura-apilada').textContent.includes('undefined'),
+        'ninguna fila dibuja undefined'
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
   </script>
 </body>
 </html>
