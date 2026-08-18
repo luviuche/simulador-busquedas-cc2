@@ -16,7 +16,11 @@
     // pendiente en vez de encolarla (CLAUDE.md 7).
     function irAPaso(indice) {
       detener();
-      indiceActual = Math.max(-1, Math.min(indice, pasos.length - 1));
+      const destino = Math.max(-1, Math.min(indice, pasos.length - 1));
+      // Insistir en el último paso no es un paso nuevo: notificarlo repetiría
+      // el mensaje en la bitácora y volvería a animar un cambio inexistente.
+      if (destino === indiceActual) return;
+      indiceActual = destino;
       alCambiarPaso(indiceActual >= 0 ? pasos[indiceActual] : null, indiceActual);
     }
 

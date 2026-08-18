@@ -237,6 +237,18 @@
   display: flex;
   align-items: flex-end;
   gap: var(--espacio-2);
+  /* Deja aire arriba para el corchete del rango activo, que se dibuja fuera
+     del flujo sobre las casillas. */
+  padding-top: var(--espacio-4);
+}
+
+/* Cada casilla viaja con su marca de escala: así la numeración sigue rotulando
+   la posición correcta aunque los tramos elididos tengan otro ancho. */
+.columna-casilla {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espacio-1);
 }
 
 .tramo-elidido {
@@ -252,9 +264,7 @@
   border-right: 1px dashed var(--borde-fuerte);
 }
 
-.escala {
-  display: flex;
-  gap: var(--espacio-2);
+.escala__marca {
   font-family: var(--fuente-mono);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
@@ -264,4 +274,8 @@
 .escala__marca--mayor {
   color: var(--tinta);
   font-weight: 500;
+}
+
+.escala__marca--tramo {
+  font-size: 10px;
 }

@@ -28,10 +28,20 @@
     const segmentos = [];
     let inicioOculto = null;
 
+    // Comprimir una sola casilla no ahorra espacio —el rótulo "⋯ 1 ⋯" ocupa más
+    // que la casilla— y rompe la continuidad de la escala sin ganar nada.
+    function cerrarTramo(desde, hasta) {
+      if (desde === hasta) {
+        segmentos.push({ tipo: 'casilla', indice: desde });
+        return;
+      }
+      segmentos.push({ tipo: 'tramo', desde, hasta, cantidad: hasta - desde + 1 });
+    }
+
     for (let i = 1; i <= n; i++) {
       if (visibles.has(i)) {
         if (inicioOculto !== null) {
-          segmentos.push({ tipo: 'tramo', desde: inicioOculto, hasta: i - 1, cantidad: i - inicioOculto });
+          cerrarTramo(inicioOculto, i - 1);
           inicioOculto = null;
         }
         segmentos.push({ tipo: 'casilla', indice: i });
@@ -40,7 +50,7 @@
       }
     }
     if (inicioOculto !== null) {
-      segmentos.push({ tipo: 'tramo', desde: inicioOculto, hasta: n, cantidad: n - inicioOculto + 1 });
+      cerrarTramo(inicioOculto, n);
     }
     return segmentos;
   }

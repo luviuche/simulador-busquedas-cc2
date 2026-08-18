@@ -10,6 +10,13 @@
     return 9 * Math.pow(10, L - 1);
   }
 
+  // Cota superior de comparaciones de la búsqueda binaria: ⌈log₂ n⌉ (CLAUDE.md 5.2).
+  // Se muestra en métricas junto al conteo real para que el estudiante compare.
+  function maximoPasosBinaria(n) {
+    if (n <= 0) return 0;
+    return Math.ceil(Math.log2(n));
+  }
+
   // El límite derivado de L se valida al crear la estructura, no al insertar (CLAUDE.md 3.5).
   function validarTamano(n, L) {
     if (n > LIMITE_DURO_N) {
@@ -40,6 +47,7 @@
     UMBRAL_ADVERTENCIA_N,
     rangoValido,
     clavesDistintasPosibles,
+    maximoPasosBinaria,
     validarTamano
   };
 })();

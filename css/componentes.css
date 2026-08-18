@@ -31,6 +31,31 @@
   background: var(--estado-rango-relleno);
 }
 
+/* Corchete del rango activo — refuerzo no cromático del tramo [inicio, fin]
+   en binaria (CLAUDE.md 8.1). Es un modificador y no un estado porque cubre
+   también la casilla en evaluación, que ya tiene su propio color. */
+.casilla--en-rango {
+  position: relative;
+}
+
+.casilla--en-rango::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 4px);
+  height: 6px;
+  border-top: 2px solid var(--estado-rango-borde);
+}
+
+.casilla--en-rango-inicio::before {
+  border-left: 2px solid var(--estado-rango-borde);
+}
+
+.casilla--en-rango-fin::before {
+  border-right: 2px solid var(--estado-rango-borde);
+}
+
 .casilla--en-evaluacion {
   border-width: 2px;
   border-color: var(--estado-evaluacion-borde);

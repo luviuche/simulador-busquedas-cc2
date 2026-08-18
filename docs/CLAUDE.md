@@ -189,6 +189,27 @@ Sin framework hace falta disciplina para no repetir. Un componente es **una func
 
 Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o actualiza el existente. Los componentes no despachan acciones ni conocen el modelo.
 
+### La pantalla de módulo es una sola, parametrizada
+
+`vista/pantallas/modulo-busqueda.js` contiene **toda** la pantalla de trabajo —configurar, insertar, llenado automático, reproducir la traza, elidir, métricas, bitácora, alertas— y la comparten todos los módulos de búsqueda interna. Un módulo nuevo no escribe pantalla: escribe una entrada en `MODULOS` (en `app.js`) con lo único que le es propio:
+
+```js
+{
+  numero, titulo, descripcion,
+  buscar(claves, objetivo) -> pasos,             // el algoritmo
+  casillasRelevantes(paso) -> [índices base 1],  // qué no puede elidirse
+  describirCasilla({ paso, indice, ocupada })    // -> { estado, modificadores }
+    -> cómo se pinta cada casilla en el paso actual,
+  metricas: [{ id, etiqueta, valor({ estructura, paso }) }]
+}
+```
+
+Es decir: **lo único que distingue un módulo de otro es cómo se lee su traza.** Secuencial y binaria ya se construyen así; hash y colisiones deben entrar por la misma puerta, cambiando `orientacion` a vertical.
+
+El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada pantalla, no en variables del módulo `app.js`: dos módulos abiertos en sucesión no comparten nada, y volver al menú no deja temporizadores corriendo.
+
+**Estados y modificadores de casilla son cosas distintas.** El estado pinta (`ocupada`, `en-evaluacion`, `descartada`, `encontrada`…) y es uno solo. Los modificadores marcan pertenencias independientes del color: el corchete del rango activo en binaria (`en-rango`, `en-rango-inicio`, `en-rango-fin`) cubre también la casilla en evaluación, que ya tiene su propio color, y por eso no puede ser un estado más.
+
 ### Organización de archivos
 
 ```
@@ -214,16 +235,33 @@ Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o act
 │   │   └── colisiones/     reasignación, anidados, encadenamiento
 │   ├── vista/
 │   │   ├── componentes/    casilla, panel, alerta, métrica, bitácora
+│   │   ├── pantallas/
+│   │   │   ├── menu.js             catálogo de módulos y recientes
+│   │   │   └── modulo-busqueda.js  pantalla de trabajo, parametrizada
 │   │   ├── elision.js      cálculo de casillas visibles
 │   │   ├── reproductor.js  reproduce la traza: paso, continuo, velocidad
 │   │   └── animacion.js    FLIP y utilidades de movimiento
 │   ├── persistencia/
 │   │   ├── archivo.js      serializar y leer .cc2
 │   │   └── recientes.js    almacenamiento del navegador
-│   └── app.js              arranque y enrutamiento entre pantallas
+│   └── app.js              catálogo, configuración de módulos y enrutamiento
 ├── fuentes/
 └── pruebas/
+    ├── *.test.js           dominio y algoritmos, con `npm test`
+    └── humo.html           integración de la vista, en el navegador
 ```
+
+### Cómo se prueba
+
+`npm test` (`node --test`, sin dependencias) cubre dominio, algoritmos y elisión: todo lo que es cálculo puro. `pruebas/apoyo.js` simula `window` para poder requerir esos archivos tal como los carga el navegador.
+
+La vista no entra ahí —necesita DOM— y se cubre con `pruebas/humo.html`, que recorre la aplicación real por el DOM: entra al módulo desde el menú, crea la estructura, inserta claves, avanza la traza y verifica estados, métricas y bitácora. Se abre con doble clic o sin ventana:
+
+```
+msedge --headless --disable-gpu --virtual-time-budget=8000 --dump-dom "file:///…/pruebas/humo.html"
+```
+
+Al tocar la pantalla de módulo, correr las dos.
 
 `dominio/` y `algoritmos/` no importan nada de `vista/`. Esa regla es la que permite probar los algoritmos sin abrir el navegador.
 
@@ -239,7 +277,13 @@ Recorrido lineal desde la casilla 1. Casilla relevante: la posición actual `i`.
 
 Requiere estructura ordenada, que es invariante del sistema. Casillas relevantes: `inicio`, `medio`, `fin`.
 
-Mostrar en métricas el máximo teórico: `⌈log₂ n⌉` pasos.
+Mostrar en métricas el máximo teórico: `⌈log₂ n⌉` pasos (`dominio/limites.js`, `maximoPasosBinaria`).
+
+**Forma de la traza (implementada):** un paso por comparación, no dos. Cada paso lleva el rango vigente `inicio`, `medio`, `fin` —el que estaba activo *al comparar*, antes de descartar— y `descartadas`, el acumulado de casillas eliminadas por los pasos anteriores. Todo en base 1; la conversión ocurre solo al construir el paso.
+
+Separar "comparar" y "descartar" en dos pasos se descartó: duplica la longitud de la traza y desalinea el conteo de comparaciones con el número de paso, que es justo la lectura que el estudiante debe poder hacer de un vistazo. El descarte se ve igual, porque el paso siguiente ya muestra el rango estrechado.
+
+El paso final `no-encontrada` no lleva rango —ya no existe— y sí `descartadas` con la estructura completa.
 
 ### 5.3 Funciones hash
 
@@ -284,6 +328,7 @@ Solo se dibuja lo relevante del paso actual. Es lo que permite que `n` no tenga 
 - Por encima, permanecen **siempre visibles**: la casilla 1, la casilla n, y las casillas relevantes del paso más una vecina a cada lado.
 - Casillas relevantes: `i` en secuencial · `inicio, medio, fin` en binaria · `d` en hash · `d` más el recorrido del tratamiento cuando hay colisión.
 - **Cada tramo comprimido muestra cuántas casillas oculta.** Sin eso se pierde la noción del tamaño real.
+- **Un tramo de una sola casilla no se comprime: se dibuja.** El rótulo `⋯ 1 ⋯` ocupa más que la casilla que esconde. Aparece de forma natural en binaria, cuando `inicio`, `medio` y `fin` con sus vecinas dejan una casilla suelta entre dos visibles.
 - La expansión y compresión de tramos se anima; no es un salto brusco.
 - Control "Ver estructura completa" que desactiva la elisión.
 
@@ -291,7 +336,9 @@ La estructura se dibuja **centrada** en el lienzo, horizontal y verticalmente. E
 
 ### 6.3 Regla de índices
 
-Bajo la estructura horizontal —y al costado de la vertical— corre una escala continua que numera las posiciones, con marcas mayores cada 5. Cuando hay elisión, la escala se comprime pero **mantiene visible la numeración real**. Es el elemento distintivo del producto.
+Bajo la estructura horizontal —y al costado de la vertical— corre una escala continua que numera las posiciones, con marcas mayores cada 5. Cuando hay elisión, la escala se comprime pero **mantiene visible la numeración real**: un tramo comprimido se rotula con el rango que oculta (`22–39`). Es el elemento distintivo del producto.
+
+**Cada casilla y su marca se dibujan en la misma columna** (`.columna-casilla`), no en dos filas independientes. Con elisión los tramos tienen ancho propio, y dos contenedores paralelos desalinean la numeración de lo que rotula — que es precisamente el error que la escala existe para no cometer.
 
 ---
 
@@ -471,6 +518,10 @@ El documento incluye: encabezado con datos de la asignatura, configuración de l
 Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamiento, plegamiento, conversión de bases) en decimal y binario · tratamiento de colisiones (reasignación, arreglos anidados, encadenamiento secuencial) · otras búsquedas internas (residuos, árboles de búsqueda digital, residuos múltiples, tablas de índices, rejilla, árboles 2D).
 
 **Orden de construcción confirmado: primero búsqueda secuencial, luego binaria.** Secuencial es el módulo anterior a binaria en el orden de la asignatura, y sirve como la primera plantilla end-to-end (dominio → traza → elisión → animación → bitácora); binaria reutiliza ese mismo patrón, no al revés.
+
+**Estado de construcción:** secuencial y binaria implementadas y disponibles en el menú. La plantilla que dejó secuencial ya está extraída en `vista/pantallas/modulo-busqueda.js`; el siguiente módulo —funciones hash— debe entrar por ahí, con `orientacion: 'vertical'`.
+
+Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al stack de respaldo), y ni `css/impresion.css` ni `persistencia/archivo.js` (.cc2) están construidos.
 
 ### Diferido dentro de Fase 1
 

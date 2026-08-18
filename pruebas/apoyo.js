@@ -8,5 +8,8 @@ require('../js/dominio/clave.js');
 require('../js/dominio/estructura.js');
 require('../js/algoritmos/traza.js');
 require('../js/algoritmos/secuencial.js');
+require('../js/algoritmos/binaria.js');
+// elision.js vive en vista/ pero es cálculo puro: no toca el DOM.
+require('../js/vista/elision.js');
 
 module.exports = window.CC2;
