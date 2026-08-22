@@ -3,6 +3,7 @@
   const algoritmos = window.CC2.algoritmos;
   const vista = window.CC2.vista;
   const persistencia = window.CC2.persistencia;
+  const hashOperaciones = algoritmos.hash.operaciones;
 
   // Catálogo de temas (CLAUDE.md 5 y 12). `disponible` refleja el estado real
   // de esta compilación, no el alcance final de la asignatura.
@@ -25,7 +26,7 @@
         {
           titulo: 'Transformación de claves · funciones hash',
           temas: [
-            { id: 'hash-modulo', titulo: 'Función módulo', descripcion: 'Dirección por residuo de n', disponible: false },
+            { id: 'hash-modulo', titulo: 'Función módulo', descripcion: 'Dirección por residuo de n', disponible: true },
             { id: 'hash-cuadrado', titulo: 'Función cuadrado', descripcion: 'Cifras centrales del cuadrado', disponible: false },
             { id: 'hash-truncamiento', titulo: 'Función truncamiento', descripcion: 'Selección de dígitos de la clave', disponible: false },
             { id: 'hash-plegamiento', titulo: 'Función plegamiento', descripcion: 'Suma de particiones de la clave', disponible: false },
@@ -87,6 +88,19 @@
     valor: ({ paso }) => (paso ? String(paso.accesos) : '0')
   };
 
+  // Factor de carga: cuánto de la estructura está ocupado. Es la métrica que
+  // explica el comportamiento de una tabla hash —las colisiones se disparan
+  // mucho antes de llenarla— y por eso acompaña a los temas de transformación.
+  const METRICA_FACTOR_CARGA = {
+    id: 'factor-carga',
+    etiqueta: 'Factor de carga',
+    valor: ({ estructura }) => (
+      estructura
+        ? (dominio.estructura.cantidadClaves(estructura) / estructura.n).toFixed(2)
+        : '0.00'
+    )
+  };
+
   // Configuración de cada tema sobre la pantalla común de búsqueda. Lo único
   // propio de un algoritmo es cómo se lee su traza: qué casillas son relevantes
   // para la elisión y en qué estado queda cada una en el paso actual.
@@ -94,7 +108,7 @@
     secuencial: {
       titulo: 'BÚSQUEDA SECUENCIAL',
       descripcion: 'Recorrido lineal, clave por clave',
-      buscar: (claves, objetivo) => algoritmos.secuencial.buscarSecuencial(claves, objetivo),
+      buscar: ({ estructura, objetivo }) => algoritmos.secuencial.buscarSecuencial(estructura.claves, objetivo),
       casillasRelevantes: (paso) => (paso.casilla ? [paso.casilla] : []),
       describirCasilla: ({ paso, indice, ocupada }) => {
         if (paso && paso.casilla === indice) {
@@ -109,7 +123,7 @@
     binaria: {
       titulo: 'BÚSQUEDA BINARIA',
       descripcion: 'División sobre arreglo ordenado',
-      buscar: (claves, objetivo) => algoritmos.binaria.buscarBinaria(claves, objetivo),
+      buscar: ({ estructura, objetivo }) => algoritmos.binaria.buscarBinaria(estructura.claves, objetivo),
       // Cada paso deja su propia estructura a la vista, con solo el tramo que
       // sobrevivió al descarte (pedido del docente): el apilado completo es el
       // paso a paso del algoritmo, legible de un vistazo al terminar.
@@ -153,6 +167,68 @@
           )
         }
       ]
+    },
+
+    // Transformación de claves (CLAUDE.md 5.3). Tres cosas la separan de las
+    // búsquedas por comparación, y las tres entran por `config`:
+    //
+    //   modo dispersa  — la clave aterriza en su dirección, no al final: la
+    //                    estructura tiene huecos y no está ordenada.
+    //   insertar       — insertar deja de ser instantáneo y pasa a ser lo que
+    //                    se enseña, así que produce traza como una búsqueda.
+    //   tratamientos   — las colisiones no son un tema aparte sino parte de
+    //                    este (pedido del docente); se eligen al crear.
+    'hash-modulo': {
+      titulo: 'FUNCIÓN MÓDULO',
+      descripcion: 'Dirección por residuo de n',
+      orientacion: 'vertical',
+      modo: dominio.estructura.MODOS.DISPERSA,
+      calculo: true,
+      tratamientos: [
+        { valor: hashOperaciones.TRATAMIENTOS.NINGUNO, etiqueta: 'Sin tratamiento' },
+        { valor: hashOperaciones.TRATAMIENTOS.REASIGNACION, etiqueta: 'Reasignación (prueba lineal)' }
+      ],
+      insertar: ({ estructura, clave }) => hashOperaciones.insertar({
+        claves: estructura.claves,
+        n: estructura.n,
+        clave,
+        direccionDe: algoritmos.hash.modulo.direccionModulo,
+        tratamiento: estructura.tratamiento
+      }),
+      buscar: ({ estructura, objetivo }) => hashOperaciones.buscar({
+        claves: estructura.claves,
+        n: estructura.n,
+        objetivo,
+        direccionDe: algoritmos.hash.modulo.direccionModulo,
+        tratamiento: estructura.tratamiento
+      }),
+      casillasRelevantes: (paso) => [paso.casilla, paso.direccion]
+        .concat(paso.sondeadas || [])
+        .filter(Boolean),
+      describirCasilla: ({ paso, indice, ocupada }) => {
+        const base = ocupada ? 'ocupada' : 'vacia';
+        if (!paso) return { estado: base };
+
+        const modificadores = [];
+        // La dirección que dio el hash se sigue marcando aunque el sondeo ya
+        // se haya ido de ella: es lo que deja ver cuánto se alejó la clave.
+        if (paso.direccion === indice && paso.casilla !== indice) modificadores.push('direccion');
+
+        if (paso.casilla === indice) {
+          if (paso.tipo === 'encontrada') return { estado: 'encontrada', modificadores };
+          if (paso.tipo === 'insercion') return { estado: 'insertada', modificadores };
+          if (paso.tipo === 'colision' || paso.tipo === 'rechazada') {
+            return { estado: 'colision', modificadores };
+          }
+          return { estado: 'en-evaluacion', modificadores };
+        }
+        if (paso.colision === indice) return { estado: 'colision', modificadores };
+        if (paso.sondeadas && paso.sondeadas.includes(indice)) {
+          return { estado: base, modificadores: modificadores.concat('sondeada') };
+        }
+        return { estado: base, modificadores };
+      },
+      metricas: [METRICA_COMPARACIONES, METRICA_ACCESOS, METRICA_FACTOR_CARGA]
     }
   };
 

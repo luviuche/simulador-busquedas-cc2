@@ -339,3 +339,107 @@
   padding-bottom: var(--espacio-3);
   font-style: italic;
 }
+
+/* Escenario del lienzo: la estructura y, si el tema lo declara, el panel del
+   cálculo a su lado. En una sola columna cuando no hay cálculo, para que los
+   temas de búsqueda por comparación queden exactamente como estaban. */
+.lienzo__escenario {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-6);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Estructura vertical (transformación de claves, CLAUDE.md 6.1): la tabla de
+   direcciones se lee de arriba abajo, con la dirección rotulando a la
+   izquierda como en el tablero. */
+.estructura-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-1);
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: var(--espacio-2);
+}
+
+/* Cada casilla viaja con su marca, por la misma razón que en horizontal: la
+   elisión da a los tramos una altura propia y la numeración debe seguirlos. */
+.fila-casilla {
+  display: grid;
+  grid-template-columns: 3ch auto;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.fila-casilla .escala__marca {
+  text-align: right;
+}
+
+.fila-casilla .tramo-elidido {
+  height: 24px;
+  border-left: none;
+  border-right: none;
+  border-top: 1px dashed var(--borde-fuerte);
+  border-bottom: 1px dashed var(--borde-fuerte);
+}
+
+/* Panel del cálculo de la dirección (CLAUDE.md 5.3): el desarrollo se revela
+   línea por línea con el reproductor, así que la lista crece hacia abajo y la
+   última línea revelada queda destacada. */
+.calculo {
+  min-width: 260px;
+  align-self: center;
+  padding: var(--espacio-4);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-panel);
+}
+
+.calculo__titulo {
+  margin: 0 0 var(--espacio-3);
+}
+
+.calculo__lineas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+}
+
+.calculo__linea {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: var(--espacio-3);
+  padding: var(--espacio-1) var(--espacio-2);
+  border-radius: var(--radio-casilla);
+  border-left: 3px solid transparent;
+}
+
+/* Refuerzo no cromático de la línea activa: la barra y el peso, no solo el
+   fondo (CLAUDE.md 8.1). */
+.calculo__linea--activa {
+  border-left-color: var(--estado-evaluacion-borde);
+  background: var(--estado-evaluacion-relleno);
+  font-weight: 500;
+}
+
+.calculo__expresion {
+  color: var(--tinta-suave);
+  font-size: 13px;
+}
+
+.calculo__resultado {
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  text-align: right;
+}
+
+.calculo__vacio {
+  list-style: none;
+  color: var(--tinta-suave);
+}

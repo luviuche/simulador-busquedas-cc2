@@ -54,10 +54,19 @@ La palabra *módulo* se reserva para dos usos que no tienen que ver con el catá
 
 Estas cuatro condiciones se cumplen siempre. Cualquier operación que las rompa está mal:
 
-1. `claves.length ≤ n`
+1. Las claves colocadas nunca exceden `n`.
 2. **Sin duplicados.** Ninguna clave aparece dos veces.
-3. **Siempre ordenada ascendente.** Aplica tanto a secuencial como a binaria (decisión del docente).
+3. **Siempre ordenada ascendente.** Aplica a secuencial y a binaria (decisión del docente), **no a la transformación de claves**: ver los dos modos, abajo.
 4. Toda clave cumple exactamente la longitud `l`.
+
+**Dos modos de estructura**, porque los temas colocan las claves de forma distinta:
+
+| Modo | Temas | Cómo coloca | Invariante 3 |
+|---|---|---|---|
+| `ordenada` | secuencial, binaria | Arreglo denso: la clave entra en la posición que conserva el orden, y las ocupadas son siempre el prefijo `1..cantidad`. | Aplica |
+| `dispersa` | transformación de claves | La clave aterriza en la dirección que le da la función hash, así que quedan huecos en el medio. | No aplica |
+
+En ambos modos, `estructura.claves` es el arreglo que la vista lee por casilla —la casilla `i` es `claves[i-1]`— para que dibujar la estructura no dependa del modo. Lo que cambia es que en la dispersa el arreglo nace con las `n` posiciones y su longitud no crece: **contar claves es contar posiciones definidas, no leer `claves.length`** (`dominio.estructura.cantidadClaves`). Confundir las dos cosas hace que la estructura dispersa se declare llena desde el primer momento.
 
 La restricción de unicidad no es cosmética: en binaria los duplicados hacen ambiguo el resultado y no comparable el conteo de comparaciones; en hash un duplicado se confunde visualmente con una colisión. Aplica también al llenado automático y a la carga desde archivo.
 
@@ -201,8 +210,12 @@ Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o act
 
 ```js
 {
-  numero, titulo, descripcion,
-  buscar(claves, objetivo) -> pasos,             // el algoritmo
+  titulo, descripcion, orientacion, modo,
+  buscar({ estructura, objetivo }) -> pasos,     // el algoritmo
+  insertar({ estructura, clave }) -> pasos,      // opcional: inserción con traza
+  tratamientos: [{ valor, etiqueta }],           // opcional: selector al crear
+  calculo: bool,                                 // opcional: panel de cálculo
+  apilada: { rangoDePaso(paso) },                // opcional: una fila por paso
   casillasRelevantes(paso) -> [índices base 1],  // qué no puede elidirse
   describirCasilla({ paso, indice, ocupada })    // -> { estado, modificadores }
     -> cómo se pinta cada casilla en el paso actual,
@@ -210,7 +223,7 @@ Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o act
 }
 ```
 
-Es decir: **lo único que distingue un tema de otro es cómo se lee su traza.** Secuencial y binaria ya se construyen así; hash y colisiones deben entrar por la misma puerta, cambiando `orientacion` a vertical.
+Es decir: **lo único que distingue un tema de otro es cómo se lee su traza.** Los campos opcionales son las tres formas en que un tema puede apartarse de la búsqueda por comparación: acumular una estructura por paso (binaria, §6.3), colocar por dirección en vez de por orden (`modo: 'dispersa'`, §3.2), y convertir la inserción en una operación reproducible con su cálculo a la vista (§6.5). Un tema que no declara ninguno se comporta como secuencial.
 
 El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada pantalla, no en variables del módulo `app.js`: dos temas abiertos en sucesión no comparten nada, y volver al menú no deja temporizadores corriendo.
 
@@ -237,10 +250,12 @@ El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada
 │   │   ├── traza.js        contrato de paso y utilidades
 │   │   ├── secuencial.js
 │   │   ├── binaria.js
-│   │   ├── hash/           módulo, cuadrado, truncamiento, plegamiento, bases
-│   │   └── colisiones/     reasignación, anidados, encadenamiento
+│   │   ├── hash/
+│   │   │   ├── modulo.js      (cuadrado, truncamiento, plegamiento, bases)
+│   │   │   └── operaciones.js traza de insertar y buscar, común a todas
+│   │   └── colisiones/     reasignacion.js (anidados, encadenamiento)
 │   ├── vista/
-│   │   ├── componentes/    casilla, panel, alerta, métrica, bitácora
+│   │   ├── componentes/    casilla, panel, alerta, métrica, bitácora, cálculo
 │   │   ├── pantallas/
 │   │   │   ├── menu.js           catálogo de temas y recientes
 │   │   │   └── tema-busqueda.js  pantalla de trabajo, parametrizada
@@ -278,6 +293,8 @@ msedge --headless --disable-gpu --hide-scrollbars --window-size=1500,950 \
        "file:///…/pruebas/captura.html?vista=binaria"
 ```
 
+Vistas disponibles: `menu`, `secuencial`, `binaria`, `hash` (inserción que colisiona) y `hash-libre` (inserción en casilla libre); con `&paso=fin` se recorre la traza completa, y con `&tratamiento=ninguno|reasignacion` se cambia el tratamiento de colisiones. La captura de `hash` es la que ya destapó un defecto real: la elisión escondía las claves ya colocadas, que en una tabla dispersa son el resultado mismo del algoritmo (§6.2).
+
 `dominio/` y `algoritmos/` no importan nada de `vista/`. Esa regla es la que permite probar los algoritmos sin abrir el navegador.
 
 ---
@@ -304,6 +321,8 @@ El paso final `no-encontrada` no lleva rango —ya no existe— y sí `descartad
 
 Todas devuelven una **dirección en base 1** dentro de `1..n`, y deben exponer los pasos intermedios del cálculo, que son el contenido didáctico central de estos temas.
 
+Cada función devuelve `{ direccion, calculo }`, donde `calculo` es la lista de líneas `{ etiqueta, expresion, resultado }` del desarrollo, en orden. `expresion` es la cuenta tal como se escribe en el tablero; la vista revela una línea por paso del reproductor, así que cada línea tiene que poder mostrarse sola.
+
 | Función | Cálculo |
 |---|---|
 | **Módulo** | `(clave mod n) + 1` |
@@ -312,7 +331,7 @@ Todas devuelven una **dirección en base 1** dentro de `1..n`, y deben exponer l
 | **Plegamiento** | Partir la clave en grupos, sumarlos y ajustar al rango |
 | **Conversión de bases** | Convertir a otra base, truncar y ajustar al rango |
 
-Deben soportarse en decimal y en binario.
+Deben soportarse en decimal y en binario. **Pendiente de precisar (2026-08-22):** el documento no dice si lo binario es la clave que se digita, la base intermedia del cálculo, o ambas. La función módulo se construyó solo en decimal; resolverlo antes de tocar conversión de bases, que es donde el asunto deja de ser opcional.
 
 ### 5.4 Tratamiento de colisiones internas
 
@@ -321,6 +340,12 @@ Deben soportarse en decimal y en binario.
 - **Encadenamiento secuencial** — lista enlazada por dirección.
 
 La traza debe registrar **cada casilla recorrida** por el tratamiento, no solo el destino final.
+
+**El tratamiento no es un tema aparte: es parte de cada función hash (pedido del docente, 2026-08-22).** No aparece en el catálogo como tema propio. Se elige **al crear la estructura**, junto a `n` y `l`, y vale para toda su vida.
+
+Se elige al crear y no después porque el tratamiento cambia la **forma** de la estructura y no solo su comportamiento: arreglos anidados y encadenamiento necesitan estructuras secundarias por dirección, así que cambiarlo con claves ya colocadas obligaría a redispersar la tabla entera. Como efecto secundario, comparar dos tratamientos es crear dos estructuras con las mismas claves y ponerlas lado a lado, que es como se explica en clase.
+
+`ninguno` es un tratamiento más, y el que deja ver la función hash pura: al chocar, la clave **no entra** y la casilla se marca como colisión. Es el estado inicial del selector.
 
 ### 5.5 Otras búsquedas internas
 
@@ -342,6 +367,7 @@ Solo se dibuja lo relevante del paso actual. Es lo que permite que `n` no tenga 
 - Si `n ≤ 12` (horizontal) o `n ≤ 10` (vertical), se muestra completa.
 - Por encima, permanecen **siempre visibles**: la casilla 1, la casilla n, y las casillas relevantes del paso más una vecina a cada lado.
 - Casillas relevantes: `i` en secuencial · `inicio, medio, fin` en binaria · `d` en hash · `d` más el recorrido del tratamiento cuando hay colisión.
+- **En una estructura dispersa, toda casilla ocupada es relevante**, aunque el paso actual no la toque. Dónde quedó cada clave *es* el resultado de la función hash: comprimirla dentro de un tramo borra justamente lo que el tema enseña. En las ordenadas no hace falta, porque las claves ocupan siempre el mismo prefijo y su posición no dice nada por sí sola.
 - **Cada tramo comprimido muestra cuántas casillas oculta.** Sin eso se pierde la noción del tamaño real.
 - **Un tramo de una sola casilla no se comprime: se dibuja.** El rótulo `⋯ 1 ⋯` ocupa más que la casilla que esconde. Aparece de forma natural en binaria, cuando `inicio`, `medio` y `fin` con sus vecinas dejan una casilla suelta entre dos visibles.
 - La expansión y compresión de tramos se anima; no es un salto brusco.
@@ -376,7 +402,23 @@ El modo lo activa la configuración del tema (`apilada.rangoDePaso`); los temas 
 
 Bajo la estructura horizontal —y al costado de la vertical— corre una escala continua que numera las posiciones, con marcas mayores cada 5. Cuando hay elisión, la escala se comprime pero **mantiene visible la numeración real**: un tramo comprimido se rotula con el rango que oculta (`22–39`). Es el elemento distintivo del producto.
 
-**Cada casilla y su marca se dibujan en la misma columna** (`.columna-casilla`), no en dos filas independientes. Con elisión los tramos tienen ancho propio, y dos contenedores paralelos desalinean la numeración de lo que rotula — que es precisamente el error que la escala existe para no cometer.
+**Cada casilla y su marca se dibujan en la misma columna** (`.columna-casilla`), no en dos filas independientes. Con elisión los tramos tienen ancho propio, y dos contenedores paralelos desalinean la numeración de lo que rotula — que es precisamente el error que la escala existe para no cometer. En vertical el par es `.fila-casilla` y la marca va a la izquierda, pero la regla es la misma: van juntos.
+
+### 6.5 El cálculo de la dirección (transformación de claves)
+
+El desarrollo del hash se dibuja **junto a la estructura**, en el lienzo, y no en el panel lateral: lo que se enseña es la correspondencia entre la cuenta y la casilla que resulta de ella, y esa correspondencia se pierde si las dos cosas viven en extremos opuestos de la pantalla.
+
+**Insertar deja de ser instantáneo y pasa a ser una operación reproducible** (decisión del usuario, 2026-08-22), porque en estos temas insertar *es* lo que hay que enseñar: buscar solo repite el mismo cálculo. Una línea del desarrollo por paso del reproductor, y la clave se coloca en el último paso, no antes.
+
+Tres consecuencias que hay que respetar al tocar esto:
+
+1. **El reproductor es de la operación en curso, sea buscar o insertar.** Por eso vive en su propio panel y no dentro del formulario de búsqueda.
+2. **La traza no toca la estructura.** Igual que en las búsquedas, es la pantalla la que aplica el efecto al alcanzar el paso que coloca la clave, y lo **deshace** al retroceder. Sin eso, retroceder mostraría una estructura que no corresponde al paso en pantalla.
+3. **Abandonar una inserción a medio reproducir la consuma.** Al empezar otra operación, o al volver al menú, la clave pendiente se coloca antes de olvidar la traza; de lo contrario quedaría en el limbo.
+
+Cada paso carga las líneas reveladas hasta ese momento —no solo la última—, del mismo modo que los pasos de binaria cargan sus `descartadas`. Es lo que permite que el panel se dibuje sin recordar nada del paso anterior.
+
+El **llenado automático** no reproduce nada: llena aplicando directamente el paso que coloca de cada traza. Llenar es preparar el escenario, no la lección; la lección es la clave que se inserta a mano.
 
 ---
 
@@ -557,7 +599,11 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 **Orden de construcción confirmado: primero búsqueda secuencial, luego binaria.** Secuencial es el tema anterior a binaria en el orden de la asignatura, y sirve como la primera plantilla end-to-end (dominio → traza → elisión → animación → bitácora); binaria reutiliza ese mismo patrón, no al revés.
 
-**Estado de construcción:** secuencial y binaria implementadas y disponibles en el menú. La plantilla que dejó secuencial ya está extraída en `vista/pantallas/tema-busqueda.js`; el siguiente tema —funciones hash— debe entrar por ahí, con `orientacion: 'vertical'`.
+**Estado de construcción:** secuencial, binaria y **función módulo** implementadas y disponibles en el menú. Las tres entran por la misma pantalla parametrizada, `vista/pantallas/tema-busqueda.js`.
+
+La función módulo dejó lista toda la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)—, así que **cuadrado, truncamiento, plegamiento y conversión de bases entran declarando su `direccionDe`** y una entrada en `TEMAS`: nada más de la pantalla debería cambiar. Si algo de la pantalla tiene que cambiar para que entre una de ellas, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
+
+**Tratamientos de colisión construidos: `ninguno` y `reasignación` (prueba lineal).** Arreglos anidados y encadenamiento secuencial faltan, y no son un simple `direccionDe` más: necesitan estructuras secundarias por dirección, es decir un modelo de datos y un dibujo que hoy no existen. Antes de construirlos hay que decidir con el docente **cómo se ven** esas estructuras secundarias.
 
 Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al stack de respaldo), y ni `css/impresion.css` ni `persistencia/archivo.js` (.cc2) están construidos.
 
@@ -592,3 +638,6 @@ Búsquedas externas e índices para archivos · toda la unidad de grafos. Se mue
 - Poner una etiqueta más pequeña que el contenido que etiqueta.
 - Dibujar las `n` casillas sin aplicar elisión.
 - Permitir claves duplicadas en cualquier ruta de entrada, incluido el llenado automático y la carga de archivo.
+- Contar las claves de una estructura dispersa con `claves.length`: siempre vale `n`, así que la estructura se declara llena desde el primer momento. Es `dominio.estructura.cantidadClaves` (§3.2).
+- Mutar la estructura desde el algoritmo de inserción. La traza no toca nada; el efecto lo aplica la pantalla, y retroceder tiene que deshacerlo (§6.5).
+- Elidir casillas ocupadas en una estructura dispersa: esconden el resultado de la función hash (§6.2).

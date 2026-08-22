@@ -9,6 +9,9 @@ require('../js/dominio/estructura.js');
 require('../js/algoritmos/traza.js');
 require('../js/algoritmos/secuencial.js');
 require('../js/algoritmos/binaria.js');
+require('../js/algoritmos/colisiones/reasignacion.js');
+require('../js/algoritmos/hash/modulo.js');
+require('../js/algoritmos/hash/operaciones.js');
 // elision.js vive en vista/ pero es cálculo puro: no toca el DOM.
 require('../js/vista/elision.js');
 

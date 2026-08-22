@@ -233,3 +233,29 @@ form input[type="checkbox"] {
 .bitacora__hora {
   color: var(--tinta-suave);
 }
+
+/* Clave recién colocada por la transformación de claves. Comparte el color de
+   la casilla hallada —ambas son un final feliz— pero su refuerzo no cromático
+   es distinto: la flecha señala que la clave acaba de entrar, no que se halló. */
+.casilla--insertada {
+  border-color: var(--estado-encontrada-borde);
+  background: var(--estado-encontrada-relleno);
+}
+
+.casilla--insertada::after {
+  content: '◂';
+  margin-left: var(--espacio-1);
+}
+
+/* Casilla que la prueba lineal recorrió y descartó: el trazo punteado la
+   distingue de la casilla ocupada que nadie tocó (CLAUDE.md 8.1). */
+.casilla--sondeada {
+  border-style: dashed;
+  border-color: var(--estado-colision-borde);
+}
+
+/* Dirección que devolvió la función hash cuando el sondeo ya se fue de ella:
+   el subrayado deja ver de dónde salió la clave y cuánto se alejó. */
+.casilla--direccion {
+  box-shadow: inset 0 -3px 0 var(--estado-colision-borde);
+}

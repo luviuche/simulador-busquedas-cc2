@@ -4,17 +4,27 @@
   const persistencia = window.CC2.persistencia;
 
   // Pantalla de trabajo común a los temas de búsqueda interna. Secuencial la
-  // estrenó; binaria la reutiliza (CLAUDE.md 12). Lo único que cambia entre
-  // temas entra por `config`; todo lo demás —configurar, insertar, llenar,
-  // reproducir, elidir, bitácora— vive aquí una sola vez.
+  // estrenó; binaria y la transformación de claves la reutilizan (CLAUDE.md 12).
+  // Lo único que cambia entre temas entra por `config`; todo lo demás
+  // —configurar, insertar, llenar, reproducir, elidir, bitácora— vive aquí una
+  // sola vez.
   //
   // config = {
-  //   titulo, descripcion, orientacion,
-  //   buscar(claves, objetivo) -> pasos,
+  //   titulo, descripcion, orientacion, modo,
+  //   buscar({ estructura, objetivo }) -> pasos,
+  //   insertar({ estructura, clave }) -> pasos,   // opcional: inserción con traza
+  //   tratamientos: [{ valor, etiqueta }],        // opcional: selector al crear
+  //   calculo: bool,                              // opcional: panel de cálculo
   //   casillasRelevantes(paso) -> [indices base 1],
   //   describirCasilla({ paso, indice, ocupada }) -> { estado, modificadores },
+  //   apilada: { rangoDePaso(paso) },             // opcional: una fila por paso
   //   metricas: [{ id, etiqueta, valor({ estructura, paso }) -> string }]
   // }
+  //
+  // Los temas que declaran `insertar` convierten la inserción en una operación
+  // reproducible: la traza no toca la estructura y es esta pantalla la que
+  // aplica el efecto al llegar al paso que coloca la clave, y lo deshace al
+  // retroceder (ver `sincronizarEfecto`).
   function crearPantallaTema(config, alVolver) {
     const estado = {
       estructura: null,
@@ -22,9 +32,12 @@
       pasoActual: null,
       indicePaso: -1,
       // Traza en curso y columnas del apilado; ambas viven mientras dure la
-      // búsqueda y se descartan al invalidarla.
+      // operación y se descartan al invalidarla.
       pasos: null,
       segmentosApilado: null,
+      // Colocación que la traza en curso promete y que aún no se ha aplicado
+      // a la estructura: { indice, casilla, clave }.
+      efectoPendiente: null,
       mostrarCompleta: false
     };
     const dom = { metricas: {} };
@@ -55,14 +68,34 @@
       return true;
     }
 
+    // La colocación se aplica al alcanzar su paso y se deshace al retroceder,
+    // de modo que la estructura visible siempre corresponde al paso en pantalla.
+    function sincronizarEfecto(indicePaso) {
+      if (!estado.efectoPendiente) return;
+      const { indice, casilla, clave } = estado.efectoPendiente;
+      const puesta = estado.estructura.claves[casilla - 1] === clave;
+      if (indicePaso >= indice && !puesta) {
+        dominio.estructura.colocarEn(estado.estructura, casilla, clave);
+      } else if (indicePaso < indice && puesta) {
+        dominio.estructura.retirarDe(estado.estructura, casilla);
+      }
+    }
+
+    // Abandonar una inserción a medio reproducir no puede dejar la clave en el
+    // limbo: al invalidar, la operación se consuma antes de olvidarla.
     function invalidarReproduccion() {
       if (estado.reproductor) estado.reproductor.detener();
+      if (estado.efectoPendiente) {
+        sincronizarEfecto(Infinity);
+        estado.efectoPendiente = null;
+      }
       estado.reproductor = null;
       estado.pasoActual = null;
       estado.indicePaso = -1;
       estado.pasos = null;
       estado.segmentosApilado = null;
       if (dom.seccionReproduccion) dom.seccionReproduccion.hidden = true;
+      if (dom.calculo) dom.calculo.actualizar(null);
     }
 
     function esMarcaMayor(indice, n) {
@@ -83,6 +116,10 @@
       return el;
     }
 
+    function esVertical() {
+      return config.orientacion === 'vertical';
+    }
+
     function segmentosDe(relevantes) {
       return vista.elision.calcularSegmentos({
         n: estado.estructura.n,
@@ -92,48 +129,68 @@
       });
     }
 
+    // En una estructura dispersa, dónde quedó cada clave *es* el resultado del
+    // algoritmo: comprimir una casilla ocupada dentro de un tramo borra lo que
+    // el tema enseña. En las ordenadas no hace falta, porque las claves ocupan
+    // siempre el mismo prefijo y su posición no dice nada por sí sola.
+    function relevantesDelPaso(paso) {
+      const relevantes = paso ? config.casillasRelevantes(paso) : [];
+      if (config.modo !== dominio.estructura.MODOS.DISPERSA) return relevantes;
+
+      const ocupadas = [];
+      const claves = estado.estructura.claves;
+      for (let indice = 1; indice <= estado.estructura.n; indice++) {
+        if (claves[indice - 1] !== undefined) ocupadas.push(indice);
+      }
+      return relevantes.concat(ocupadas);
+    }
+
     // Vista de una sola estructura: la que usan los temas que no acumulan
-    // (secuencial), y también binaria mientras no hay una búsqueda en curso.
+    // (secuencial, transformación de claves), y también binaria mientras no hay
+    // una búsqueda en curso.
     function renderizarFilaUnica(paso) {
       const claves = estado.estructura.claves;
       const n = estado.estructura.n;
-      const segmentos = segmentosDe(paso ? config.casillasRelevantes(paso) : []);
+      const segmentos = segmentosDe(relevantesDelPaso(paso));
+      const vertical = esVertical();
 
-      // Casilla y marca de la escala se dibujan en la misma columna: es lo que
+      // Casilla y marca de la escala se dibujan en la misma línea: es lo que
       // mantiene la numeración alineada con lo que rotula cuando hay elisión
-      // y los tramos comprimidos tienen ancho propio (CLAUDE.md 6.4).
+      // y los tramos comprimidos tienen ancho propio (CLAUDE.md 6.4). En
+      // vertical la marca va antes, a la izquierda, que es como se rotula una
+      // tabla de direcciones.
       vista.animacion.animarFlip(dom.estructuraEl, () => {
-        dom.estructuraEl.className = 'estructura-horizontal';
+        dom.estructuraEl.className = vertical ? 'estructura-vertical' : 'estructura-horizontal';
         dom.estructuraEl.removeAttribute('style');
         dom.estructuraEl.innerHTML = '';
 
         for (const segmento of segmentos) {
-          const columna = document.createElement('div');
-          columna.className = 'columna-casilla';
+          const grupo = document.createElement('div');
+          grupo.className = vertical ? 'fila-casilla' : 'columna-casilla';
 
           if (segmento.tipo === 'tramo') {
             const marcaEl = document.createElement('span');
             marcaEl.className = 'escala__marca escala__marca--tramo';
             marcaEl.textContent = `${segmento.desde}–${segmento.hasta}`;
-            columna.append(crearTramo(segmento.desde, segmento.hasta), marcaEl);
-            dom.estructuraEl.appendChild(columna);
+            const tramoEl = crearTramo(segmento.desde, segmento.hasta);
+            grupo.append(...(vertical ? [marcaEl, tramoEl] : [tramoEl, marcaEl]));
+            dom.estructuraEl.appendChild(grupo);
             continue;
           }
 
           const indice = segmento.indice;
           const clave = claves[indice - 1];
           const descripcion = config.describirCasilla({ paso, indice, ocupada: clave !== undefined });
+          const casillaEl = vista.componentes.casilla.crearCasilla({
+            clave,
+            indice,
+            estado: descripcion.estado,
+            modificadores: descripcion.modificadores
+          });
+          const marcaEl = crearMarca(indice, n);
 
-          columna.append(
-            vista.componentes.casilla.crearCasilla({
-              clave,
-              indice,
-              estado: descripcion.estado,
-              modificadores: descripcion.modificadores
-            }),
-            crearMarca(indice, n)
-          );
-          dom.estructuraEl.appendChild(columna);
+          grupo.append(...(vertical ? [marcaEl, casillaEl] : [casillaEl, marcaEl]));
+          dom.estructuraEl.appendChild(grupo);
         }
       });
     }
@@ -269,29 +326,83 @@
       }
     }
 
+    // Reproduce cualquier operación con traza —buscar o insertar—, que es lo
+    // único que las diferencia desde aquí: el reproductor solo recorre pasos.
+    function reproducirOperacion(pasos, mensajeInicial) {
+      estado.pasos = pasos;
+      calcularSegmentosApilado();
+      dom.seccionReproduccion.hidden = false;
+      registrarBitacora(mensajeInicial);
+
+      estado.reproductor = vista.reproductor.crearReproductor({
+        pasos,
+        velocidadMs: Number(dom.controlVelocidad.value),
+        alCambiarPaso: (paso, indice) => {
+          estado.pasoActual = paso;
+          estado.indicePaso = indice;
+          sincronizarEfecto(indice);
+          if (dom.calculo) dom.calculo.actualizar(paso ? paso.calculo : null);
+          renderizarEstructura(paso, indice);
+          actualizarMetricas(paso);
+          if (paso) registrarBitacora(paso.mensaje);
+        }
+      });
+      estado.reproductor.siguientePaso();
+    }
+
     function insertarClave(texto) {
       const validacion = dominio.clave.validarClaveNumerica(texto, estado.estructura.l);
       if (!validacion.valido) {
         mostrarAlerta('error', validacion.mensaje);
         return;
       }
-      const resultado = dominio.estructura.insertar(estado.estructura, validacion.valor);
-      if (!resultado.exito) {
-        mostrarAlerta('error', resultado.mensaje);
+
+      // La unicidad y la saturación se comprueban antes de trazar: son estados
+      // de la estructura, no pasos del algoritmo, y merecen alerta inmediata
+      // en vez de una reproducción que no lleva a ninguna parte (CLAUDE.md 3.2).
+      if (dominio.estructura.estaLlena(estado.estructura)) {
+        mostrarAlerta('error', `Estructura saturada: capacidad máxima de ${estado.estructura.n} casillas alcanzada.`);
         return;
       }
+      const casillaExistente = dominio.estructura.casillaDe(estado.estructura, validacion.valor);
+      if (casillaExistente !== 0) {
+        mostrarAlerta('error', `Clave duplicada: la clave ya reside en la posición ${casillaExistente}.`);
+        return;
+      }
+
       limpiarAlerta();
       invalidarReproduccion();
-      registrarBitacora(`Clave insertada: ${validacion.valor} en la casilla ${resultado.indice}.`);
-      renderizarEstructura(null);
-      actualizarMetricas(null);
+
+      // Temas sin inserción trazada: la clave entra de una vez, como siempre.
+      if (!config.insertar) {
+        const resultado = dominio.estructura.insertar(estado.estructura, validacion.valor);
+        if (!resultado.exito) {
+          mostrarAlerta('error', resultado.mensaje);
+          return;
+        }
+        registrarBitacora(`Clave insertada: ${validacion.valor} en la casilla ${resultado.indice}.`);
+        renderizarEstructura(null);
+        actualizarMetricas(null);
+        return;
+      }
+
+      const pasos = config.insertar({ estructura: estado.estructura, clave: validacion.valor });
+      const indiceColocacion = pasos.findIndex((paso) => paso.tipo === 'insercion');
+      estado.efectoPendiente = indiceColocacion === -1 ? null : {
+        indice: indiceColocacion,
+        casilla: pasos[indiceColocacion].casilla,
+        clave: pasos[indiceColocacion].clave
+      };
+      reproducirOperacion(pasos, `Inserción iniciada: clave ${validacion.valor}.`);
     }
 
     // Llenado numérico (CLAUDE.md 12: el alfabético queda diferido). Inserta de
-    // a una para que la animación de inserción se vea, no un salto al estado final.
+    // a una para que la animación de inserción se vea, no un salto al estado
+    // final. No reproduce la traza de cada clave: llenar es preparar el
+    // escenario, no la lección; la lección es la clave que se inserta a mano.
     function llenarAutomaticamente() {
       const { min, max } = dominio.limites.rangoValido(estado.estructura.l);
-      const objetivo = estado.estructura.n - estado.estructura.claves.length;
+      const objetivo = estado.estructura.n - dominio.estructura.cantidadClaves(estado.estructura);
       if (objetivo <= 0) {
         mostrarAlerta('error', `Estructura saturada: capacidad máxima de ${estado.estructura.n} casillas alcanzada.`);
         return;
@@ -301,6 +412,19 @@
       let insertadas = 0;
       let intentos = 0;
 
+      function colocar(candidato) {
+        if (!config.insertar) return dominio.estructura.insertar(estado.estructura, candidato);
+        // En una estructura dispersa la dirección la decide el algoritmo: se
+        // consulta su traza y se aplica el paso que coloca, si es que lo hay.
+        if (dominio.estructura.casillaDe(estado.estructura, candidato) !== 0) {
+          return { exito: false };
+        }
+        const pasos = config.insertar({ estructura: estado.estructura, clave: candidato });
+        const colocacion = pasos.find((paso) => paso.tipo === 'insercion');
+        if (!colocacion) return { exito: false };
+        return dominio.estructura.colocarEn(estado.estructura, colocacion.casilla, candidato);
+      }
+
       function insertarSiguiente() {
         if (insertadas >= objetivo || intentos >= objetivo * 50) {
           registrarBitacora(`Llenado automático: ${insertadas} claves insertadas.`);
@@ -308,7 +432,7 @@
         }
         intentos++;
         const candidato = Math.floor(Math.random() * (max - min + 1)) + min;
-        const resultado = dominio.estructura.insertar(estado.estructura, candidato);
+        const resultado = colocar(candidato);
         if (resultado.exito) {
           insertadas++;
           renderizarEstructura(null);
@@ -334,30 +458,25 @@
       }
       limpiarAlerta();
       invalidarReproduccion();
-
-      const pasos = config.buscar(estado.estructura.claves, validacion.valor);
-      estado.pasos = pasos;
-      calcularSegmentosApilado();
-      dom.seccionReproduccion.hidden = false;
-      registrarBitacora(`Búsqueda iniciada: clave objetivo ${validacion.valor}.`);
-
-      estado.reproductor = vista.reproductor.crearReproductor({
-        pasos,
-        velocidadMs: Number(dom.controlVelocidad.value),
-        alCambiarPaso: (paso, indice) => {
-          estado.pasoActual = paso;
-          estado.indicePaso = indice;
-          renderizarEstructura(paso, indice);
-          actualizarMetricas(paso);
-          if (paso) registrarBitacora(paso.mensaje);
-        }
-      });
-      estado.reproductor.siguientePaso();
+      reproducirOperacion(
+        config.buscar({ estructura: estado.estructura, objetivo: validacion.valor }),
+        `Búsqueda iniciada: clave objetivo ${validacion.valor}.`
+      );
     }
 
     function crearFormularioConfiguracion() {
       const contenedor = document.createElement('form');
       contenedor.className = 'panel';
+      // El tratamiento de colisiones se elige al crear y no después: no cambia
+      // solo el comportamiento sino la forma de la estructura, así que
+      // cambiarlo con claves ya colocadas obligaría a redispersarla entera.
+      const selectorTratamiento = config.tratamientos ? `
+        <label class="texto-nivel-3">Tratamiento de colisiones
+          <select name="tratamiento">
+            ${config.tratamientos.map((t) => `<option value="${t.valor}">${t.etiqueta}</option>`).join('')}
+          </select>
+        </label>
+      ` : '';
       contenedor.innerHTML = `
         <h2 class="panel__titulo texto-nivel-2">Configuración de la estructura</h2>
         <label class="texto-nivel-3">Nombre de la estructura
@@ -369,6 +488,7 @@
         <label class="texto-nivel-3">Longitud de clave (l)
           <input type="number" name="l" min="1" required>
         </label>
+        ${selectorTratamiento}
         <div class="pantalla-tema__controles">
           <button type="submit" class="boton boton--primario">Crear estructura</button>
         </div>
@@ -379,22 +499,40 @@
         const nombre = String(datos.get('nombre')).trim();
         const n = Number(datos.get('n'));
         const l = Number(datos.get('l'));
-        const resultado = dominio.estructura.crearEstructura({ n, l, tipoClave: 'numerica' });
+        const tratamiento = config.tratamientos ? String(datos.get('tratamiento')) : null;
+        const resultado = dominio.estructura.crearEstructura({
+          n,
+          l,
+          tipoClave: 'numerica',
+          modo: config.modo || dominio.estructura.MODOS.ORDENADA,
+          tratamiento
+        });
         if (!resultado.exito) {
           mostrarAlerta('error', resultado.mensaje);
           return;
         }
+        // Invalidar antes de cambiar la estructura, no después: si quedaba una
+        // inserción a medio reproducir, consumarla sobre la estructura nueva
+        // colocaría en ella una clave que nunca se le insertó.
+        invalidarReproduccion();
         resultado.estructura.nombre = nombre;
         estado.estructura = resultado.estructura;
-        invalidarReproduccion();
         limpiarAlerta();
         if (resultado.advertencia) mostrarAlerta('advertencia', resultado.advertencia);
-        registrarBitacora(`Estructura creada: n = ${n}, l = ${l}.`);
+        const detalleTratamiento = tratamiento
+          ? `, tratamiento de colisiones por ${etiquetaTratamiento(tratamiento)}`
+          : '';
+        registrarBitacora(`Estructura creada: n = ${n}, l = ${l}${detalleTratamiento}.`);
         persistencia.recientes.registrar({ nombre, temaTitulo: config.titulo, n, l });
         renderizarEstructura(null);
         actualizarMetricas(null);
       });
       return contenedor;
+    }
+
+    function etiquetaTratamiento(valor) {
+      const opcion = (config.tratamientos || []).find((t) => t.valor === valor);
+      return opcion ? opcion.etiqueta.toLowerCase() : valor;
     }
 
     function crearFormularioInsercion() {
@@ -435,6 +573,21 @@
         <div class="pantalla-tema__controles">
           <button type="submit" class="boton boton--primario">Buscar clave</button>
         </div>
+      `;
+      contenedor.addEventListener('submit', (evento) => {
+        evento.preventDefault();
+        if (!requiereEstructura()) return;
+        const datos = new FormData(contenedor);
+        iniciarBusqueda(String(datos.get('objetivo')));
+      });
+      return contenedor;
+    }
+
+    // El reproductor es de la operación en curso, sea buscar o insertar: por
+    // eso vive en su propio panel y no dentro del formulario de búsqueda.
+    function crearPanelReproduccion() {
+      const contenido = document.createElement('div');
+      contenido.innerHTML = `
         <div class="pantalla-tema__controles" data-seccion="reproduccion" hidden>
           <button type="button" class="boton" data-accion="anterior">◀ Paso anterior</button>
           <button type="button" class="boton" data-accion="siguiente">Paso siguiente ▶</button>
@@ -446,33 +599,26 @@
         </div>
       `;
 
-      contenedor.addEventListener('submit', (evento) => {
-        evento.preventDefault();
-        if (!requiereEstructura()) return;
-        const datos = new FormData(contenedor);
-        iniciarBusqueda(String(datos.get('objetivo')));
-      });
-
-      contenedor.querySelector('[data-accion="anterior"]').addEventListener('click', () => {
+      contenido.querySelector('[data-accion="anterior"]').addEventListener('click', () => {
         if (estado.reproductor) estado.reproductor.pasoAnterior();
       });
-      contenedor.querySelector('[data-accion="siguiente"]').addEventListener('click', () => {
+      contenido.querySelector('[data-accion="siguiente"]').addEventListener('click', () => {
         if (estado.reproductor) estado.reproductor.siguientePaso();
       });
-      contenedor.querySelector('[data-accion="reproducir"]').addEventListener('click', () => {
+      contenido.querySelector('[data-accion="reproducir"]').addEventListener('click', () => {
         if (estado.reproductor) estado.reproductor.reproducirContinuo();
       });
-      contenedor.querySelector('[data-accion="detener"]').addEventListener('click', () => {
+      contenido.querySelector('[data-accion="detener"]').addEventListener('click', () => {
         if (estado.reproductor) estado.reproductor.detener();
       });
 
-      dom.seccionReproduccion = contenedor.querySelector('[data-seccion="reproduccion"]');
-      dom.controlVelocidad = contenedor.querySelector('[data-control="velocidad"]');
+      dom.seccionReproduccion = contenido.querySelector('[data-seccion="reproduccion"]');
+      dom.controlVelocidad = contenido.querySelector('[data-control="velocidad"]');
       dom.controlVelocidad.addEventListener('input', (evento) => {
         if (estado.reproductor) estado.reproductor.establecerVelocidad(Number(evento.target.value));
       });
 
-      return contenedor;
+      return vista.componentes.panel.crearPanel({ titulo: 'Reproducción', contenido });
     }
 
     function crearPanelMetricas() {
@@ -536,8 +682,18 @@
     const lienzo = document.createElement('div');
     lienzo.className = 'pantalla-tema__lienzo';
     dom.estructuraEl = document.createElement('div');
-    dom.estructuraEl.className = 'estructura-horizontal';
-    lienzo.append(crearControlElision(), dom.estructuraEl);
+    dom.estructuraEl.className = esVertical() ? 'estructura-vertical' : 'estructura-horizontal';
+
+    // El cálculo se dibuja al lado de la estructura porque lo que se enseña es
+    // la correspondencia entre la cuenta y la casilla que resulta de ella.
+    const escenario = document.createElement('div');
+    escenario.className = 'lienzo__escenario';
+    escenario.appendChild(dom.estructuraEl);
+    if (config.calculo) {
+      dom.calculo = vista.componentes.calculo.crearPanelCalculo();
+      escenario.appendChild(dom.calculo.el);
+    }
+    lienzo.append(crearControlElision(), escenario);
 
     const panelLateral = document.createElement('div');
     panelLateral.className = 'pantalla-tema__panel-lateral';
@@ -549,6 +705,7 @@
       crearFormularioConfiguracion(),
       crearFormularioInsercion(),
       crearPanelBusqueda(),
+      crearPanelReproduccion(),
       crearPanelMetricas(),
       vista.componentes.panel.crearPanel({ titulo: 'Bitácora', contenido: dom.bitacora })
     );

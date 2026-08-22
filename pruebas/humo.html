@@ -28,10 +28,14 @@
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
+  <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
+  <script src="../js/algoritmos/hash/modulo.js"></script>
+  <script src="../js/algoritmos/hash/operaciones.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
   <script src="../js/vista/componentes/panel.js"></script>
   <script src="../js/vista/componentes/bitacora.js"></script>
+  <script src="../js/vista/componentes/calculo.js"></script>
   <script src="../js/vista/elision.js"></script>
   <script src="../js/vista/reproductor.js"></script>
   <script src="../js/vista/animacion.js"></script>
@@ -68,12 +72,27 @@
       const apilada = document.querySelector('.estructura-apilada');
       if (apilada) return retratarApilado().join(' // ');
 
-      return [...document.querySelectorAll('.columna-casilla')].map((columna) => {
-        const casilla = columna.querySelector('.casilla');
-        const marca = columna.querySelector('.escala__marca').textContent;
+      // Horizontal apila casilla sobre marca; vertical las pone lado a lado.
+      // El retrato es el mismo en ambas: la orientación no cambia qué se dice.
+      return [...document.querySelectorAll('.columna-casilla, .fila-casilla')].map((grupo) => {
+        const casilla = grupo.querySelector('.casilla');
+        const marca = grupo.querySelector('.escala__marca').textContent;
         if (!casilla) return `[${marca}]`;
         return marca + ':' + estadoDe(casilla);
       }).join(' ');
+    }
+
+    // El reproductor es de la operación en curso, sea buscar o insertar, y por
+    // eso vive en su propio panel y no dentro del formulario de búsqueda.
+    const control = (accion) => document.querySelector(`[data-accion="${accion}"]`);
+
+    // Avanza hasta consumar la operación. No se detiene al ver dos retratos
+    // iguales —los primeros pasos del cálculo no tocan la estructura y se
+    // verían idénticos— sino que insiste: el reproductor ignora los clics que
+    // sobran una vez agotada la traza.
+    function agotarTraza(pasos = 12) {
+      for (let i = 0; i < pasos; i++) control('siguiente').click();
+      return retratarEstructura();
     }
 
     // En la vista apilada cada paso deja su propia fila: se retrata una cadena
@@ -133,15 +152,15 @@
         'el desplazamiento vive en el panel lateral, no en la página'
       );
 
-      const caja = document.querySelector('.estructura-horizontal').getBoundingClientRect();
+      const caja = document.querySelector('.estructura-horizontal, .estructura-vertical').getBoundingClientRect();
       afirmar(
         caja.top >= 0 && caja.bottom <= window.innerHeight,
         `la estructura entra completa en el viewport (${Math.round(caja.top)}–${Math.round(caja.bottom)} de ${window.innerHeight})`
       );
 
       enviar(formularios[2], { objetivo });
-      const siguiente = formularios[2].querySelector('[data-accion="siguiente"]');
-      const anteriorBoton = formularios[2].querySelector('[data-accion="anterior"]');
+      const siguiente = control('siguiente');
+      const anteriorBoton = control('anterior');
 
       const filas = () => document.querySelectorAll('.apilada__rotulo').length;
 
@@ -221,6 +240,184 @@
       });
 
       binariaSinResultado();
+      hashCalculoReproducible();
+      hashColisionSinTratamiento();
+      hashReasignacion();
+    }
+
+    // Entra al tema de la función módulo y crea una estructura dispersa.
+    // Devuelve los formularios para seguir operando sobre ella.
+    function entrarAModulo({ nombre, n, l, tratamiento }) {
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes('Función módulo'))
+        .click();
+      const formularios = [...document.querySelectorAll('form.panel')];
+      enviar(formularios[0], { nombre, n, l, tratamiento });
+      return formularios;
+    }
+
+    const lineasCalculo = () => [...document.querySelectorAll('.calculo__linea')]
+      .map((el) => el.textContent.replace(/\s+/g, ' ').trim());
+
+    const casillaEn = (indice) => [...document.querySelectorAll('.fila-casilla')]
+      .find((fila) => fila.querySelector('.escala__marca').textContent === String(indice));
+
+    // El cálculo de la dirección es el contenido didáctico del tema: tiene que
+    // revelarse línea por línea con el reproductor, y retroceder tiene que
+    // deshacer tanto la línea como la colocación de la clave.
+    function hashCalculoReproducible() {
+      registro.push('', '── Función módulo · cálculo paso a paso ──');
+
+      const formularios = entrarAModulo({ nombre: 'Módulo', n: 10, l: 4, tratamiento: 'ninguno' });
+
+      afirmar(
+        !!document.querySelector('.estructura-vertical'),
+        'la estructura se dibuja en vertical'
+      );
+      afirmar(
+        document.querySelectorAll('.fila-casilla .casilla--vacia').length === 10,
+        'la estructura dispersa nace con las 10 casillas vacías a la vista'
+      );
+
+      // Mismo criterio de layout que en las búsquedas por comparación: la
+      // estructura es lo que se proyecta en clase y no puede quedar fuera de
+      // pantalla. Aquí además compite por el espacio con el panel del cálculo.
+      const pantalla = document.querySelector('.pantalla-tema');
+      afirmar(
+        pantalla.getBoundingClientRect().height <= window.innerHeight + 1,
+        `la pantalla se ancla al viewport (mide ${Math.round(pantalla.getBoundingClientRect().height)} de ${window.innerHeight})`
+      );
+      const cajaVertical = document.querySelector('.estructura-vertical').getBoundingClientRect();
+      afirmar(
+        cajaVertical.top >= 0 && cajaVertical.bottom <= window.innerHeight,
+        `la estructura vertical entra completa (${Math.round(cajaVertical.top)}–${Math.round(cajaVertical.bottom)} de ${window.innerHeight})`
+      );
+      const cajaCalculo = document.querySelector('.calculo').getBoundingClientRect();
+      afirmar(
+        cajaCalculo.right <= window.innerWidth && cajaCalculo.bottom <= window.innerHeight,
+        `el panel del cálculo cabe junto a la estructura (${Math.round(cajaCalculo.right)} de ${window.innerWidth} de ancho)`
+      );
+
+      enviar(formularios[1], { clave: 7412 });
+      afirmar(lineasCalculo().length === 1, 'la inserción arranca revelando una sola línea del cálculo');
+
+      control('siguiente').click();
+      afirmar(lineasCalculo().length === 2, 'avanzar revela la segunda línea');
+      registro.push('  línea 2: ' + lineasCalculo()[1]);
+      afirmar(lineasCalculo()[1].includes('7412 mod 10'), 'la segunda línea muestra la cuenta, no solo el resultado');
+
+      control('siguiente').click();
+      afirmar(lineasCalculo().length === 3, 'la tercera línea da la dirección');
+      afirmar(
+        !!casillaEn(3).querySelector('.casilla--en-evaluacion'),
+        'la casilla 3 queda señalada antes de recibir la clave'
+      );
+      afirmar(
+        casillaEn(3).querySelector('.casilla').textContent === '',
+        'la clave todavía no está colocada: el cálculo terminó, la inserción no'
+      );
+
+      control('siguiente').click();
+      afirmar(
+        casillaEn(3).querySelector('.casilla').textContent === '7412',
+        'el último paso coloca la clave en la casilla 3'
+      );
+      registro.push('  estructura: ' + retratarEstructura());
+
+      // Retroceder tiene que deshacer el efecto, no solo repintar: si la clave
+      // se quedara puesta, la estructura dejaría de corresponder al paso.
+      control('anterior').click();
+      afirmar(
+        casillaEn(3).querySelector('.casilla').textContent === '',
+        'retroceder retira la clave que el paso había colocado'
+      );
+      control('siguiente').click();
+
+      // Crear otra estructura con una inserción a medio reproducir no puede
+      // arrastrar la clave pendiente a la estructura nueva.
+      enviar(formularios[1], { clave: 1111 });
+      enviar(formularios[0], { nombre: 'Recreada', n: 10, l: 4, tratamiento: 'ninguno' });
+      afirmar(
+        document.querySelectorAll('.fila-casilla .casilla--vacia').length === 10,
+        'crear otra estructura no arrastra la clave a medio insertar'
+      );
+
+      enviar(formularios[1], { clave: 7412 });
+      agotarTraza();
+      enviar(formularios[2], { objetivo: 7412 });
+      const retrato = agotarTraza();
+      afirmar(retrato.includes('encontrada'), 'la búsqueda localiza la clave por su dirección');
+      const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+      afirmar(metricas[0] === '1', `una sola comparación, sea cual sea n (reporta ${metricas[0]})`);
+      afirmar(metricas[2] === '0.10', `el factor de carga reporta 1 de 10 (reporta ${metricas[2]})`);
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Sin tratamiento la colisión es el final del camino: la clave no entra y
+    // la casilla lo dice. Es el comportamiento que deja ver la función pura.
+    function hashColisionSinTratamiento() {
+      registro.push('', '── Función módulo · colisión sin tratamiento ──');
+
+      const formularios = entrarAModulo({ nombre: 'Choque', n: 10, l: 4, tratamiento: 'ninguno' });
+      enviar(formularios[1], { clave: 7412 });
+      agotarTraza();
+      // 5312 mod 10 = 2 → dirección 3, la misma que 7412.
+      enviar(formularios[1], { clave: 5312 });
+      const retrato = agotarTraza();
+      registro.push('  estructura: ' + retrato);
+
+      afirmar(retrato.includes('colision'), 'la casilla en conflicto se marca como colisión');
+      afirmar(
+        casillaEn(3).querySelector('.casilla').textContent === '7412',
+        'la clave que ya estaba conserva su casilla'
+      );
+      afirmar(
+        [...document.querySelectorAll('.fila-casilla .casilla')]
+          .every((casilla) => casilla.textContent !== '5312'),
+        'la clave rechazada no entra en ninguna casilla'
+      );
+
+      const bitacora = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
+      registro.push('  bitácora: ' + bitacora[bitacora.length - 1]);
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Con reasignación la clave termina lejos de su dirección, y el rastro de
+    // cada casilla probada es justamente lo que el documento exige mostrar.
+    function hashReasignacion() {
+      registro.push('', '── Función módulo · reasignación ──');
+
+      const formularios = entrarAModulo({ nombre: 'Reasignada', n: 10, l: 4, tratamiento: 'reasignacion' });
+      for (const clave of [7412, 5312, 9912]) {
+        enviar(formularios[1], { clave });
+        agotarTraza();
+      }
+      const retrato = retratarEstructura();
+      registro.push('  estructura: ' + retrato);
+
+      afirmar(
+        casillaEn(3).querySelector('.casilla').textContent === '7412',
+        'la primera clave se queda en su dirección'
+      );
+      afirmar(
+        casillaEn(4).querySelector('.casilla').textContent === '5312',
+        'la segunda se reasigna a la casilla siguiente'
+      );
+      afirmar(
+        casillaEn(5).querySelector('.casilla').textContent === '9912',
+        'la tercera sigue avanzando hasta la primera casilla libre'
+      );
+      afirmar(retrato.includes('sondeada'), 'las casillas recorridas por la prueba lineal quedan marcadas');
+
+      enviar(formularios[2], { objetivo: 9912 });
+      const retratoBusqueda = agotarTraza();
+      afirmar(retratoBusqueda.includes('encontrada'), 'la búsqueda repite el recorrido y halla la clave');
+      const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+      afirmar(metricas[0] === '3', `la búsqueda gasta 3 comparaciones (reporta ${metricas[0]})`);
+
+      document.querySelector('.pantalla-tema__volver').click();
     }
 
     // El último paso de una búsqueda fallida no tiene rango que dibujar: la
@@ -237,8 +434,7 @@
       for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) enviar(formularios[1], { clave });
 
       enviar(formularios[2], { objetivo: 45 });
-      const siguiente = formularios[2].querySelector('[data-accion="siguiente"]');
-      for (let i = 0; i < 10; i++) siguiente.click();
+      for (let i = 0; i < 10; i++) control('siguiente').click();
 
       const cierre = document.querySelector('.apilada__cierre');
       afirmar(!!cierre, 'la última estructura anuncia el rango vacío');

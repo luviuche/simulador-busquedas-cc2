@@ -12,14 +12,21 @@
   <!--
     Deja la aplicación en un estado concreto para fotografiarla. El estado se
     elige con el parámetro ?vista= de la URL:
-      menu      → catálogo (por defecto)
-      binaria   → búsqueda binaria a media traza
-      secuencial→ búsqueda secuencial a media traza
+      menu       → catálogo (por defecto)
+      binaria    → búsqueda binaria a media traza
+      secuencial → búsqueda secuencial a media traza
+      hash       → función módulo, insertando una clave que colisiona
+      hash-libre → función módulo, insertando en una casilla libre
+
+    Con ?paso=fin se recorre la traza completa en lugar de detenerse en el
+    primer paso, que es lo que hay que mirar en la vista apilada y en el
+    cálculo de la dirección. El tratamiento de colisiones se elige con
+    ?tratamiento=ninguno|reasignacion (por defecto, reasignación).
 
     Uso:
       msedge --headless --disable-gpu --window-size=1600,1000 \
              --screenshot=salida.png --virtual-time-budget=8000 \
-             "file:///…/pruebas/captura.html?vista=binaria"
+             "file:///…/pruebas/captura.html?vista=hash&paso=fin"
   -->
   <div id="app"></div>
 
@@ -29,10 +36,14 @@
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
+  <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
+  <script src="../js/algoritmos/hash/modulo.js"></script>
+  <script src="../js/algoritmos/hash/operaciones.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
   <script src="../js/vista/componentes/panel.js"></script>
   <script src="../js/vista/componentes/bitacora.js"></script>
+  <script src="../js/vista/componentes/calculo.js"></script>
   <script src="../js/vista/elision.js"></script>
   <script src="../js/vista/reproductor.js"></script>
   <script src="../js/vista/animacion.js"></script>
@@ -43,32 +54,64 @@
   <script>
     function enviar(formulario, valores) {
       for (const [nombre, valor] of Object.entries(valores)) {
-        formulario.querySelector(`[name="${nombre}"]`).value = valor;
+        const campo = formulario.querySelector(`[name="${nombre}"]`);
+        if (campo) campo.value = valor;
       }
       formulario.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const vista = new URLSearchParams(location.search).get('vista') || 'menu';
-      if (vista === 'menu') return;
-
-      const nombreTema = vista === 'binaria' ? 'Búsqueda binaria' : 'Búsqueda secuencial';
+    function entrarATema(nombreTema) {
       [...document.querySelectorAll('.tema-item')]
         .find((el) => el.textContent.includes(nombreTema))
         .click();
+      return [...document.querySelectorAll('form.panel')];
+    }
 
-      const formularios = [...document.querySelectorAll('form.panel')];
+    const parametros = new URLSearchParams(location.search);
+    // El reproductor vive en su propio panel: la operación puede ser buscar o
+    // insertar, y ninguna de las dos es dueña del control.
+    const avanzar = (veces) => {
+      const boton = document.querySelector('[data-accion="siguiente"]');
+      for (let i = 0; i < veces; i++) boton.click();
+    };
+    const pasosAAvanzar = () => (parametros.get('paso') === 'fin' ? 20 : 1);
+
+    function prepararBusqueda(nombreTema) {
+      const formularios = entrarATema(nombreTema);
       enviar(formularios[0], { nombre: 'Práctica de clase', n: 24, l: 2 });
       for (const clave of [10, 18, 24, 31, 37, 42, 50, 63, 71, 84, 90, 97]) {
         enviar(formularios[1], { clave });
       }
-
       enviar(formularios[2], { objetivo: 84 });
-      // Avanzar hasta donde pida la URL: ?paso=fin recorre la traza completa,
-      // que es lo que hay que mirar en la vista apilada.
-      const siguiente = formularios[2].querySelector('[data-accion="siguiente"]');
-      const hasta = new URLSearchParams(location.search).get('paso') === 'fin' ? 20 : 1;
-      for (let i = 0; i < hasta; i++) siguiente.click();
+      avanzar(pasosAAvanzar());
+    }
+
+    // La captura interesante de la transformación de claves es la inserción:
+    // es donde se ve el cálculo revelándose junto a la casilla que resulta.
+    function prepararHash({ colisiona }) {
+      const formularios = entrarATema('Función módulo');
+      enviar(formularios[0], {
+        nombre: 'Práctica de clase',
+        n: 12,
+        l: 4,
+        tratamiento: parametros.get('tratamiento') || 'reasignacion'
+      });
+      // 1004, 1016 y 1028 caen todas en la dirección 9: preparan el terreno
+      // para que la última inserción tenga algo con qué chocar.
+      for (const clave of [1004, 1010, 1023, 1035, 1016]) {
+        enviar(formularios[1], { clave });
+        avanzar(12);
+      }
+      enviar(formularios[1], { clave: colisiona ? 1028 : 1001 });
+      avanzar(pasosAAvanzar());
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const vista = parametros.get('vista') || 'menu';
+      if (vista === 'menu') return;
+      if (vista === 'hash') return prepararHash({ colisiona: true });
+      if (vista === 'hash-libre') return prepararHash({ colisiona: false });
+      prepararBusqueda(vista === 'binaria' ? 'Búsqueda binaria' : 'Búsqueda secuencial');
     });
   </script>
 </body>
