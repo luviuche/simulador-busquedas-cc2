@@ -44,9 +44,9 @@
     return pasos;
   }
 
-  function insertar({ claves, n, clave, direccionDe, tratamiento = TRATAMIENTOS.NINGUNO }) {
+  function insertar({ claves, n, clave, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO }) {
     const contadores = { comparaciones: 0, accesos: 0 };
-    const { direccion, calculo } = direccionDe(clave, n);
+    const { direccion, calculo } = direccionDe(clave, n, parametros);
     const pasos = pasosDelCalculo(calculo, contadores);
 
     const comun = () => ({
@@ -122,9 +122,9 @@
     return pasos;
   }
 
-  function buscar({ claves, n, objetivo, direccionDe, tratamiento = TRATAMIENTOS.NINGUNO }) {
+  function buscar({ claves, n, objetivo, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO }) {
     const contadores = { comparaciones: 0, accesos: 0 };
-    const { direccion, calculo } = direccionDe(objetivo, n);
+    const { direccion, calculo } = direccionDe(objetivo, n, parametros);
     const pasos = pasosDelCalculo(calculo, contadores);
 
     const comun = () => ({

@@ -443,3 +443,11 @@
   list-style: none;
   color: var(--tinta-suave);
 }
+
+/* Ayuda de un campo de parámetro: explica qué se espera sin robarle peso a la
+   etiqueta, que es lo que el campo realmente nombra (CLAUDE.md 8.3). */
+.campo__ayuda {
+  display: block;
+  margin-top: var(--espacio-1);
+  color: var(--tinta-suave);
+}

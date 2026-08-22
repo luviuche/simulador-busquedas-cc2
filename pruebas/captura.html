@@ -37,7 +37,12 @@
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
+  <script src="../js/algoritmos/hash/comun.js"></script>
   <script src="../js/algoritmos/hash/modulo.js"></script>
+  <script src="../js/algoritmos/hash/cuadrado.js"></script>
+  <script src="../js/algoritmos/hash/truncamiento.js"></script>
+  <script src="../js/algoritmos/hash/plegamiento.js"></script>
+  <script src="../js/algoritmos/hash/bases.js"></script>
   <script src="../js/algoritmos/hash/operaciones.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
@@ -88,12 +93,16 @@
 
     // La captura interesante de la transformación de claves es la inserción:
     // es donde se ve el cálculo revelándose junto a la casilla que resulta.
+    // El tema se elige con ?tema=, para poder fotografiar el desarrollo de
+    // cualquiera de las cinco funciones sin escribir una vista por cada una.
     function prepararHash({ colisiona }) {
-      const formularios = entrarATema('Función módulo');
+      const formularios = entrarATema(parametros.get('tema') || 'Función módulo');
       enviar(formularios[0], {
         nombre: 'Práctica de clase',
         n: 12,
         l: 4,
+        posiciones: parametros.get('posiciones') || '',
+        base: parametros.get('base') || '',
         tratamiento: parametros.get('tratamiento') || 'reasignacion'
       });
       // 1004, 1016 y 1028 caen todas en la dirección 9: preparan el terreno

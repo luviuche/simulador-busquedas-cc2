@@ -477,6 +477,19 @@
           </select>
         </label>
       ` : '';
+
+      // Parámetros propios del tema —las posiciones del truncamiento, la base
+      // de la conversión— junto a n y l, por la misma razón que el tratamiento:
+      // definen cómo se dispersa la estructura y cambiarlos con claves ya
+      // colocadas dejaría direcciones que no corresponden a ninguna cuenta.
+      const camposParametros = (config.parametros || []).map((parametro) => `
+        <label class="texto-nivel-3">${parametro.etiqueta}
+          <input type="${parametro.tipo === 'numero' ? 'number' : 'text'}"
+                 name="${parametro.nombre}"
+                 placeholder="${parametro.marcador || ''}">
+          <span class="campo__ayuda texto-nivel-5">${parametro.ayuda || ''}</span>
+        </label>
+      `).join('');
       contenedor.innerHTML = `
         <h2 class="panel__titulo texto-nivel-2">Configuración de la estructura</h2>
         <label class="texto-nivel-3">Nombre de la estructura
@@ -488,6 +501,7 @@
         <label class="texto-nivel-3">Longitud de clave (l)
           <input type="number" name="l" min="1" required>
         </label>
+        ${camposParametros}
         ${selectorTratamiento}
         <div class="pantalla-tema__controles">
           <button type="submit" class="boton boton--primario">Crear estructura</button>
@@ -500,6 +514,21 @@
         const n = Number(datos.get('n'));
         const l = Number(datos.get('l'));
         const tratamiento = config.tratamientos ? String(datos.get('tratamiento')) : null;
+
+        // Los parámetros se validan contra n y l, así que no pueden validarse
+        // antes de tenerlos: por eso ocurre aquí y no en el campo.
+        const parametros = {};
+        const advertenciasParametros = [];
+        for (const parametro of config.parametros || []) {
+          const validacion = parametro.validar(String(datos.get(parametro.nombre) || ''), { n, l });
+          if (!validacion.valido) {
+            mostrarAlerta('error', validacion.mensaje);
+            return;
+          }
+          parametros[parametro.nombre] = validacion.valor;
+          if (validacion.advertencia) advertenciasParametros.push(validacion.advertencia);
+        }
+
         const resultado = dominio.estructura.crearEstructura({
           n,
           l,
@@ -516,13 +545,20 @@
         // colocaría en ella una clave que nunca se le insertó.
         invalidarReproduccion();
         resultado.estructura.nombre = nombre;
+        resultado.estructura.parametros = parametros;
         estado.estructura = resultado.estructura;
         limpiarAlerta();
-        if (resultado.advertencia) mostrarAlerta('advertencia', resultado.advertencia);
+        // Las advertencias del tema pesan más que la del tamaño: hablan de una
+        // decisión que el estudiante acaba de tomar y puede rehacer.
+        const advertencia = advertenciasParametros[0] || resultado.advertencia;
+        if (advertencia) mostrarAlerta('advertencia', advertencia);
         const detalleTratamiento = tratamiento
           ? `, tratamiento de colisiones por ${etiquetaTratamiento(tratamiento)}`
           : '';
-        registrarBitacora(`Estructura creada: n = ${n}, l = ${l}${detalleTratamiento}.`);
+        const detalleParametros = (config.parametros || [])
+          .map((parametro) => `, ${parametro.etiqueta.toLowerCase()} ${parametros[parametro.nombre]}`)
+          .join('');
+        registrarBitacora(`Estructura creada: n = ${n}, l = ${l}${detalleParametros}${detalleTratamiento}.`);
         persistencia.recientes.registrar({ nombre, temaTitulo: config.titulo, n, l });
         renderizarEstructura(null);
         actualizarMetricas(null);

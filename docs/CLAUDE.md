@@ -251,7 +251,9 @@ El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada
 │   │   ├── secuencial.js
 │   │   ├── binaria.js
 │   │   ├── hash/
-│   │   │   ├── modulo.js      (cuadrado, truncamiento, plegamiento, bases)
+│   │   │   ├── comun.js       cifras necesarias, ajuste al rango
+│   │   │   ├── modulo.js · cuadrado.js · truncamiento.js
+│   │   │   ├── plegamiento.js · bases.js
 │   │   │   └── operaciones.js traza de insertar y buscar, común a todas
 │   │   └── colisiones/     reasignacion.js (anidados, encadenamiento)
 │   ├── vista/
@@ -293,7 +295,7 @@ msedge --headless --disable-gpu --hide-scrollbars --window-size=1500,950 \
        "file:///…/pruebas/captura.html?vista=binaria"
 ```
 
-Vistas disponibles: `menu`, `secuencial`, `binaria`, `hash` (inserción que colisiona) y `hash-libre` (inserción en casilla libre); con `&paso=fin` se recorre la traza completa, y con `&tratamiento=ninguno|reasignacion` se cambia el tratamiento de colisiones. La captura de `hash` es la que ya destapó un defecto real: la elisión escondía las claves ya colocadas, que en una tabla dispersa son el resultado mismo del algoritmo (§6.2).
+Vistas disponibles: `menu`, `secuencial`, `binaria`, `hash` (inserción que colisiona) y `hash-libre` (inserción en casilla libre); con `&paso=fin` se recorre la traza completa, con `&tratamiento=ninguno|reasignacion` se cambia el tratamiento, y con `&tema=`, `&base=` y `&posiciones=` se fotografía cualquiera de las cinco funciones hash con sus parámetros. La captura de `hash` es la que ya destapó un defecto real: la elisión escondía las claves ya colocadas, que en una tabla dispersa son el resultado mismo del algoritmo (§6.2).
 
 `dominio/` y `algoritmos/` no importan nada de `vista/`. Esa regla es la que permite probar los algoritmos sin abrir el navegador.
 
@@ -323,15 +325,25 @@ Todas devuelven una **dirección en base 1** dentro de `1..n`, y deben exponer l
 
 Cada función devuelve `{ direccion, calculo }`, donde `calculo` es la lista de líneas `{ etiqueta, expresion, resultado }` del desarrollo, en orden. `expresion` es la cuenta tal como se escribe en el tablero; la vista revela una línea por paso del reproductor, así que cada línea tiene que poder mostrarse sola.
 
-| Función | Cálculo |
-|---|---|
-| **Módulo** | `(clave mod n) + 1` |
-| **Cuadrado** | Elevar al cuadrado y tomar las cifras centrales necesarias para direccionar `n` |
-| **Truncamiento** | Seleccionar posiciones fijas de los dígitos de la clave |
-| **Plegamiento** | Partir la clave en grupos, sumarlos y ajustar al rango |
-| **Conversión de bases** | Convertir a otra base, truncar y ajustar al rango |
+| Función | Cálculo | Parámetro del estudiante |
+|---|---|---|
+| **Módulo** | `(clave mod n) + 1` | — |
+| **Cuadrado** | Elevar al cuadrado y tomar las cifras centrales necesarias para direccionar `n` | — |
+| **Truncamiento** | Seleccionar posiciones fijas de los dígitos de la clave | Las posiciones |
+| **Plegamiento** | Partir la clave en grupos, sumarlos y ajustar al rango | — |
+| **Conversión de bases** | Convertir a otra base, truncar y ajustar al rango | La base |
 
-Deben soportarse en decimal y en binario. **Pendiente de precisar (2026-08-22):** el documento no dice si lo binario es la clave que se digita, la base intermedia del cálculo, o ambas. La función módulo se construyó solo en decimal; resolverlo antes de tocar conversión de bases, que es donde el asunto deja de ser opcional.
+Tres reglas comunes, en `algoritmos/hash/comun.js`:
+
+1. **"Las cifras necesarias para direccionar `n`" son las de `n`**: tres con `n = 100`. Es el tamaño del grupo al plegar y la cantidad de cifras centrales del cuadrado. En conversión de bases se cuentan **en la base elegida** y no en decimal — con `n = 12` y base 2, dos cifras solo alcanzan cuatro direcciones y ocho casillas quedarían muertas.
+2. **El ajuste al rango preserva las direcciones válidas**: `((valor − 1) mod n) + 1`, de modo que 1 sigue siendo 1, `n` sigue siendo `n` y `n + 1` vuelve a 1. El doble módulo es por los valores menores que 1: en JavaScript el resto de un negativo es negativo, y sin corregirlo la casilla 0 sería posible.
+3. **La última línea del desarrollo se rotula siempre `Dirección`** y su resultado es la dirección. No es cosmético: el reproductor lee el resultado de la última línea para saber a qué casilla apuntar.
+
+Detalles que no se deducen del enunciado y conviene no cambiar sin motivo: el cuadrado se calcula con `BigInt`, porque con claves largas supera el entero seguro y las cifras centrales saldrían falseadas; las posiciones del truncamiento se numeran desde 1 y de izquierda a derecha, como las casillas, y se toman **en el orden indicado**; el plegamiento parte de izquierda a derecha, así que el grupo corto queda al final; y "truncar" en conversión de bases es quedarse con las **últimas** cifras, leídas en esa base.
+
+**Los parámetros se eligen al crear la estructura**, junto a `n`, `l` y el tratamiento de colisiones, y por la misma razón (§5.4): cambiarlos con claves ya colocadas dejaría direcciones que no corresponden a ninguna cuenta. Se validan contra `n` y `l` en ese momento, no al insertar.
+
+Deben soportarse en decimal y en binario. **Resuelto a medias (2026-08-22):** lo binario entró como la **base intermedia del cálculo** — conversión de bases con base 2 muestra la clave en binario y trunca bits en lugar de cifras. Lo que sigue sin resolverse es si además debe poder **digitarse** la clave en binario, o verse la estructura entera en binario, en los otros cuatro temas. Preguntarle al docente antes de construirlo: hoy la clave siempre se digita en decimal (§3.3).
 
 ### 5.4 Tratamiento de colisiones internas
 
@@ -599,9 +611,9 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 **Orden de construcción confirmado: primero búsqueda secuencial, luego binaria.** Secuencial es el tema anterior a binaria en el orden de la asignatura, y sirve como la primera plantilla end-to-end (dominio → traza → elisión → animación → bitácora); binaria reutiliza ese mismo patrón, no al revés.
 
-**Estado de construcción:** secuencial, binaria y **función módulo** implementadas y disponibles en el menú. Las tres entran por la misma pantalla parametrizada, `vista/pantallas/tema-busqueda.js`.
+**Estado de construcción:** secuencial, binaria y **las cinco funciones hash** implementadas y disponibles en el menú. Todas entran por la misma pantalla parametrizada, `vista/pantallas/tema-busqueda.js`.
 
-La función módulo dejó lista toda la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)—, así que **cuadrado, truncamiento, plegamiento y conversión de bases entran declarando su `direccionDe`** y una entrada en `TEMAS`: nada más de la pantalla debería cambiar. Si algo de la pantalla tiene que cambiar para que entre una de ellas, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
+La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 
 **Tratamientos de colisión construidos: `ninguno` y `reasignación` (prueba lineal).** Arreglos anidados y encadenamiento secuencial faltan, y no son un simple `direccionDe` más: necesitan estructuras secundarias por dirección, es decir un modelo de datos y un dibujo que hoy no existen. Antes de construirlos hay que decidir con el docente **cómo se ven** esas estructuras secundarias.
 
@@ -641,3 +653,5 @@ Búsquedas externas e índices para archivos · toda la unidad de grafos. Se mue
 - Contar las claves de una estructura dispersa con `claves.length`: siempre vale `n`, así que la estructura se declara llena desde el primer momento. Es `dominio.estructura.cantidadClaves` (§3.2).
 - Mutar la estructura desde el algoritmo de inserción. La traza no toca nada; el efecto lo aplica la pantalla, y retroceder tiene que deshacerlo (§6.5).
 - Elidir casillas ocupadas en una estructura dispersa: esconden el resultado de la función hash (§6.2).
+- Contar en decimal las cifras a truncar en conversión de bases: con base 2 y `n = 12` se tomarían 2 bits, y ocho casillas quedarían inalcanzables (§5.3).
+- Elevar la clave al cuadrado con aritmética normal: por encima del entero seguro las cifras centrales dejan de ser las del cuadrado (§5.3).

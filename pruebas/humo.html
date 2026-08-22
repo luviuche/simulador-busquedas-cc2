@@ -29,7 +29,12 @@
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
+  <script src="../js/algoritmos/hash/comun.js"></script>
   <script src="../js/algoritmos/hash/modulo.js"></script>
+  <script src="../js/algoritmos/hash/cuadrado.js"></script>
+  <script src="../js/algoritmos/hash/truncamiento.js"></script>
+  <script src="../js/algoritmos/hash/plegamiento.js"></script>
+  <script src="../js/algoritmos/hash/bases.js"></script>
   <script src="../js/algoritmos/hash/operaciones.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
@@ -243,18 +248,192 @@
       hashCalculoReproducible();
       hashColisionSinTratamiento();
       hashReasignacion();
+      hashCuadrado();
+      hashTruncamiento();
+      hashPlegamiento();
+      hashBases();
     }
 
-    // Entra al tema de la función módulo y crea una estructura dispersa.
-    // Devuelve los formularios para seguir operando sobre ella.
-    function entrarAModulo({ nombre, n, l, tratamiento }) {
+    // Plegamiento no tiene parámetro: el tamaño del grupo sale de n. Se
+    // comprueba que el formulario no invente un campo que el tema no declaró.
+    function hashPlegamiento() {
+      registro.push('', '── Función plegamiento ──');
+
+      const formularios = entrarATemaHash('Función plegamiento', {
+        nombre: 'Plegada', n: 12, l: 4, tratamiento: 'reasignacion'
+      });
+      afirmar(
+        !formularios[0].querySelector('[name="posiciones"]') && !formularios[0].querySelector('[name="base"]'),
+        'un tema sin parámetros propios no hereda los campos de los otros'
+      );
+
+      // 7412 con n = 12 → grupos de 2 → 74 + 12 = 86 → dirección 2.
+      enviar(formularios[1], { clave: 7412 });
+      agotarTraza();
+      registro.push('  cálculo: ' + lineasCalculo().join(' | '));
+      afirmar(lineasCalculo()[2].includes('74 + 12'), 'el desarrollo muestra la suma de los grupos');
+      afirmar(
+        casillaEn(2).querySelector('.casilla').textContent === '7412',
+        'la clave cae en la dirección que da la suma ajustada'
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Conversión de bases es el tema que cubre el caso binario del documento:
+    // se comprueba con base 2, que es el que interesa comprobar.
+    function hashBases() {
+      registro.push('', '── Conversión de bases ──');
+
+      const formularios = entrarATemaHash('Conversión de bases', {
+        nombre: 'Bases', n: 12, l: 4, base: '', tratamiento: 'reasignacion'
+      });
+
+      // Sin base indicada se usa 11: 7412 → 5629 → últimas dos, 29 → 31 → 7.
+      enviar(formularios[1], { clave: 7412 });
+      agotarTraza();
+      registro.push('  base 11: ' + lineasCalculo().join(' | '));
+      afirmar(lineasCalculo()[1].includes('5629'), 'sin base indicada se usa la de clase, 11');
+      afirmar(
+        casillaEn(7).querySelector('.casilla').textContent === '7412',
+        'la dirección sale de leer las últimas cifras en la base elegida'
+      );
+
+      // Con base 2 el mismo tema cubre el binario: 7412 → 1110011110100.
+      enviar(formularios[0], { nombre: 'Binaria', n: 12, l: 4, base: '2', tratamiento: 'reasignacion' });
+      enviar(formularios[1], { clave: 7412 });
+      agotarTraza();
+      registro.push('  base 2: ' + lineasCalculo().join(' | '));
+      afirmar(
+        lineasCalculo()[1].includes('1110011110100'),
+        'con base 2 la clave se muestra en binario'
+      );
+      // Las cifras a truncar se cuentan en la base elegida: con dos cifras
+      // decimales solo habría 4 direcciones y ocho casillas quedarían muertas.
+      afirmar(
+        lineasCalculo()[2].includes('Últimas 4 cifras'),
+        'con base 2 se truncan 4 bits, los que hacen falta para llegar a 12'
+      );
+      afirmar(
+        casillaEn(4).querySelector('.casilla').textContent === '7412',
+        'los últimos 4 bits, 0100, dan la casilla 4'
+      );
+
+      // Una base imposible se rechaza al crear, no al insertar.
+      enviar(formularios[0], { nombre: 'Inválida', n: 12, l: 4, base: '99', tratamiento: 'reasignacion' });
+      const alerta = document.querySelector('.alerta');
+      afirmar(
+        !!alerta && alerta.textContent.includes('Base inválida'),
+        'una base fuera de rango se rechaza al crear la estructura'
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Truncamiento es el primer tema con un parámetro propio. Se comprueba que
+    // el campo aparezca, que lo escrito llegue hasta el cálculo, y que una
+    // posición imposible se rechace al crear y no al insertar.
+    function hashTruncamiento() {
+      registro.push('', '── Función truncamiento ──');
+
       [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes('Función módulo'))
+        .find((el) => el.textContent.includes('Función truncamiento'))
+        .click();
+      const formularios = [...document.querySelectorAll('form.panel')];
+
+      afirmar(
+        !!formularios[0].querySelector('[name="posiciones"]'),
+        'el tema declara su propio campo de configuración'
+      );
+
+      // La clave tiene 4 cifras: la posición 6 no existe.
+      enviar(formularios[0], { nombre: 'Truncada', n: 12, l: 4, posiciones: '1,6', tratamiento: 'reasignacion' });
+      const alerta = document.querySelector('.alerta');
+      afirmar(!!alerta && alerta.textContent.includes('Posición fuera de rango'),
+        'una posición que la clave no tiene se rechaza al crear la estructura');
+      afirmar(
+        document.querySelectorAll('.fila-casilla').length === 0,
+        'la estructura no se crea cuando el parámetro es inválido'
+      );
+
+      // 7412 con posiciones 1 y 3 → cifras 7 y 1 → 71 → no cabe en 1..12 → 11.
+      enviar(formularios[0], { nombre: 'Truncada', n: 12, l: 4, posiciones: '1,3', tratamiento: 'reasignacion' });
+      enviar(formularios[1], { clave: 7412 });
+      agotarTraza();
+      registro.push('  cálculo: ' + lineasCalculo().join(' | '));
+      afirmar(
+        lineasCalculo()[1].includes('[7] 4 [1] 2'),
+        'el desarrollo marca en la clave las cifras que se tomaron'
+      );
+      afirmar(
+        casillaEn(11).querySelector('.casilla').textContent === '7412',
+        'las posiciones escritas por el usuario son las que deciden la dirección'
+      );
+
+      const bitacora = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
+      afirmar(
+        bitacora.some((fila) => fila.includes('posiciones a tomar 1,3')),
+        'la bitácora deja registro del parámetro con el que se creó la estructura'
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Cuadrado entra por la misma puerta que módulo: lo único que cambia es el
+    // desarrollo del cálculo. Si esta prueba obliga a tocar la pantalla, es
+    // señal de que el contrato { direccion, calculo } se quedó corto.
+    function hashCuadrado() {
+      registro.push('', '── Función cuadrado ──');
+
+      const formularios = entrarATemaHash('Función cuadrado', {
+        nombre: 'Cuadrado', n: 12, l: 4, tratamiento: 'reasignacion'
+      });
+
+      // 1004² = 1008016 → centrales "08" → dirección 8.
+      enviar(formularios[1], { clave: 1004 });
+      agotarTraza();
+      registro.push('  cálculo: ' + lineasCalculo().join(' | '));
+      afirmar(
+        lineasCalculo()[1].includes('1008016'),
+        'el desarrollo muestra el cuadrado completo, no solo las cifras tomadas'
+      );
+      afirmar(
+        casillaEn(8).querySelector('.casilla').textContent === '1004',
+        'la clave cae en la dirección que dan las cifras centrales'
+      );
+
+      // 1010² = 1020100 → centrales "20" → 20 no cabe en 1..12 y se ajusta a 8,
+      // así que choca con la anterior y la reasignación la manda a la 9.
+      enviar(formularios[1], { clave: 1010 });
+      const retrato = agotarTraza();
+      registro.push('  estructura: ' + retrato);
+      afirmar(
+        lineasCalculo()[3].includes('ajustado a 1..12'),
+        'el desarrollo dice que la dirección se ajustó al rango'
+      );
+      afirmar(
+        casillaEn(9).querySelector('.casilla').textContent === '1010',
+        'la clave ajustada colisiona y la reasignación la coloca en la casilla 9'
+      );
+
+      enviar(formularios[2], { objetivo: 1010 });
+      afirmar(agotarTraza().includes('encontrada'), 'la búsqueda repite el mismo cálculo y la halla');
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Entra a un tema de transformación de claves y crea una estructura
+    // dispersa. Devuelve los formularios para seguir operando sobre ella.
+    function entrarATemaHash(tema, { nombre, n, l, tratamiento }) {
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes(tema))
         .click();
       const formularios = [...document.querySelectorAll('form.panel')];
       enviar(formularios[0], { nombre, n, l, tratamiento });
       return formularios;
     }
+
+    const entrarAModulo = (opciones) => entrarATemaHash('Función módulo', opciones);
 
     const lineasCalculo = () => [...document.querySelectorAll('.calculo__linea')]
       .map((el) => el.textContent.replace(/\s+/g, ' ').trim());

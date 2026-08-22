@@ -27,10 +27,10 @@
           titulo: 'Transformación de claves · funciones hash',
           temas: [
             { id: 'hash-modulo', titulo: 'Función módulo', descripcion: 'Dirección por residuo de n', disponible: true },
-            { id: 'hash-cuadrado', titulo: 'Función cuadrado', descripcion: 'Cifras centrales del cuadrado', disponible: false },
-            { id: 'hash-truncamiento', titulo: 'Función truncamiento', descripcion: 'Selección de dígitos de la clave', disponible: false },
-            { id: 'hash-plegamiento', titulo: 'Función plegamiento', descripcion: 'Suma de particiones de la clave', disponible: false },
-            { id: 'hash-bases', titulo: 'Conversión de bases', descripcion: 'Cambio de base y truncamiento', disponible: false }
+            { id: 'hash-cuadrado', titulo: 'Función cuadrado', descripcion: 'Cifras centrales del cuadrado', disponible: true },
+            { id: 'hash-truncamiento', titulo: 'Función truncamiento', descripcion: 'Selección de dígitos de la clave', disponible: true },
+            { id: 'hash-plegamiento', titulo: 'Función plegamiento', descripcion: 'Suma de particiones de la clave', disponible: true },
+            { id: 'hash-bases', titulo: 'Conversión de bases', descripcion: 'Cambio de base y truncamiento', disponible: true }
           ]
         },
         {
@@ -101,6 +101,74 @@
     )
   };
 
+  // Todos los temas de transformación de claves se comportan igual: lo único
+  // que los distingue es cómo calculan la dirección (CLAUDE.md 5.3 y 12). Por
+  // eso comparten una sola configuración y cada función nueva aporta su
+  // `direccionDe`, nada más.
+  //
+  // Tres cosas los separan de las búsquedas por comparación, y las tres entran
+  // por `config`:
+  //
+  //   modo dispersa  — la clave aterriza en su dirección, no al final: la
+  //                    estructura tiene huecos y no está ordenada.
+  //   insertar       — insertar deja de ser instantáneo y pasa a ser lo que
+  //                    se enseña, así que produce traza como una búsqueda.
+  //   tratamientos   — las colisiones no son un tema aparte sino parte de
+  //                    estos temas (pedido del docente); se eligen al crear.
+  function temaHash({ titulo, descripcion, direccionDe, parametros }) {
+    const operar = (operacion) => ({ estructura, clave, objetivo }) => operacion({
+      claves: estructura.claves,
+      n: estructura.n,
+      clave,
+      objetivo,
+      direccionDe,
+      parametros: estructura.parametros,
+      tratamiento: estructura.tratamiento
+    });
+
+    return {
+      titulo,
+      descripcion,
+      orientacion: 'vertical',
+      modo: dominio.estructura.MODOS.DISPERSA,
+      calculo: true,
+      parametros,
+      tratamientos: [
+        { valor: hashOperaciones.TRATAMIENTOS.NINGUNO, etiqueta: 'Sin tratamiento' },
+        { valor: hashOperaciones.TRATAMIENTOS.REASIGNACION, etiqueta: 'Reasignación (prueba lineal)' }
+      ],
+      insertar: operar(hashOperaciones.insertar),
+      buscar: operar(hashOperaciones.buscar),
+      casillasRelevantes: (paso) => [paso.casilla, paso.direccion]
+        .concat(paso.sondeadas || [])
+        .filter(Boolean),
+      describirCasilla: ({ paso, indice, ocupada }) => {
+        const base = ocupada ? 'ocupada' : 'vacia';
+        if (!paso) return { estado: base };
+
+        const modificadores = [];
+        // La dirección que dio el hash se sigue marcando aunque el sondeo ya
+        // se haya ido de ella: es lo que deja ver cuánto se alejó la clave.
+        if (paso.direccion === indice && paso.casilla !== indice) modificadores.push('direccion');
+
+        if (paso.casilla === indice) {
+          if (paso.tipo === 'encontrada') return { estado: 'encontrada', modificadores };
+          if (paso.tipo === 'insercion') return { estado: 'insertada', modificadores };
+          if (paso.tipo === 'colision' || paso.tipo === 'rechazada') {
+            return { estado: 'colision', modificadores };
+          }
+          return { estado: 'en-evaluacion', modificadores };
+        }
+        if (paso.colision === indice) return { estado: 'colision', modificadores };
+        if (paso.sondeadas && paso.sondeadas.includes(indice)) {
+          return { estado: base, modificadores: modificadores.concat('sondeada') };
+        }
+        return { estado: base, modificadores };
+      },
+      metricas: [METRICA_COMPARACIONES, METRICA_ACCESOS, METRICA_FACTOR_CARGA]
+    };
+  }
+
   // Configuración de cada tema sobre la pantalla común de búsqueda. Lo único
   // propio de un algoritmo es cómo se lee su traza: qué casillas son relevantes
   // para la elisión y en qué estado queda cada una en el paso actual.
@@ -169,67 +237,68 @@
       ]
     },
 
-    // Transformación de claves (CLAUDE.md 5.3). Tres cosas la separan de las
-    // búsquedas por comparación, y las tres entran por `config`:
-    //
-    //   modo dispersa  — la clave aterriza en su dirección, no al final: la
-    //                    estructura tiene huecos y no está ordenada.
-    //   insertar       — insertar deja de ser instantáneo y pasa a ser lo que
-    //                    se enseña, así que produce traza como una búsqueda.
-    //   tratamientos   — las colisiones no son un tema aparte sino parte de
-    //                    este (pedido del docente); se eligen al crear.
-    'hash-modulo': {
+    'hash-modulo': temaHash({
       titulo: 'FUNCIÓN MÓDULO',
       descripcion: 'Dirección por residuo de n',
-      orientacion: 'vertical',
-      modo: dominio.estructura.MODOS.DISPERSA,
-      calculo: true,
-      tratamientos: [
-        { valor: hashOperaciones.TRATAMIENTOS.NINGUNO, etiqueta: 'Sin tratamiento' },
-        { valor: hashOperaciones.TRATAMIENTOS.REASIGNACION, etiqueta: 'Reasignación (prueba lineal)' }
-      ],
-      insertar: ({ estructura, clave }) => hashOperaciones.insertar({
-        claves: estructura.claves,
-        n: estructura.n,
-        clave,
-        direccionDe: algoritmos.hash.modulo.direccionModulo,
-        tratamiento: estructura.tratamiento
-      }),
-      buscar: ({ estructura, objetivo }) => hashOperaciones.buscar({
-        claves: estructura.claves,
-        n: estructura.n,
-        objetivo,
-        direccionDe: algoritmos.hash.modulo.direccionModulo,
-        tratamiento: estructura.tratamiento
-      }),
-      casillasRelevantes: (paso) => [paso.casilla, paso.direccion]
-        .concat(paso.sondeadas || [])
-        .filter(Boolean),
-      describirCasilla: ({ paso, indice, ocupada }) => {
-        const base = ocupada ? 'ocupada' : 'vacia';
-        if (!paso) return { estado: base };
+      direccionDe: algoritmos.hash.modulo.direccionModulo
+    }),
 
-        const modificadores = [];
-        // La dirección que dio el hash se sigue marcando aunque el sondeo ya
-        // se haya ido de ella: es lo que deja ver cuánto se alejó la clave.
-        if (paso.direccion === indice && paso.casilla !== indice) modificadores.push('direccion');
+    'hash-cuadrado': temaHash({
+      titulo: 'FUNCIÓN CUADRADO',
+      descripcion: 'Cifras centrales del cuadrado',
+      direccionDe: algoritmos.hash.cuadrado.direccionCuadrado
+    }),
 
-        if (paso.casilla === indice) {
-          if (paso.tipo === 'encontrada') return { estado: 'encontrada', modificadores };
-          if (paso.tipo === 'insercion') return { estado: 'insertada', modificadores };
-          if (paso.tipo === 'colision' || paso.tipo === 'rechazada') {
-            return { estado: 'colision', modificadores };
-          }
-          return { estado: 'en-evaluacion', modificadores };
+    // Las posiciones son del estudiante: "fijas" significa las mismas para
+    // toda la estructura, no decididas por el simulador. Es lo que el docente
+    // plantea en un ejercicio ("tome la primera y la tercera cifra").
+    'hash-truncamiento': temaHash({
+      titulo: 'FUNCIÓN TRUNCAMIENTO',
+      descripcion: 'Selección de dígitos de la clave',
+      direccionDe: algoritmos.hash.truncamiento.direccionTruncamiento,
+      parametros: [
+        {
+          nombre: 'posiciones',
+          etiqueta: 'Posiciones a tomar',
+          tipo: 'texto',
+          marcador: '1, 3',
+          ayuda: 'Cifras de la clave, numeradas desde 1. Si se deja vacío, se toman las primeras que hagan falta para direccionar n.',
+          validar: (entrada, { n, l }) => (
+            entrada.trim() === ''
+              ? { valido: true, valor: algoritmos.hash.truncamiento.posicionesPorDefecto(n) }
+              : algoritmos.hash.truncamiento.validarPosiciones(entrada, { n, l })
+          )
         }
-        if (paso.colision === indice) return { estado: 'colision', modificadores };
-        if (paso.sondeadas && paso.sondeadas.includes(indice)) {
-          return { estado: base, modificadores: modificadores.concat('sondeada') };
+      ]
+    }),
+
+    'hash-plegamiento': temaHash({
+      titulo: 'FUNCIÓN PLEGAMIENTO',
+      descripcion: 'Suma de particiones de la clave',
+      direccionDe: algoritmos.hash.plegamiento.direccionPlegamiento
+    }),
+
+    // Con base 2 este mismo tema cubre el caso binario que pide el documento.
+    'hash-bases': temaHash({
+      titulo: 'CONVERSIÓN DE BASES',
+      descripcion: 'Cambio de base y truncamiento',
+      direccionDe: algoritmos.hash.bases.direccionBases,
+      parametros: [
+        {
+          nombre: 'base',
+          etiqueta: 'Base de conversión',
+          tipo: 'numero',
+          marcador: String(algoritmos.hash.bases.BASE_POR_DEFECTO),
+          ayuda: `Entre ${algoritmos.hash.bases.BASE_MINIMA} y ${algoritmos.hash.bases.BASE_MAXIMA}. `
+            + `Si se deja vacío se usa ${algoritmos.hash.bases.BASE_POR_DEFECTO}; con 2 la clave se lee en binario.`,
+          validar: (entrada) => (
+            entrada.trim() === ''
+              ? { valido: true, valor: algoritmos.hash.bases.BASE_POR_DEFECTO }
+              : algoritmos.hash.bases.validarBase(entrada)
+          )
         }
-        return { estado: base, modificadores };
-      },
-      metricas: [METRICA_COMPARACIONES, METRICA_ACCESOS, METRICA_FACTOR_CARGA]
-    }
+      ]
+    })
   };
 
   let elementosDomMenu = {};
