@@ -363,6 +363,8 @@ Detalle que hace falta y es fácil de omitir: las filas del grid van con `minmax
 - La fila de una búsqueda fallida no tiene rango: anuncia *Rango vacío: no quedan casillas por examinar* en lugar de quedar en blanco.
 - El corchete de rango activo no se dibuja aquí: la fila entera **es** el rango, y repetirlo sería ruido.
 
+**Pendiente de consultar con el docente (2026-08-22): la primera fila muestra el rango de la búsqueda, no las `n` casillas.** Como `buscarBinaria` recorre solo el arreglo de claves, el rango del paso 1 va de 1 a la cantidad de claves; las casillas vacías del final (siempre al final, porque `dominio/estructura.js` inserta empaquetado) no aparecen en ninguna fila. Solo se nota cuando la estructura no está llena. La alternativa evaluada —dibujar la fila 1 completa, con las vacías, y recortar de la fila 2 en adelante— convence al usuario, pero **no se implementa hasta que el docente opine**: las vacías nunca fueron candidatas y mostrarlas puede leerse como que se descartaron en el paso 1. No "corregir" esto por iniciativa propia.
+
 Dos decisiones de implementación que hay que respetar al tocar esto:
 
 1. **Un solo grid para todo el apilado**, no un grid por fila. Con grids independientes las columnas de cada fila se dimensionan por separado y dejan de corresponderse, que es justo lo que la vista necesita.
