@@ -10,6 +10,15 @@
     return String(n).length;
   }
 
+  // Cuántas cifras hacen falta para *numerar* n direcciones empezando en cero,
+  // que es lo que pide el docente en la función cuadrado (CLAUDE.md 5.3): con
+  // n = 100 son dos, porque las direcciones se leen de 00 a 99 y la cuenta
+  // termina sumando 1. Tomar tres —las de n— metería en el número una cifra
+  // que ninguna dirección usa.
+  function cifrasDeRango(n) {
+    return String(Math.max(n - 1, 0)).length;
+  }
+
   // Toda función termina con una línea rotulada "Dirección": el reproductor lee
   // el resultado de la última línea para saber a qué casilla apuntar, así que
   // la invariante "la última línea es la dirección" no es cosmética.
@@ -31,6 +40,22 @@
     };
   }
 
+  // Variante de la anterior para las funciones cuyo número extraído cuenta
+  // desde cero: las cifras centrales del cuadrado dan 00..99, no 1..100, así
+  // que la dirección es ese valor más uno. Se suma antes de ajustar para que el
+  // 99 caiga en la casilla n y no en la 100 de una estructura más chica.
+  function lineaDireccionDesdeCero(valor, n) {
+    const direccion = valor + 1;
+    if (direccion >= 1 && direccion <= n) {
+      return { etiqueta: 'Dirección', expresion: `${valor} + 1`, resultado: String(direccion) };
+    }
+    return {
+      etiqueta: 'Dirección',
+      expresion: `${valor} + 1 ajustado a 1..${n}`,
+      resultado: String(((direccion - 1) % n + n) % n + 1)
+    };
+  }
+
   // Enmarca el tramo que se extrajo dentro del número completo, para que se vea
   // de dónde salió y no solo cuál fue: `54 [937] 744`.
   function enmarcar(texto, desde, cantidad) {
@@ -43,5 +68,5 @@
   window.CC2 = window.CC2 || {};
   window.CC2.algoritmos = window.CC2.algoritmos || {};
   window.CC2.algoritmos.hash = window.CC2.algoritmos.hash || {};
-  window.CC2.algoritmos.hash.comun = { cifrasNecesarias, lineaDireccion, enmarcar };
+  window.CC2.algoritmos.hash.comun = { cifrasNecesarias, cifrasDeRango, lineaDireccion, lineaDireccionDesdeCero, enmarcar };
 })();

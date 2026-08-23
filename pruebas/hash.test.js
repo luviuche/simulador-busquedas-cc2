@@ -176,7 +176,7 @@ test('la colocación directa no pisa una casilla ocupada ni sale del rango', () 
 // ── Función cuadrado ──────────────────────────────────────────────────────
 
 const { direccionCuadrado } = CC2.algoritmos.hash.cuadrado;
-const { cifrasNecesarias, enmarcar } = CC2.algoritmos.hash.comun;
+const { cifrasNecesarias, cifrasDeRango, enmarcar } = CC2.algoritmos.hash.comun;
 
 test('las cifras a tomar son las que hacen falta para direccionar n', () => {
   assert.equal(cifrasNecesarias(9), 1);
@@ -185,18 +185,47 @@ test('las cifras a tomar son las que hacen falta para direccionar n', () => {
   assert.equal(cifrasNecesarias(10000), 5);
 });
 
-test('el cuadrado toma las cifras centrales y las ajusta al rango', () => {
-  const { direccion, calculo } = direccionCuadrado(7412, 100);
-  assert.equal(calculo[1].resultado, '54937744');
-  assert.equal(calculo[2].resultado, '937');
-  // 937 no direcciona una estructura de 100 casillas: se ajusta.
-  assert.equal(direccion, 37);
+test('el cuadrado cuenta las cifras del rango, que se numera desde cero', () => {
+  // Con n = 100 las direcciones se leen de 00 a 99: dos cifras, no las tres de n.
+  assert.equal(cifrasDeRango(100), 2);
+  assert.equal(cifrasDeRango(1000), 3);
+  assert.equal(cifrasDeRango(12), 2);
+  assert.equal(cifrasDeRango(10), 1);
+  assert.equal(cifrasDeRango(1), 1);
+});
+
+test('el cuadrado toma las cifras centrales del rango y suma uno', () => {
+  // Ejemplo del docente: n = 100, l = 4, clave 3748.
+  const { direccion, calculo } = direccionCuadrado(3748, 100);
+  assert.equal(calculo[1].resultado, '14047504');
+  assert.equal(calculo[2].resultado, '47');
+  assert.equal(calculo[3].expresion, '47 + 1');
+  assert.equal(direccion, 48);
+});
+
+test('con un cuadrado de cifras impares la selección se corre a la izquierda', () => {
+  // El otro ejemplo del docente: 3025² = 9150625. La cifra central es el 0 y la
+  // acompaña el 5 que tiene a la izquierda, no el 6 de la derecha: 50, no 06.
+  const { direccion, calculo } = direccionCuadrado(3025, 100);
+  assert.equal(calculo[1].resultado, '9150625');
+  assert.equal(calculo[2].expresion, '91 [50] 625');
+  assert.equal(direccion, 51);
+});
+
+test('cuando las cifras centrales se salen del rango, se ajustan', () => {
+  // 7412² = 54937744, centrales 37: en una estructura de 12 casillas el 38 no
+  // existe y se ajusta, pero la cuenta que se muestra sigue siendo 37 + 1.
+  const { direccion, calculo } = direccionCuadrado(7412, 12);
+  assert.equal(calculo[2].resultado, '37');
+  assert.equal(calculo[3].expresion, '37 + 1 ajustado a 1..12');
+  assert.equal(direccion, 2);
 });
 
 test('cuando las cifras centrales ya direccionan, se usan tal cual', () => {
   const { direccion, calculo } = direccionCuadrado(7412, 999);
-  assert.equal(direccion, 937);
-  assert.match(calculo[3].expresion, /cabe en 1\.\.999/);
+  assert.equal(calculo[2].resultado, '937');
+  assert.equal(calculo[3].expresion, '937 + 1');
+  assert.equal(direccion, 938);
 });
 
 test('el cuadrado se calcula exacto aunque exceda el entero seguro', () => {
@@ -207,12 +236,12 @@ test('el cuadrado se calcula exacto aunque exceda el entero seguro', () => {
   assert.equal(Number.isSafeInteger(1234567890 ** 2), false);
 });
 
-test('el ajuste al rango nunca produce la casilla 0', () => {
-  // 1000² = 1000000: las cuatro cifras centrales son 0000, y un resto
-  // negativo sin corregir daría 0, que no es una casilla válida.
+test('las cifras centrales en cero dan la primera casilla, no la casilla 0', () => {
+  // 1000² = 1000000: las tres cifras centrales son 000, y sin el + 1 la
+  // dirección sería 0, que no es una casilla válida.
   const { direccion, calculo } = direccionCuadrado(1000, 1000);
-  assert.equal(calculo[2].resultado, '0000');
-  assert.equal(direccion, 1000);
+  assert.equal(calculo[2].resultado, '000');
+  assert.equal(direccion, 1);
 });
 
 test('el desarrollo enmarca el tramo extraído dentro del número completo', () => {
@@ -255,20 +284,24 @@ test('el truncamiento toma las posiciones indicadas, de izquierda a derecha', ()
   // Clave 7412, posiciones 1 y 3 → cifras 7 y 1 → 71.
   const { direccion, calculo } = direccionTruncamiento(7412, 100, { posiciones: [1, 3] });
   assert.equal(calculo[1].resultado, '71');
-  assert.equal(direccion, 71);
+  assert.equal(calculo[2].expresion, '71 + 1');
+  assert.equal(direccion, 72);
   // El desarrollo marca las cifras tomadas en su sitio dentro de la clave.
   assert.equal(calculo[1].expresion, '[7] 4 [1] 2');
 });
 
 test('el orden de las posiciones es el que se indica, no el ascendente', () => {
-  assert.equal(direccionTruncamiento(7412, 100, { posiciones: [3, 1] }).direccion, 17);
+  assert.equal(direccionTruncamiento(7412, 100, { posiciones: [3, 1] }).direccion, 18);
 });
 
 test('sin posiciones indicadas se toman las primeras que direccionan n', () => {
-  assert.deepEqual(posicionesPorDefecto(100), [1, 2, 3]);
+  // Las del rango, no las de n: con n = 100 dos posiciones dan 00..99 y el
+  // + 1 las lleva justo a 1..100.
+  assert.deepEqual(posicionesPorDefecto(100), [1, 2]);
   assert.deepEqual(posicionesPorDefecto(12), [1, 2]);
-  // 7412 con n = 12: primeras dos cifras → 74 → no cabe → ajuste.
-  assert.equal(direccionTruncamiento(7412, 12).direccion, 2);
+  assert.equal(direccionTruncamiento(4711, 100).direccion, 48);
+  // 7412 con n = 12: primeras dos cifras → 74 → 75 no cabe → ajuste.
+  assert.equal(direccionTruncamiento(7412, 12).direccion, 3);
 });
 
 test('se rechaza una posición que la clave no tiene', () => {
@@ -294,6 +327,7 @@ test('advierte, sin bloquear, cuando las posiciones no alcanzan todas las casill
   // de 500 casillas hay 400 a las que nunca llega ninguna clave.
   const resultado = validarPosiciones('1,3', { l: 4, n: 500 });
   assert.equal(resultado.valido, true);
+  assert.match(resultado.advertencia, /no supera 100/);
   assert.match(resultado.advertencia, /inalcanzable/);
   // Con las tres que hacen falta, no hay nada que advertir.
   assert.equal(validarPosiciones('1,2,3', { l: 4, n: 500 }).advertencia, null);
@@ -301,7 +335,7 @@ test('advierte, sin bloquear, cuando las posiciones no alcanzan todas las casill
 
 // ── Función plegamiento ───────────────────────────────────────────────────
 
-const { direccionPlegamiento, partir } = CC2.algoritmos.hash.plegamiento;
+const { direccionPlegamiento, partir, validarOperacion, OPERACIONES } = CC2.algoritmos.hash.plegamiento;
 
 test('el plegamiento parte de izquierda a derecha y el grupo corto queda al final', () => {
   assert.deepEqual(partir('7412', 3), ['741', '2']);
@@ -309,19 +343,58 @@ test('el plegamiento parte de izquierda a derecha y el grupo corto queda al fina
   assert.deepEqual(partir('7412', 4), ['7412']);
 });
 
-test('el tamaño del grupo es el que hace falta para direccionar n', () => {
-  // n = 100 → grupos de 3 → 741 + 2 = 743 → no cabe → 43.
-  const { direccion, calculo } = direccionPlegamiento(7412, 100);
-  assert.equal(calculo[2].expresion, '741 + 2');
-  assert.equal(calculo[2].resultado, '743');
-  assert.equal(direccion, 43);
+test('el tamaño del grupo es el que numera el rango: con n = 100, pares', () => {
+  // Ejemplo del docente: 3025 se pliega en 30 y 25, no en 302 y 5.
+  const { direccion, calculo } = direccionPlegamiento(3025, 100);
+  assert.equal(calculo[1].expresion, '[30] [25]');
+  assert.equal(calculo[2].expresion, '30 + 25');
+  assert.equal(calculo[2].resultado, '55');
+  assert.equal(direccion, 56);
 });
 
-test('con grupos de dos cifras la suma cambia y la dirección también', () => {
-  // n = 12 → grupos de 2 → 74 + 12 = 86 → (86−1) mod 12 + 1 = 2.
+test('los grupos también se pueden multiplicar', () => {
+  const { direccion, calculo } = direccionPlegamiento(3025, 100, { operacion: OPERACIONES.MULTIPLICAR });
+  assert.equal(calculo[2].etiqueta, 'Producto');
+  assert.equal(calculo[2].expresion, '30 × 25');
+  assert.equal(calculo[2].resultado, '750');
+  // Del total se toman las últimas cifras: 750 → 50 → 51.
+  assert.equal(calculo[3].expresion, '7 [50]');
+  assert.equal(direccion, 51);
+});
+
+test('del total se descarta lo que se sale por la izquierda, no por la derecha', () => {
+  // 99 × 99 = 9801: las últimas dos cifras son 01, no las centrales 80.
+  const { direccion, calculo } = direccionPlegamiento(9999, 100, { operacion: OPERACIONES.MULTIPLICAR });
+  assert.equal(calculo[2].resultado, '9801');
+  assert.equal(calculo[3].resultado, '01');
+  assert.equal(direccion, 2);
+});
+
+test('el producto de los grupos no depende de la precisión de Number', () => {
+  // La cuenta se hace sobre el texto de la clave y con BigInt, así que el
+  // total es exacto por larga que sea. Con aritmética normal 99¹⁰ se redondea
+  // a …450000 y las últimas cifras —las que deciden la dirección— se pierden.
+  const { calculo, direccion } = direccionPlegamiento('99999999999999999999', 100, {
+    operacion: OPERACIONES.MULTIPLICAR
+  });
+  assert.equal(calculo[2].resultado, '90438207500880449001');
+  assert.equal(String(Math.pow(99, 10)), '90438207500880450000');
+  assert.equal(direccion, 2);
+});
+
+test('sin operación indicada se suman los grupos', () => {
+  assert.equal(direccionPlegamiento(3025, 100).direccion, 56);
+  assert.equal(validarOperacion('').valor, OPERACIONES.SUMAR);
+  assert.equal(validarOperacion('multiplicar').valor, OPERACIONES.MULTIPLICAR);
+  assert.equal(validarOperacion('restar').valido, false);
+});
+
+test('con grupos de dos cifras el total se recorta y después se ajusta', () => {
+  // n = 12 → grupos de 2 → 74 + 12 = 86 → 86 + 1 = 87 → no cabe → 3.
   const { direccion, calculo } = direccionPlegamiento(7412, 12);
   assert.equal(calculo[2].expresion, '74 + 12');
-  assert.equal(direccion, 2);
+  assert.equal(calculo[4].expresion, '86 + 1 ajustado a 1..12');
+  assert.equal(direccion, 3);
 });
 
 // ── Conversión de bases ───────────────────────────────────────────────────

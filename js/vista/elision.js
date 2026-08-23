@@ -2,12 +2,18 @@
   const UMBRAL_HORIZONTAL = 12;
   const UMBRAL_VERTICAL = 10;
 
-  // Casillas siempre visibles (CLAUDE.md 6.2): 1, n, y las relevantes del
-  // paso más una vecina a cada lado.
-  function indicesSiempreVisibles(n, relevantes) {
+  // Casillas siempre visibles (CLAUDE.md 6.2): 1, n y las relevantes del paso,
+  // más una vecina a cada lado cuando `vecinas` está activo.
+  //
+  // La vecina da contexto a una comparación —se ve contra qué se comparó y qué
+  // había al lado—, pero en una tabla dispersa lo relevante son todas las
+  // claves colocadas, y darle dos casillas vacías a cada una llena la pantalla
+  // sin decir nada. Por eso quien dibuja decide si la regla aplica.
+  function indicesSiempreVisibles(n, relevantes, vecinas) {
     const conjunto = new Set([1, n]);
     for (const indice of relevantes) {
       conjunto.add(indice);
+      if (!vecinas) continue;
       if (indice - 1 >= 1) conjunto.add(indice - 1);
       if (indice + 1 <= n) conjunto.add(indice + 1);
     }
@@ -16,7 +22,13 @@
 
   // Devuelve una lista de segmentos { tipo: 'casilla', indice } o
   // { tipo: 'tramo', desde, hasta, cantidad } que la vista dibuja en orden.
-  function calcularSegmentos({ n, relevantes, orientacion = 'horizontal', mostrarCompleta = false }) {
+  function calcularSegmentos({
+    n,
+    relevantes,
+    orientacion = 'horizontal',
+    mostrarCompleta = false,
+    vecinas = true
+  }) {
     const umbral = orientacion === 'horizontal' ? UMBRAL_HORIZONTAL : UMBRAL_VERTICAL;
     if (mostrarCompleta || n <= umbral) {
       const todas = [];
@@ -24,7 +36,7 @@
       return todas;
     }
 
-    const visibles = indicesSiempreVisibles(n, relevantes);
+    const visibles = indicesSiempreVisibles(n, relevantes, vecinas);
     const segmentos = [];
     let inicioOculto = null;
 

@@ -125,7 +125,12 @@
         n: estado.estructura.n,
         relevantes,
         orientacion: config.orientacion || 'horizontal',
-        mostrarCompleta: estado.mostrarCompleta
+        mostrarCompleta: estado.mostrarCompleta,
+        // En una tabla dispersa grande se dibujan la 1, la n y las claves, y
+        // nada más: es como el docente la dibuja en el tablero. Las vecinas
+        // vacías se quedan para las estructuras ordenadas, donde acompañan a
+        // una comparación y no a cada clave colocada.
+        vecinas: config.modo !== dominio.estructura.MODOS.DISPERSA
       });
     }
 
@@ -133,6 +138,10 @@
     // algoritmo: comprimir una casilla ocupada dentro de un tramo borra lo que
     // el tema enseña. En las ordenadas no hace falta, porque las claves ocupan
     // siempre el mismo prefijo y su posición no dice nada por sí sola.
+    //
+    // Estas van sin vecinas (ver `segmentosDe`): el sondeo de la reasignación
+    // se sigue viendo entero porque `casillasRelevantes` ya trae las casillas
+    // sondeadas, así que la vecina solo agregaría una casilla vacía por clave.
     function relevantesDelPaso(paso) {
       const relevantes = paso ? config.casillasRelevantes(paso) : [];
       if (config.modo !== dominio.estructura.MODOS.DISPERSA) return relevantes;
@@ -145,6 +154,37 @@
       return relevantes.concat(ocupadas);
     }
 
+    // Aun con la elisión al mínimo, una tabla con muchas claves no cabe en el
+    // lienzo: cada clave suma unos 78 px y en una ventana de 700 px el lienzo
+    // da para tres. Cuando no cabe, la casilla del paso se lleva al centro de
+    // lo visible — el estudiante mira el cálculo y la casilla que resulta, y no
+    // tiene por qué buscarla desplazando.
+    //
+    // El salto es instantáneo y no suave a propósito: se dispara dentro del
+    // cambio que anima el FLIP, y un desplazamiento en curso dejaría las
+    // casillas animándose hacia coordenadas que ya se movieron.
+    function llevarALaVista(grupo) {
+      if (!grupo) return;
+      const caja = dom.estructuraEl;
+      const vertical = esVertical();
+      const sobrante = vertical
+        ? caja.scrollHeight - caja.clientHeight
+        : caja.scrollWidth - caja.clientWidth;
+      if (sobrante <= 0) return;
+
+      // Con getBoundingClientRect y no offsetTop: el lienzo no está posicionado,
+      // así que offsetTop se mediría contra un ancestro cualquiera.
+      const cajaRect = caja.getBoundingClientRect();
+      const grupoRect = grupo.getBoundingClientRect();
+      const centrado = vertical
+        ? grupoRect.top - cajaRect.top + caja.scrollTop - (caja.clientHeight - grupoRect.height) / 2
+        : grupoRect.left - cajaRect.left + caja.scrollLeft - (caja.clientWidth - grupoRect.width) / 2;
+      const destino = Math.max(0, Math.min(centrado, sobrante));
+
+      if (vertical) caja.scrollTop = destino;
+      else caja.scrollLeft = destino;
+    }
+
     // Vista de una sola estructura: la que usan los temas que no acumulan
     // (secuencial, transformación de claves), y también binaria mientras no hay
     // una búsqueda en curso.
@@ -153,6 +193,13 @@
       const n = estado.estructura.n;
       const segmentos = segmentosDe(relevantesDelPaso(paso));
       const vertical = esVertical();
+      // La primera relevante es la casilla que el paso está evaluando en los
+      // temas que usan esta vista (`paso.casilla` en secuencial y en hash).
+      // Binaria no entra aquí con un paso: cuando hay traza usa el apilado,
+      // que se desplaza solo al final porque lo nuevo siempre va abajo.
+      const relevantesDelPasoActual = paso ? config.casillasRelevantes(paso) : [];
+      const indiceSeguido = relevantesDelPasoActual[0];
+      let grupoSeguido = null;
 
       // Casilla y marca de la escala se dibujan en la misma línea: es lo que
       // mantiene la numeración alineada con lo que rotula cuando hay elisión
@@ -191,7 +238,12 @@
 
           grupo.append(...(vertical ? [marcaEl, casillaEl] : [casillaEl, marcaEl]));
           dom.estructuraEl.appendChild(grupo);
+          if (indice === indiceSeguido) grupoSeguido = grupo;
         }
+
+        // Dentro del cambio y no después: así el FLIP mide las posiciones
+        // finales, ya desplazadas, y no anima contra coordenadas viejas.
+        llevarALaVista(grupoSeguido);
       });
     }
 
@@ -482,14 +534,24 @@
       // de la conversión— junto a n y l, por la misma razón que el tratamiento:
       // definen cómo se dispersa la estructura y cambiarlos con claves ya
       // colocadas dejaría direcciones que no corresponden a ninguna cuenta.
-      const camposParametros = (config.parametros || []).map((parametro) => `
+      const camposParametros = (config.parametros || []).map((parametro) => {
+        // Un parámetro con `opciones` se digita eligiendo, no escribiendo: la
+        // operación del plegamiento es una de dos y no tiene por qué validarse
+        // contra erratas del estudiante.
+        const control = parametro.opciones
+          ? `<select name="${parametro.nombre}">
+               ${parametro.opciones.map((o) => `<option value="${o.valor}">${o.etiqueta}</option>`).join('')}
+             </select>`
+          : `<input type="${parametro.tipo === 'numero' ? 'number' : 'text'}"
+                    name="${parametro.nombre}"
+                    placeholder="${parametro.marcador || ''}">`;
+        return `
         <label class="texto-nivel-3">${parametro.etiqueta}
-          <input type="${parametro.tipo === 'numero' ? 'number' : 'text'}"
-                 name="${parametro.nombre}"
-                 placeholder="${parametro.marcador || ''}">
+          ${control}
           <span class="campo__ayuda texto-nivel-5">${parametro.ayuda || ''}</span>
         </label>
-      `).join('');
+      `;
+      }).join('');
       contenedor.innerHTML = `
         <h2 class="panel__titulo texto-nivel-2">Configuración de la estructura</h2>
         <label class="texto-nivel-3">Nombre de la estructura

@@ -97,12 +97,16 @@
     // cualquiera de las cinco funciones sin escribir una vista por cada una.
     function prepararHash({ colisiona }) {
       const formularios = entrarATema(parametros.get('tema') || 'Función módulo');
+      // n, l y la clave final se pueden fijar por URL para fotografiar un
+      // ejercicio concreto del docente sin tocar esta página. Sin ellos, la
+      // estructura de 12 casillas de siempre.
       enviar(formularios[0], {
         nombre: 'Práctica de clase',
-        n: 12,
-        l: 4,
+        n: Number(parametros.get('n')) || 12,
+        l: Number(parametros.get('l')) || 4,
         posiciones: parametros.get('posiciones') || '',
         base: parametros.get('base') || '',
+        operacion: parametros.get('operacion') || 'sumar',
         tratamiento: parametros.get('tratamiento') || 'reasignacion'
       });
       // 1004, 1016 y 1028 caen todas en la dirección 9: preparan el terreno
@@ -111,7 +115,7 @@
         enviar(formularios[1], { clave });
         avanzar(12);
       }
-      enviar(formularios[1], { clave: colisiona ? 1028 : 1001 });
+      enviar(formularios[1], { clave: Number(parametros.get('clave')) || (colisiona ? 1028 : 1001) });
       avanzar(pasosAAvanzar());
     }
 

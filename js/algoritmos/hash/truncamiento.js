@@ -1,8 +1,11 @@
 (function () {
-  const { cifrasNecesarias, lineaDireccion } = window.CC2.algoritmos.hash.comun;
+  const { cifrasDeRango, lineaDireccionDesdeCero } = window.CC2.algoritmos.hash.comun;
 
   // Función truncamiento (CLAUDE.md 5.3): seleccionar posiciones fijas de los
-  // dígitos de la clave y concatenarlas.
+  // dígitos de la clave, concatenarlas y sumar 1.
+  //
+  // Las cifras concatenadas numeran el rango desde cero —dos posiciones dan de
+  // 00 a 99— y el + 1 las lleva a 1..n, igual que en cuadrado.
   //
   // Las posiciones son un parámetro del estudiante y no una constante: "fijas"
   // significa que son las mismas para todas las claves de una estructura, no
@@ -14,7 +17,7 @@
 
   function posicionesPorDefecto(n) {
     const posiciones = [];
-    for (let i = 1; i <= cifrasNecesarias(n); i++) posiciones.push(i);
+    for (let i = 1; i <= cifrasDeRango(n); i++) posiciones.push(i);
     return posiciones;
   }
 
@@ -44,9 +47,11 @@
     }
     // No bloquea: la estructura funciona, pero conviene que el estudiante sepa
     // por qué le quedan casillas a las que nunca llega ninguna clave.
-    const necesarias = cifrasNecesarias(n);
+    const necesarias = cifrasDeRango(n);
+    // La dirección más alta que alcanzan p posiciones es 99…9 + 1, o sea 10^p.
+    const maxima = Math.pow(10, posiciones.length);
     const advertencia = posiciones.length < necesarias
-      ? `Con ${posiciones.length} posiciones la dirección no supera ${'9'.repeat(posiciones.length)}: `
+      ? `Con ${posiciones.length} posiciones la dirección no supera ${maxima}: `
         + `parte de las ${n} casillas queda inalcanzable. Para cubrirlas todas hacen falta ${necesarias}.`
       : null;
     return { valido: true, valor: posiciones, advertencia };
@@ -65,7 +70,7 @@
       .join(' ');
 
     return {
-      direccion: Number(lineaDireccion(valor, n).resultado),
+      direccion: Number(lineaDireccionDesdeCero(valor, n).resultado),
       calculo: [
         { etiqueta: 'Clave', expresion: '', resultado: String(clave) },
         {
@@ -73,7 +78,7 @@
           expresion: marcada,
           resultado: tomadas.join('')
         },
-        lineaDireccion(valor, n)
+        lineaDireccionDesdeCero(valor, n)
       ]
     };
   }

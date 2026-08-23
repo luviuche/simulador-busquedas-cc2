@@ -252,6 +252,78 @@
       hashTruncamiento();
       hashPlegamiento();
       hashBases();
+      hashTablaGrande();
+    }
+
+    // La tabla grande es donde se ve la regla del docente: en una estructura
+    // que no cabe en pantalla se dibujan la 1, la n y las claves colocadas, y
+    // nada entre medias. Antes cada clave arrastraba dos casillas vacías y la
+    // estructura desbordaba su lienzo sin que nada lo delatara: la
+    // comprobación de layout medía la caja, que `max-height` deja siempre
+    // dentro del viewport.
+    function hashTablaGrande() {
+      registro.push('', '── Tabla dispersa grande ──');
+
+      const claves = [1004, 1010, 1023, 1035, 1016, 3025];
+      const formularios = entrarATemaHash('Función plegamiento', {
+        nombre: 'Tabla grande', n: 100, l: 4, tratamiento: 'reasignacion'
+      });
+      for (const clave of claves) {
+        enviar(formularios[1], { clave });
+        agotarTraza();
+      }
+
+      const marcas = [...document.querySelectorAll('.fila-casilla .escala__marca')].map((el) => el.textContent);
+      registro.push('  dibujado: ' + marcas.join(' · '));
+
+      const dibujadas = document.querySelectorAll('.casilla').length;
+      afirmar(
+        dibujadas === claves.length + 2,
+        `se dibujan la 1, la n y una casilla por clave (${dibujadas} para ${claves.length} claves)`
+      );
+      afirmar(
+        document.querySelectorAll('.fila-casilla .casilla--vacia').length === 2,
+        'las únicas casillas vacías dibujadas son los extremos de la estructura'
+      );
+
+      // La casilla donde acaba de caer la clave es lo que el estudiante mira al
+      // terminar el cálculo: tiene que estar a la vista, no bajo el pliegue.
+      // Cuando la tabla no cabe en el lienzo —depende del alto de la ventana—
+      // eso lo garantiza el desplazamiento automático, no la elisión.
+      const verticalEl = document.querySelector('.estructura-vertical');
+      registro.push(
+        `  lienzo: ${verticalEl.scrollHeight} px de contenido en ${verticalEl.clientHeight} px visibles`
+        + ` (desplazado ${Math.round(verticalEl.scrollTop)} px)`
+      );
+      const caja = verticalEl.getBoundingClientRect();
+      const marcada = document.querySelector('.casilla--insertada, .casilla--encontrada').getBoundingClientRect();
+      afirmar(
+        marcada.top >= caja.top && marcada.bottom <= caja.bottom,
+        'la casilla de la última clave insertada queda a la vista'
+      );
+
+      // Buscar una clave colocada al principio obliga a volver atrás: si el
+      // desplazamiento solo supiera avanzar, la casilla quedaría por encima.
+      enviar(formularios[2], { objetivo: claves[0] });
+      agotarTraza();
+      const cajaBusqueda = verticalEl.getBoundingClientRect();
+      const encontrada = document.querySelector('.casilla--encontrada').getBoundingClientRect();
+      afirmar(
+        encontrada.top >= cajaBusqueda.top && encontrada.bottom <= cajaBusqueda.bottom,
+        'al buscar una clave de más arriba, la vista vuelve a ella'
+      );
+
+      // La escala sigue completa aunque falten casillas: lo dibujado más lo
+      // que declaran los tramos son las n casillas de la estructura.
+      const ocultas = [...document.querySelectorAll('.escala__marca--tramo')]
+        .map((el) => el.textContent.split('–').map(Number))
+        .reduce((suma, [desde, hasta]) => suma + (hasta - desde + 1), 0);
+      afirmar(
+        ocultas + dibujadas === 100,
+        `la escala no pierde casillas (${dibujadas} dibujadas + ${ocultas} elididas)`
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
     }
 
     // Plegamiento no tiene parámetro: el tamaño del grupo sale de n. Se
@@ -263,18 +335,40 @@
         nombre: 'Plegada', n: 12, l: 4, tratamiento: 'reasignacion'
       });
       afirmar(
-        !formularios[0].querySelector('[name="posiciones"]') && !formularios[0].querySelector('[name="base"]'),
-        'un tema sin parámetros propios no hereda los campos de los otros'
+        !!formularios[0].querySelector('select[name="operacion"]')
+          && !formularios[0].querySelector('[name="posiciones"]')
+          && !formularios[0].querySelector('[name="base"]'),
+        'el tema declara su operación como lista y no hereda los campos de los otros'
       );
 
-      // 7412 con n = 12 → grupos de 2 → 74 + 12 = 86 → dirección 2.
+      // 7412 con n = 12 → grupos de 2 → 74 + 12 = 86 → 86 + 1 = 87 → 3.
       enviar(formularios[1], { clave: 7412 });
       agotarTraza();
-      registro.push('  cálculo: ' + lineasCalculo().join(' | '));
+      registro.push('  suma: ' + lineasCalculo().join(' | '));
       afirmar(lineasCalculo()[2].includes('74 + 12'), 'el desarrollo muestra la suma de los grupos');
       afirmar(
-        casillaEn(2).querySelector('.casilla').textContent === '7412',
-        'la clave cae en la dirección que da la suma ajustada'
+        casillaEn(3).querySelector('.casilla').textContent === '7412',
+        'la clave cae en la dirección que da la suma recortada y ajustada'
+      );
+
+      // La misma clave con la otra operación cae en otra casilla:
+      // 74 × 12 = 888 → últimas dos cifras 88 → 88 + 1 = 89 → 5.
+      enviar(formularios[0], {
+        nombre: 'Plegada por producto', n: 12, l: 4, operacion: 'multiplicar', tratamiento: 'reasignacion'
+      });
+      enviar(formularios[1], { clave: 7412 });
+      agotarTraza();
+      registro.push('  producto: ' + lineasCalculo().join(' | '));
+      afirmar(lineasCalculo()[2].includes('74 × 12'), 'con la otra operación el desarrollo muestra el producto');
+      afirmar(
+        casillaEn(5).querySelector('.casilla').textContent === '7412',
+        'la operación elegida al crear la estructura cambia la dirección'
+      );
+
+      const bitacoraPlegado = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
+      afirmar(
+        bitacoraPlegado.some((fila) => fila.includes('operación entre grupos multiplicar')),
+        'la bitácora deja registro de la operación con la que se creó la estructura'
       );
 
       document.querySelector('.pantalla-tema__volver').click();
@@ -356,7 +450,7 @@
         'la estructura no se crea cuando el parámetro es inválido'
       );
 
-      // 7412 con posiciones 1 y 3 → cifras 7 y 1 → 71 → no cabe en 1..12 → 11.
+      // 7412 con posiciones 1 y 3 → cifras 7 y 1 → 71 + 1 → 72 no cabe en 1..12 → 12.
       enviar(formularios[0], { nombre: 'Truncada', n: 12, l: 4, posiciones: '1,3', tratamiento: 'reasignacion' });
       enviar(formularios[1], { clave: 7412 });
       agotarTraza();
@@ -366,7 +460,7 @@
         'el desarrollo marca en la clave las cifras que se tomaron'
       );
       afirmar(
-        casillaEn(11).querySelector('.casilla').textContent === '7412',
+        casillaEn(12).querySelector('.casilla').textContent === '7412',
         'las posiciones escritas por el usuario son las que deciden la dirección'
       );
 
@@ -389,7 +483,7 @@
         nombre: 'Cuadrado', n: 12, l: 4, tratamiento: 'reasignacion'
       });
 
-      // 1004² = 1008016 → centrales "08" → dirección 8.
+      // 1004² = 1008016 → centrales "08" → 8 + 1 → dirección 9.
       enviar(formularios[1], { clave: 1004 });
       agotarTraza();
       registro.push('  cálculo: ' + lineasCalculo().join(' | '));
@@ -398,12 +492,12 @@
         'el desarrollo muestra el cuadrado completo, no solo las cifras tomadas'
       );
       afirmar(
-        casillaEn(8).querySelector('.casilla').textContent === '1004',
+        casillaEn(9).querySelector('.casilla').textContent === '1004',
         'la clave cae en la dirección que dan las cifras centrales'
       );
 
-      // 1010² = 1020100 → centrales "20" → 20 no cabe en 1..12 y se ajusta a 8,
-      // así que choca con la anterior y la reasignación la manda a la 9.
+      // 1010² = 1020100 → centrales "20" → 21 no cabe en 1..12 y se ajusta a 9,
+      // así que choca con la anterior y la reasignación la manda a la 10.
       enviar(formularios[1], { clave: 1010 });
       const retrato = agotarTraza();
       registro.push('  estructura: ' + retrato);
@@ -412,8 +506,8 @@
         'el desarrollo dice que la dirección se ajustó al rango'
       );
       afirmar(
-        casillaEn(9).querySelector('.casilla').textContent === '1010',
-        'la clave ajustada colisiona y la reasignación la coloca en la casilla 9'
+        casillaEn(10).querySelector('.casilla').textContent === '1010',
+        'la clave ajustada colisiona y la reasignación la coloca en la casilla 10'
       );
 
       enviar(formularios[2], { objetivo: 1010 });
@@ -466,11 +560,16 @@
         pantalla.getBoundingClientRect().height <= window.innerHeight + 1,
         `la pantalla se ancla al viewport (mide ${Math.round(pantalla.getBoundingClientRect().height)} de ${window.innerHeight})`
       );
-      const cajaVertical = document.querySelector('.estructura-vertical').getBoundingClientRect();
+      // Medir la caja no basta: `max-height: 100%` la deja siempre dentro del
+      // viewport aunque por dentro sobresalgan filas que solo se alcanzan
+      // desplazando. Lo que hay que comparar es el contenido contra la caja.
+      const verticalEl = document.querySelector('.estructura-vertical');
+      const cajaVertical = verticalEl.getBoundingClientRect();
       afirmar(
         cajaVertical.top >= 0 && cajaVertical.bottom <= window.innerHeight,
         `la estructura vertical entra completa (${Math.round(cajaVertical.top)}–${Math.round(cajaVertical.bottom)} de ${window.innerHeight})`
       );
+      registro.push(`  lienzo: ${verticalEl.scrollHeight} px de contenido en ${verticalEl.clientHeight} px visibles`);
       const cajaCalculo = document.querySelector('.calculo').getBoundingClientRect();
       afirmar(
         cajaCalculo.right <= window.innerWidth && cajaCalculo.bottom <= window.innerHeight,

@@ -328,16 +328,32 @@ Cada función devuelve `{ direccion, calculo }`, donde `calculo` es la lista de 
 | Función | Cálculo | Parámetro del estudiante |
 |---|---|---|
 | **Módulo** | `(clave mod n) + 1` | — |
-| **Cuadrado** | Elevar al cuadrado y tomar las cifras centrales necesarias para direccionar `n` | — |
-| **Truncamiento** | Seleccionar posiciones fijas de los dígitos de la clave | Las posiciones |
-| **Plegamiento** | Partir la clave en grupos, sumarlos y ajustar al rango | — |
+| **Cuadrado** | Elevar al cuadrado, tomar las cifras centrales que numeran el rango desde cero y sumar 1 | — |
+| **Truncamiento** | Seleccionar posiciones fijas de los dígitos de la clave y sumar 1 | Las posiciones |
+| **Plegamiento** | Partir la clave en grupos, sumarlos o multiplicarlos, tomar las últimas cifras del total y sumar 1 | La operación |
 | **Conversión de bases** | Convertir a otra base, truncar y ajustar al rango | La base |
 
 Tres reglas comunes, en `algoritmos/hash/comun.js`:
 
-1. **"Las cifras necesarias para direccionar `n`" son las de `n`**: tres con `n = 100`. Es el tamaño del grupo al plegar y la cantidad de cifras centrales del cuadrado. En conversión de bases se cuentan **en la base elegida** y no en decimal — con `n = 12` y base 2, dos cifras solo alcanzan cuatro direcciones y ocho casillas quedarían muertas.
-2. **El ajuste al rango preserva las direcciones válidas**: `((valor − 1) mod n) + 1`, de modo que 1 sigue siendo 1, `n` sigue siendo `n` y `n + 1` vuelve a 1. El doble módulo es por los valores menores que 1: en JavaScript el resto de un negativo es negativo, y sin corregirlo la casilla 0 sería posible.
+1. **Cuántas cifras se toman.** Hay dos cuentas y no son la misma:
+   - **Cuadrado, truncamiento y plegamiento toman las cifras de `n − 1`** (`cifrasDeRango`): dos con `n = 100`, porque el número extraído numera el rango de `00` a `99` y la cuenta cierra con el `+ 1`. Tomar tres metería en el número una cifra que ninguna dirección usa. En el plegamiento esa cuenta es además el tamaño del grupo: con `n = 100`, pares.
+   - **La conversión de bases toma las cifras de `n`** (`cifrasNecesarias`): tres con `n = 100`, y se cuentan **en la base elegida** y no en decimal — con `n = 12` y base 2, dos cifras solo alcanzan cuatro direcciones y ocho casillas quedarían muertas.
+2. **Hay dos formas de cerrar el cálculo**, y cada función declara la suya en su última línea:
+   - **Valores que ya cuentan desde 1** (`lineaDireccion`): se usan tal cual si caen en `1..n`.
+   - **Valores que cuentan desde 0** (`lineaDireccionDesdeCero`): la dirección es `valor + 1`. Es el caso del cuadrado, el truncamiento y el plegamiento, y el mismo cierre que ya tenía la función módulo.
+
+   En ambos casos, si el resultado se sale del rango se ajusta preservando las direcciones válidas: `((valor − 1) mod n) + 1`, de modo que 1 sigue siendo 1, `n` sigue siendo `n` y `n + 1` vuelve a 1. El doble módulo es por los valores menores que 1: en JavaScript el resto de un negativo es negativo, y sin corregirlo la casilla 0 sería posible.
 3. **La última línea del desarrollo se rotula siempre `Dirección`** y su resultado es la dirección. No es cosmético: el reproductor lee el resultado de la última línea para saber a qué casilla apuntar.
+
+**Corrección del docente (2026-08-23), función cuadrado.** Antes se tomaban las cifras de `n` y no había `+ 1`; con `n = 100` y la clave 3748 (`14047504`) eso daba `047` en vez de `47`. Como lo plantea el docente: se toman las **dos** cifras centrales, `47`, y la dirección es `48`. Cuando el cuadrado tiene una cantidad impar de cifras y hay que tomar una cantidad par, la selección **se corre hacia la izquierda**: en `3025² = 9150625` la cifra central es el `0` y la acompaña el `5` de su izquierda (`50` → dirección 51), no el `6` de su derecha, porque `150` se saldría del rango. **Corrección del docente (2026-08-23), función truncamiento.** La selección de posiciones ya era correcta; lo que faltaba era el `+ 1` final. Arrastra dos ajustes: las posiciones por defecto pasan a ser las de `n − 1` (dos con `n = 100`, que con el `+ 1` cubren exactamente `1..100`), y la advertencia de casillas inalcanzables se mide contra esa misma cuenta.
+
+**Corrección del docente (2026-08-23), función plegamiento.** Tres cambios:
+
+- **El grupo es del tamaño del rango**, no de `n`: con `n = 100` la clave 3025 se pliega en `30` y `25`, no en `302` y `5`.
+- **Los grupos se suman o se multiplican**, y eso lo elige el estudiante al crear la estructura (`operacion`), igual que las posiciones del truncamiento y por la misma razón: cambiarlo con claves puestas dejaría direcciones que no corresponden a ninguna cuenta. Sin indicar nada, se suman. Es el único parámetro que se digita eligiendo de una lista, no escribiendo: `parametro.opciones` hace que el formulario dibuje un `<select>`.
+- **Del total se toman las últimas cifras** —el acarreo que se sale por la izquierda se descarta, que es el plegado clásico— y después el `+ 1`. Con 3025 y `n = 100`: sumando, `55 → 56`; multiplicando, `750 → 50 → 51`.
+
+**Pendiente de consultar:** si el criterio vale también para conversión de bases. Hasta que el docente lo diga, sigue con las cifras de `n` y sin el `+ 1`.
 
 Detalles que no se deducen del enunciado y conviene no cambiar sin motivo: el cuadrado se calcula con `BigInt`, porque con claves largas supera el entero seguro y las cifras centrales saldrían falseadas; las posiciones del truncamiento se numeran desde 1 y de izquierda a derecha, como las casillas, y se toman **en el orden indicado**; el plegamiento parte de izquierda a derecha, así que el grupo corto queda al final; y "truncar" en conversión de bases es quedarse con las **últimas** cifras, leídas en esa base.
 
@@ -377,15 +393,20 @@ Por residuos, árboles de búsqueda digital, residuos múltiples, tablas de índ
 Solo se dibuja lo relevante del paso actual. Es lo que permite que `n` no tenga límite impuesto por la pantalla.
 
 - Si `n ≤ 12` (horizontal) o `n ≤ 10` (vertical), se muestra completa.
-- Por encima, permanecen **siempre visibles**: la casilla 1, la casilla n, y las casillas relevantes del paso más una vecina a cada lado.
+- Por encima, permanecen **siempre visibles**: la casilla 1, la casilla n, y las casillas relevantes del paso. **Con una vecina a cada lado solo en las estructuras ordenadas** (secuencial, binaria), donde acompaña a una comparación: se ve contra qué se comparó y qué había al lado.
 - Casillas relevantes: `i` en secuencial · `inicio, medio, fin` en binaria · `d` en hash · `d` más el recorrido del tratamiento cuando hay colisión.
 - **En una estructura dispersa, toda casilla ocupada es relevante**, aunque el paso actual no la toque. Dónde quedó cada clave *es* el resultado de la función hash: comprimirla dentro de un tramo borra justamente lo que el tema enseña. En las ordenadas no hace falta, porque las claves ocupan siempre el mismo prefijo y su posición no dice nada por sí sola.
+- **En una estructura dispersa no se dibujan vecinas** (pedido del docente, 2026-08-23). Una tabla grande se dibuja con sus extremos y las claves colocadas, y nada entre medias: `1 ⋯ 15 ⋯ 21 ⋯ 56 ⋯ 100`. Es como se dibuja en el tablero y es lo que el tema enseña — las direcciones vacías intermedias no dicen nada y son las que llenaban la pantalla. Con seis claves en `n = 100` la diferencia son 8 casillas dibujadas contra 20, y 15 filas contra 27. **No se pierde el sondeo de la reasignación**: `casillasRelevantes` ya trae las casillas sondeadas, así que el recorrido de la clave se dibuja entero sin necesidad de vecinas. Lo decide quien dibuja, con `vecinas: false` en `calcularSegmentos`.
 - **Cada tramo comprimido muestra cuántas casillas oculta.** Sin eso se pierde la noción del tamaño real.
 - **Un tramo de una sola casilla no se comprime: se dibuja.** El rótulo `⋯ 1 ⋯` ocupa más que la casilla que esconde. Aparece de forma natural en binaria, cuando `inicio`, `medio` y `fin` con sus vecinas dejan una casilla suelta entre dos visibles.
 - La expansión y compresión de tramos se anima; no es un salto brusco.
 - Control "Ver estructura completa" que desactiva la elisión.
 
 La estructura se dibuja **centrada** en el lienzo, horizontal y verticalmente. Es el foco de atención durante toda la clase.
+
+**Cuando aun así no cabe, la casilla del paso se lleva a la vista.** La elisión acota lo dibujado, pero no lo elimina: cada clave colocada suma unos 78 px, y el lienzo mide unos 640 px en una ventana de 950 y unos 390 en una de 700 — o sea unas seis claves y unas tres. Pasado ese punto el lienzo se desplaza, y el desplazamiento lo hace la vista sola, centrando la casilla que el paso está evaluando. Sin eso el desarrollo dice "dirección 56" y la tabla se queda mostrando las primeras casillas, que es exactamente el defecto que esto corrige. El salto es instantáneo y no suave: ocurre dentro del cambio que anima el FLIP, y un desplazamiento en curso dejaría las casillas animándose hacia coordenadas que ya se movieron.
+
+Comprobarlo tiene truco y conviene no repetir el error: **medir la caja no sirve**. `.estructura-vertical` lleva `max-height: 100%`, así que su rectángulo siempre cae dentro del viewport aunque por dentro sobresalgan filas. Lo que hay que comparar es `scrollHeight` contra `clientHeight`, o dónde queda la casilla marcada respecto de la caja. La comprobación vieja medía la caja y por eso el defecto vivió sin que ninguna prueba lo viera.
 
 **La pantalla de tema se ancla al alto del viewport y la página nunca scrollea.** El desplazamiento vive dentro del panel lateral. Si scrollea la página, el panel lateral —que acumula configuración, inserción, búsqueda, métricas y bitácora— estira el lienzo y empuja la estructura fuera de la pantalla: al proyectar en el salón se pierde justo lo que la aplicación existe para mostrar.
 

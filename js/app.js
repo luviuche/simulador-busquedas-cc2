@@ -29,7 +29,7 @@
             { id: 'hash-modulo', titulo: 'Función módulo', descripcion: 'Dirección por residuo de n', disponible: true },
             { id: 'hash-cuadrado', titulo: 'Función cuadrado', descripcion: 'Cifras centrales del cuadrado', disponible: true },
             { id: 'hash-truncamiento', titulo: 'Función truncamiento', descripcion: 'Selección de dígitos de la clave', disponible: true },
-            { id: 'hash-plegamiento', titulo: 'Función plegamiento', descripcion: 'Suma de particiones de la clave', disponible: true },
+            { id: 'hash-plegamiento', titulo: 'Función plegamiento', descripcion: 'Suma o producto de las particiones', disponible: true },
             { id: 'hash-bases', titulo: 'Conversión de bases', descripcion: 'Cambio de base y truncamiento', disponible: true }
           ]
         },
@@ -272,10 +272,25 @@
       ]
     }),
 
+    // La operación entre grupos la elige el estudiante, como las posiciones
+    // del truncamiento: el docente plantea el ejercicio sumando los grupos o
+    // multiplicándolos, y el resto del cálculo es el mismo.
     'hash-plegamiento': temaHash({
       titulo: 'FUNCIÓN PLEGAMIENTO',
-      descripcion: 'Suma de particiones de la clave',
-      direccionDe: algoritmos.hash.plegamiento.direccionPlegamiento
+      descripcion: 'Suma o producto de las particiones',
+      direccionDe: algoritmos.hash.plegamiento.direccionPlegamiento,
+      parametros: [
+        {
+          nombre: 'operacion',
+          etiqueta: 'Operación entre grupos',
+          opciones: [
+            { valor: algoritmos.hash.plegamiento.OPERACIONES.SUMAR, etiqueta: 'Sumar' },
+            { valor: algoritmos.hash.plegamiento.OPERACIONES.MULTIPLICAR, etiqueta: 'Multiplicar' }
+          ],
+          ayuda: 'Los grupos se combinan con esta operación; del total se toman las últimas cifras.',
+          validar: (entrada) => algoritmos.hash.plegamiento.validarOperacion(entrada)
+        }
+      ]
     }),
 
     // Con base 2 este mismo tema cubre el caso binario que pide el documento.
