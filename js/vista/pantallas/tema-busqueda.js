@@ -273,6 +273,69 @@
       });
     }
 
+    // Encadenamiento secuencial (CLAUDE.md 5.4): la dirección no cuelga un
+    // arreglo de tamaño fijo sino una cadena que crece. Se dibuja aparte de la
+    // matriz por las dos cosas que la distinguen.
+    function esEncadenada() {
+      return !!(config.anidados && config.anidados.cadena && estado.estructura
+        && config.anidados.cadena(estado.estructura));
+    }
+
+    function crearEnlace() {
+      const el = document.createElement('span');
+      el.className = 'cadena__enlace';
+      // La flecha es lo que separa a simple vista la cadena del arreglo
+      // anidado: sin ella los dos tratamientos se verían casi igual y lo que
+      // los diferencia dejaría de verse en el dibujo.
+      el.textContent = '→';
+      el.setAttribute('aria-hidden', 'true');
+      return el;
+    }
+
+    // La cadena de una dirección, enlazada con flechas. Devuelve un solo
+    // elemento —no una casilla por columna— porque aquí no hay matriz que
+    // alinear: **cada fila elide por su cuenta**, ya que la posición en una
+    // cadena es orden de llegada y no el resultado del algoritmo. Una
+    // dirección sin colisiones no dibuja cadena.
+    function casillasEncadenadas(paso, indice) {
+      const cadena = dominio.estructura.anidadoDe(estado.estructura, indice);
+      if (cadena.length === 0) return null;
+
+      // Aquí sí se pueden comprimir posiciones ocupadas, al revés que en la
+      // tabla dispersa (§6.2): comprimir el medio de una cadena no esconde
+      // ninguna decisión del algoritmo. Se conservan la cabeza, la cola y la
+      // posición del paso.
+      const segmentos = vista.elision.calcularSegmentos({
+        n: cadena.length,
+        relevantes: (paso && paso.casilla === indice && paso.posicion) ? [paso.posicion] : [],
+        orientacion: 'horizontal',
+        mostrarCompleta: estado.mostrarCompleta,
+        vecinas: false
+      });
+
+      const contenedor = document.createElement('div');
+      contenedor.className = 'cadena';
+      for (const segmento of segmentos) {
+        contenedor.appendChild(crearEnlace());
+        if (segmento.tipo === 'tramo') {
+          const tramoEl = crearTramo(segmento.desde, segmento.hasta);
+          tramoEl.classList.add('tramo-elidido--anidado');
+          contenedor.appendChild(tramoEl);
+          continue;
+        }
+        const posicion = segmento.indice;
+        const clave = cadena[posicion - 1];
+        const descripcion = config.describirCasilla({ paso, indice, posicion, ocupada: clave !== undefined });
+        contenedor.appendChild(vista.componentes.casilla.crearCasilla({
+          clave,
+          indice: `${indice}.${posicion}`,
+          estado: descripcion.estado,
+          modificadores: descripcion.modificadores
+        }));
+      }
+      return contenedor;
+    }
+
     function segmentosDe(relevantes) {
       return vista.elision.calcularSegmentos({
         n: estado.estructura.n,
@@ -392,8 +455,16 @@
             modificadores: descripcion.modificadores
           });
           const marcaEl = crearMarca(indice, n);
-          const anidadas = vertical ? casillasAnidadas(paso, indice, columnasDelAnidado) : [];
-          if (vertical) {
+          // La cadena ocupa una sola columna del grid y se ordena por dentro:
+          // no tiene un largo fijo con el que hacer pistas, y no hace falta
+          // —una cadena no es una matriz y no hay columnas que alinear—.
+          const cadenaEl = vertical && esEncadenada() ? casillasEncadenadas(paso, indice) : null;
+          const anidadas = vertical && !esEncadenada()
+            ? casillasAnidadas(paso, indice, columnasDelAnidado)
+            : [];
+          if (vertical && esEncadenada()) {
+            grupo.style.gridTemplateColumns = '3ch var(--ancho-casilla) auto';
+          } else if (vertical) {
             // Pistas de ancho fijo, una por casilla. Con `auto` cada fila era
             // un grid aparte que repartía el sobrante a su manera: la fila con
             // clave quedaba más ancha que la vacía y las columnas de la matriz
@@ -412,7 +483,8 @@
             grupo.style.gridTemplateColumns = ['3ch', 'var(--ancho-casilla)', ...pistas].join(' ');
           }
 
-          grupo.append(...(vertical ? [marcaEl, casillaEl, ...anidadas] : [casillaEl, marcaEl]));
+          const secundarias = cadenaEl ? [cadenaEl] : anidadas;
+          grupo.append(...(vertical ? [marcaEl, casillaEl, ...secundarias] : [casillaEl, marcaEl]));
           dom.estructuraEl.appendChild(grupo);
           if (indice === indiceSeguido) grupoSeguido = grupo;
         }
@@ -839,11 +911,12 @@
         invalidarReproduccion();
         resultado.estructura.nombre = nombre;
         resultado.estructura.parametros = parametros;
-        // El tamaño del anidado no se pide: es forma de la estructura y sale
-        // de `n`. El dominio lo necesita para saber cuánto cabe, y la vista
-        // para saber cuántas columnas tiene la matriz.
+        // El tamaño de la estructura secundaria no se pide: es forma de la
+        // estructura y sale de `n` —o no tiene tope, con encadenamiento—. El
+        // dominio lo necesita para saber cuánto cabe, y la vista para saber
+        // cuántas columnas tiene la matriz.
         resultado.estructura.tamanoAnidado = config.anidados
-          ? config.anidados.columnas(resultado.estructura)
+          ? config.anidados.tamano(resultado.estructura)
           : 0;
         estado.estructura = resultado.estructura;
         ajustarAnchoDeCasilla(l);

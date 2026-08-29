@@ -94,13 +94,16 @@
   //
   // Se mide contra la **capacidad** y no contra n: con arreglos anidados caben
   // n × (1 + k) claves, y dividir por n daría más de 1 con la tabla a medio
-  // llenar.
+  // llenar. Con encadenamiento no hay capacidad que medir —la cadena no tiene
+  // tope—, así que se mide contra n y el factor pasa a decir cuántas claves
+  // hay por dirección: ahí sí puede pasar de 1, y eso es lo que significa el
+  // factor de carga en una tabla encadenada (CLAUDE.md 5.4).
   const METRICA_FACTOR_CARGA = {
     id: 'factor-carga',
     etiqueta: 'Factor de carga',
     valor: ({ estructura }) => (
       estructura
-        ? (dominio.estructura.cantidadClaves(estructura) / dominio.estructura.capacidad(estructura)).toFixed(2)
+        ? (dominio.estructura.cantidadClaves(estructura) / dominio.estructura.baseDeCarga(estructura)).toFixed(2)
         : '0.00'
     )
   };
@@ -142,18 +145,35 @@
       tratamientos: [
         { valor: hashOperaciones.TRATAMIENTOS.NINGUNO, etiqueta: 'Sin tratamiento' },
         { valor: hashOperaciones.TRATAMIENTOS.REASIGNACION, etiqueta: 'Reasignación (prueba lineal)' },
-        { valor: hashOperaciones.TRATAMIENTOS.ANIDADOS, etiqueta: 'Arreglos anidados' }
+        { valor: hashOperaciones.TRATAMIENTOS.ANIDADOS, etiqueta: 'Arreglos anidados' },
+        { valor: hashOperaciones.TRATAMIENTOS.ENCADENAMIENTO, etiqueta: 'Encadenamiento secuencial' }
       ],
-      // Con arreglos anidados la estructura es una **matriz de n × n**: la
-      // primera columna es la tabla y las otras `n − 1` el arreglo de cada
-      // dirección, así que en una dirección caben `n` claves contando la suya
-      // (CLAUDE.md 5.4). El tamaño no se pide: sale de `n`.
+      // Los dos tratamientos que dejan la clave en su dirección cuelgan de ella
+      // una estructura secundaria (CLAUDE.md 5.4), y se distinguen justo en
+      // cuánto cabe en ella.
       anidados: {
+        // Con arreglos anidados la estructura es una **matriz de n × n**: la
+        // primera columna es la tabla y las otras `n − 1` el arreglo de cada
+        // dirección, así que en una dirección caben `n` claves contando la
+        // suya. El tamaño no se pide: sale de `n`. Con encadenamiento la
+        // cadena no tiene tope, y por eso la estructura no se satura nunca.
+        tamano: (estructura) => {
+          if (estructura.tratamiento === hashOperaciones.TRATAMIENTOS.ANIDADOS) return estructura.n - 1;
+          if (estructura.tratamiento === hashOperaciones.TRATAMIENTOS.ENCADENAMIENTO) return Infinity;
+          return 0;
+        },
+        // Cuántas columnas de arreglo dibuja cada dirección. La cadena no
+        // dibuja columnas fijas: cada fila crece lo que crezca la suya, así
+        // que aquí no cuenta.
         columnas: (estructura) => (
           estructura.tratamiento === hashOperaciones.TRATAMIENTOS.ANIDADOS
             ? estructura.n - 1
             : 0
-        )
+        ),
+        // La cadena se dibuja distinto —casillas enlazadas con flecha, y cada
+        // fila elidiendo por su cuenta— porque es lo único que la separa a la
+        // vista del arreglo anidado.
+        cadena: (estructura) => estructura.tratamiento === hashOperaciones.TRATAMIENTOS.ENCADENAMIENTO
       },
       insertar: operar(hashOperaciones.insertar),
       buscar: operar(hashOperaciones.buscar),

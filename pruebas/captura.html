@@ -18,6 +18,7 @@
       hash       → función módulo, insertando una clave que colisiona
       hash-libre → función módulo, insertando en una casilla libre
       anidados   → arreglos anidados: la tabla y su estructura secundaria
+      encadenamiento → encadenamiento secuencial: la cadena de una dirección
       eliminar-secuencial → eliminando una clave del medio, con desplazamiento
       eliminar-binaria    → lo mismo, localizando la clave por división
       eliminar-hash       → eliminando del medio de un sondeo: el grupo de
@@ -44,6 +45,7 @@
   <script src="../js/algoritmos/eliminacion.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
   <script src="../js/algoritmos/colisiones/anidados.js"></script>
+  <script src="../js/algoritmos/colisiones/encadenamiento.js"></script>
   <script src="../js/algoritmos/hash/comun.js"></script>
   <script src="../js/algoritmos/hash/modulo.js"></script>
   <script src="../js/algoritmos/hash/cuadrado.js"></script>
@@ -176,6 +178,26 @@
       avanzar(pasosAAvanzar());
     }
 
+    // Encadenamiento secuencial: varias claves con la misma dirección, para
+    // que se vea la cadena colgando de su casilla con las flechas del enlace.
+    function prepararEncadenamiento() {
+      const formularios = entrarATema(parametros.get('tema') || 'Función módulo');
+      enviar(formularios[0], {
+        nombre: 'Práctica de clase',
+        n: Number(parametros.get('n')) || 10,
+        l: Number(parametros.get('l')) || 4,
+        tratamiento: 'encadenamiento'
+      });
+      // 7412, 5312 y 9912 comparten dirección con n = 10: las tres van a dar
+      // a la misma cadena, que es lo que hay que fotografiar.
+      for (const clave of [7412, 5312, 1023, 9912, 1035]) {
+        operar(formularios, 'insertar', clave);
+        avanzar(12);
+      }
+      operar(formularios, 'insertar', Number(parametros.get('clave')) || 1112);
+      avanzar(pasosAAvanzar());
+    }
+
     // La eliminación que hay que ver en una tabla hash es la que obliga a
     // redispersar: se borra la clave del medio de un sondeo y las de atrás
     // vuelven a pasar por la función.
@@ -207,6 +229,7 @@
       if (vista === 'hash') return prepararHash({ colisiona: true });
       if (vista === 'hash-libre') return prepararHash({ colisiona: false });
       if (vista === 'anidados') return prepararAnidados();
+      if (vista === 'encadenamiento') return prepararEncadenamiento();
       if (vista === 'eliminar-hash') return prepararEliminacionHash();
       if (vista === 'eliminar-binaria') return prepararEliminacion('Búsqueda binaria');
       if (vista === 'eliminar-secuencial') return prepararEliminacion('Búsqueda secuencial');

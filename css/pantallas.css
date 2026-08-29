@@ -407,6 +407,27 @@
   border-bottom: 1px dashed var(--borde-fuerte);
 }
 
+/* Cadena de una dirección (CLAUDE.md 5.4). Va en una sola columna del grid de
+   la fila y se ordena por dentro, porque no tiene largo fijo: cada dirección
+   crece lo que crezcan sus colisiones, y no hay columnas que alinear entre
+   filas como sí las hay en la matriz de arreglos anidados. */
+.cadena {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-1);
+}
+
+/* La flecha del enlace. Es lo que distingue a simple vista la cadena del
+   arreglo anidado —sin ella los dos tratamientos se verían casi igual— y por
+   eso la primera sale de la casilla de la tabla: la cadena cuelga de ella.
+   El canal que en la matriz separa tabla y arreglo aquí lo hace la flecha. */
+.cadena__enlace {
+  padding: 0 var(--espacio-1);
+  color: var(--tinta-suave);
+  font-family: var(--fuente-mono);
+  font-size: 13px;
+}
+
 /* El tramo del arreglo anidado corre a lo ancho de la fila y no a lo alto de
    la tabla, así que recupera el trazo vertical y el alto de una casilla: es
    una elisión horizontal dentro de una estructura vertical. */

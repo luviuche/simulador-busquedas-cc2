@@ -30,12 +30,14 @@
         // las inserciones, cambia solo qué posiciones están definidas.
         claves: modo === MODOS.DISPERSA ? new Array(n) : [],
         // Estructuras secundarias por dirección (CLAUDE.md 5.4): una por
-        // casilla, y solo el tratamiento por arreglos anidados las llena. Se
+        // casilla, y las llenan los dos tratamientos que dejan la clave en su
+        // dirección —arreglos anidados y encadenamiento secuencial—. Se
         // declaran siempre para que dibujar y contar no dependan de qué
         // tratamiento se eligió, igual que `claves`.
         anidados: modo === MODOS.DISPERSA ? new Array(n) : [],
-        // Cuántas casillas tiene cada anidado. Cero significa que no hay
-        // estructura secundaria, que es el caso de los otros tratamientos.
+        // Cuánto cabe en la estructura secundaria de cada dirección. Cero es
+        // "no hay", que es el caso de los otros tratamientos, e `Infinity` es
+        // la cadena, que no tiene tope.
         tamanoAnidado: 0
       }
     };
@@ -79,9 +81,22 @@
   // Cuántas claves caben. Con arreglos anidados no son `n` sino `n × (1 + k)`:
   // medir contra `n` daría la estructura por llena teniendo sitio de sobra, y
   // el factor de carga mentiría por el mismo motivo.
+  // Con encadenamiento la cadena no tiene tope (`tamanoAnidado` vale
+  // `Infinity`) y la capacidad deja de ser un número: la estructura no se
+  // satura nunca, que es lo que define al tratamiento.
   function capacidad(estructura) {
     if (estructura.modo !== MODOS.DISPERSA) return estructura.n;
     return estructura.n * (1 + (estructura.tamanoAnidado || 0));
+  }
+
+  // Contra qué se mide el factor de carga. Normalmente es la capacidad, pero
+  // cuando no hay capacidad que medir se mide contra `n`, y entonces el factor
+  // significa lo que significa en una tabla encadenada: claves por dirección
+  // en promedio, que **puede pasar de 1**. Dividir por una capacidad infinita
+  // daría siempre 0 y la métrica no diría nada.
+  function baseDeCarga(estructura) {
+    const cabe = capacidad(estructura);
+    return Number.isFinite(cabe) ? cabe : estructura.n;
   }
 
   function estaLlena(estructura) {
@@ -233,6 +248,7 @@
     anidadoDe,
     cantidadClaves,
     capacidad,
+    baseDeCarga,
     casillaDe,
     estaLlena,
     estaVacia

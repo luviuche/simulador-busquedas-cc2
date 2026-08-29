@@ -31,6 +31,7 @@
   <script src="../js/algoritmos/eliminacion.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
   <script src="../js/algoritmos/colisiones/anidados.js"></script>
+  <script src="../js/algoritmos/colisiones/encadenamiento.js"></script>
   <script src="../js/algoritmos/hash/comun.js"></script>
   <script src="../js/algoritmos/hash/modulo.js"></script>
   <script src="../js/algoritmos/hash/cuadrado.js"></script>
@@ -343,6 +344,7 @@
       eliminarConReasignacion();
       avisosDeLaTraza();
       anidados();
+      encadenamiento();
     }
 
     // La tabla grande es donde se ve la regla del docente: en una estructura
@@ -956,6 +958,98 @@
       // Y las dibujan en la misma x: con el arreglo elidido, el tramo se
       // dimensiona por su conteo y las casillas por el ancho fijo.
       afirmarColumnasAlineadas('matriz elidida con n = 100');
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Encadenamiento secuencial: el hermano de los arreglos anidados, y lo
+    // único que los separa es que la cadena no tiene tope. Lo que solo se ve
+    // por el DOM es el dibujo: la flecha del enlace, que una dirección sin
+    // colisiones no dibuje cadena, y que una cadena larga elida por su cuenta.
+    function encadenamiento() {
+      registro.push('', '── Encadenamiento secuencial ──');
+
+      const formularios = entrarATemaHash('Función módulo', {
+        nombre: 'Cadena', n: 10, l: 4, tratamiento: 'encadenamiento'
+      });
+
+      // 7412, 5312 y 9912 comparten la dirección 3.
+      for (const clave of [7412, 5312, 9912, 1023]) {
+        operar(formularios, 'insertar', clave);
+        agotarTraza();
+      }
+
+      const fila = (indice) => [...document.querySelectorAll('.fila-casilla')]
+        .find((f) => {
+          const marca = f.querySelector('.escala__marca');
+          return marca && marca.textContent === String(indice);
+        });
+      const contenido = (indice) => [...fila(indice).querySelectorAll('.casilla')]
+        .map((el) => el.textContent.replace(/[^0-9]/g, '') || '·')
+        .join(' ');
+
+      registro.push('  dirección 3: ' + contenido(3));
+      afirmar(contenido(3) === '7412 5312 9912', 'la cadena cuelga de la casilla, en orden de llegada');
+      // La flecha es lo que distingue la cadena del arreglo anidado: una por
+      // casilla encadenada, y la primera sale de la casilla de la tabla.
+      afirmar(
+        fila(3).querySelectorAll('.cadena__enlace').length === 2,
+        `cada casilla de la cadena entra por su flecha (${fila(3).querySelectorAll('.cadena__enlace').length})`
+      );
+      afirmar(!fila(4).querySelector('.cadena'), 'una dirección sin colisiones no dibuja cadena');
+      afirmar(!document.querySelector('.casilla--anidada'), 'la cadena no dibuja las casillas vacías del arreglo anidado');
+      afirmarCasillasParejas('encadenamiento');
+
+      // La traza no toca la estructura: el efecto lo aplica la pantalla al
+      // llegar al paso y lo deshace al retroceder, también en la cadena.
+      operar(formularios, 'insertar', 1112);
+      agotarTraza();
+      afirmar(contenido(3) === '7412 5312 9912 1112', 'la clave nueva se engancha al final de la cadena');
+      control('anterior').click();
+      afirmar(contenido(3) === '7412 5312 9912', 'retroceder saca de la cadena la clave que el paso colocó');
+      control('siguiente').click();
+
+      operar(formularios, 'buscar', 9912);
+      agotarTraza();
+      const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+      afirmar(metricas[0] === '3', `buscar en la cadena cuesta 3 comparaciones (reporta ${metricas[0]})`);
+      afirmar(metricas[2] === '0.50', `el factor de carga se mide contra n (reporta ${metricas[2]})`);
+
+      // Al sacar la de la tabla, la primera de la cadena sube a ocuparla.
+      operar(formularios, 'eliminar', 7412);
+      agotarTraza(20);
+      registro.push('  tras eliminar 7412: ' + contenido(3));
+      afirmar(contenido(3) === '5312 9912 1112', 'la primera de la cadena sube a la casilla y las demás se desplazan');
+
+      // Lo que define al tratamiento: no hay tope, así que no hay saturación.
+      // Con n = 2 y arreglos anidados, estas claves no habrían cabido.
+      enviar(formularios[0], { nombre: 'Sin tope', n: 2, l: 4, tratamiento: 'encadenamiento' });
+      for (const clave of [1001, 1003, 1005, 1007, 1009]) {
+        operar(formularios, 'insertar', clave);
+        agotarTraza();
+      }
+      registro.push('  n = 2, cinco claves: ' + contenido(2));
+      afirmar(
+        !aviso() || !aviso().classList.contains('alerta--error'),
+        'la cadena nunca se satura: ninguna clave se rechaza'
+      );
+      const carga = [...document.querySelectorAll('.metrica__valor')][2].textContent;
+      afirmar(carga === '2.50', `el factor de carga pasa de 1 en una tabla encadenada (reporta ${carga})`);
+
+      // Una cadena larga elide como todo lo demás, pero **cada fila por su
+      // cuenta**: no hay columnas que alinear, porque la posición en una
+      // cadena es orden de llegada y no el resultado del algoritmo.
+      for (const clave of [1011, 1013, 1015, 1017, 1019, 1021, 1025, 1027, 1029]) {
+        operar(formularios, 'insertar', clave);
+        // La traza crece con la cadena: cada posición recorrida es un paso, y
+        // con doce por delante los doce clics de siempre no la agotan.
+        agotarTraza(30);
+      }
+      const dibujadas = fila(2).querySelectorAll('.casilla').length;
+      const tramos = fila(2).querySelectorAll('.tramo-elidido').length;
+      registro.push(`  cadena de 14 claves: ${dibujadas} casillas dibujadas y ${tramos} tramo(s)`);
+      afirmar(dibujadas < 14 && tramos > 0, 'una cadena larga elide y dice cuánto resumió');
+      afirmarCasillasParejas('cadena elidida');
 
       document.querySelector('.pantalla-tema__volver').click();
     }

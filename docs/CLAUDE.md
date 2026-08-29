@@ -422,7 +422,30 @@ Las posiciones vacías que sí se dibujan son la única excepción a la regla de
 
 **Los segmentos del anidado se calculan una sola vez para todas las filas**, sobre las posiciones ocupadas de la estructura entera. Si cada fila elidiera por su cuenta tendrían distinta cantidad de columnas y la matriz dejaría de estar alineada, que es justo lo que la hace legible — el mismo cuidado que las columnas del apilado de binaria (§6.3).
 
-El tema lo declara con `anidados: { columnas(estructura) }`, y `describirCasilla` recibe `posicion` para distinguir la casilla de la tabla —donde es `undefined`— de cada casilla del arreglo.
+El tema lo declara con `anidados: { tamano(estructura), columnas(estructura) }`, y `describirCasilla` recibe `posicion` para distinguir la casilla de la tabla —donde es `undefined`— de cada casilla del arreglo.
+
+#### Encadenamiento secuencial (2026-08-29)
+
+**Es el hermano de los arreglos anidados, y lo único que los separa es que la cadena no tiene tope.** Por eso se leen igual salvo en eso, y por eso comparten la estructura secundaria del dominio (`estructura.anidados`), sus aplicadores (`colocar-anidado`, `retirar-anidado`, `compactar-anidado`) y la rama de eliminación.
+
+```
+  anidados     3  [ 7412 ]  [ 5312 ][ 9912 ][      ]   ← tope de n − 1, hueco a la vista
+  encadenado   3  [ 7412 ] → [ 5312 ] → [ 9912 ]       ← sin tope, crece
+```
+
+- **La casilla de la tabla guarda la primera clave**, igual que en anidados; la cadena es para las que chocaron. Una dirección sin colisiones no dibuja cadena. Se descartó el modelo clásico —la tabla como arreglo de punteros— porque dejaría la tabla sin claves y se leería distinto de los otros tres tratamientos.
+- **El enlace se dibuja con flecha** (`→`) entre casillas, y la primera sale de la casilla de la tabla. Es lo que distingue a simple vista la cadena del arreglo anidado; sin flecha los dos tratamientos se verían casi igual y lo que los separa dejaría de verse en el dibujo. Se descartó dibujar la cadena hacia abajo: cada colisión sumaría filas al alto, que es el recurso escaso.
+- **Nunca se satura.** No hay paso de saturación en la traza, y `capacidad()` deja de ser un número: `tamanoAnidado` vale `Infinity` y la capacidad con él. Es lo que define al tratamiento.
+- **El factor de carga cambia de significado.** Con anidados se mide contra `n × n`; aquí contra `n` —lo que devuelve `dominio.estructura.baseDeCarga`— y **puede pasar de 1**, que es lo que el factor de carga significa en una tabla encadenada: claves por dirección en promedio. Dividir por una capacidad infinita daría siempre 0.
+- **Búsqueda:** primero la casilla de la dirección, después la cadena posición por posición. No hay posición vacía que pruebe la ausencia —una cadena no tiene huecos, la clave nueva se engancha al final— así que **lo que la prueba es llegar al final de la cadena**. Es la única diferencia de fondo con el recorrido del arreglo anidado.
+- **Eliminación:** igual que en anidados. La clave sale, la cadena cierra el hueco, y si la que salió era la de la tabla sube la primera de la cadena a ocuparla.
+
+**Elisión:** la cadena elide como todo lo demás —cabeza, cola, la posición del paso y `⋯ N ⋯` en medio—, con dos diferencias respecto de la matriz:
+
+1. **Aquí sí se pueden comprimir casillas ocupadas**, al revés que en la tabla dispersa (§6.2): en una cadena la posición es orden de llegada y no el resultado del algoritmo, así que comprimir el medio no esconde lo que el tema enseña.
+2. **Cada fila elide por su cuenta**, al revés que en anidados (donde los segmentos se calculan una sola vez para todas las filas). Una lista no es una matriz: no hay columnas que alinear entre direcciones, y cada dirección crece lo que crezcan sus colisiones.
+
+Por eso la cadena ocupa **una sola columna del grid de la fila** y se ordena por dentro (`.cadena`, un flex), en vez de una pista por posición.
 
 ### 5.5 Otras búsquedas internas
 
@@ -748,7 +771,7 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 
-**Tratamientos de colisión construidos: `ninguno`, `reasignación` (prueba lineal) y `arreglos anidados` (§5.4).** Falta **encadenamiento secuencial**. Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el dibujo en matriz, así que el encadenamiento ya no parte de cero: lo que cambia es que su estructura secundaria no tiene tope.
+**Los cuatro tratamientos de colisión están construidos: `ninguno`, `reasignación` (prueba lineal), `arreglos anidados` y `encadenamiento secuencial` (§5.4).** Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el encadenamiento entró sobre él: comparte almacenamiento, aplicadores y rama de eliminación, y lo único propio suyo es que su estructura secundaria no tiene tope.
 
 Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al stack de respaldo), y ni `css/impresion.css` ni `persistencia/archivo.js` (.cc2) están construidos.
 

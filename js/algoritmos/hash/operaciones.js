@@ -2,6 +2,7 @@
   const { TIPOS_PASO, crearPaso } = window.CC2.algoritmos.traza;
   const { sondearLineal } = window.CC2.algoritmos.colisiones.reasignacion;
   const { recorrerAnidado } = window.CC2.algoritmos.colisiones.anidados;
+  const { recorrerCadena } = window.CC2.algoritmos.colisiones.encadenamiento;
 
   // Tratamientos de colisión disponibles (CLAUDE.md 5.4). El docente pidió que
   // no fueran temas aparte sino parte de la transformación de claves: se eligen
@@ -9,13 +10,15 @@
   const TRATAMIENTOS = Object.freeze({
     NINGUNO: 'ninguno',
     REASIGNACION: 'reasignacion',
-    ANIDADOS: 'anidados'
+    ANIDADOS: 'anidados',
+    ENCADENAMIENTO: 'encadenamiento'
   });
 
   const NOMBRE_TRATAMIENTO = Object.freeze({
     ninguno: 'ninguno',
     reasignacion: 'reasignación',
-    anidados: 'arreglos anidados'
+    anidados: 'arreglos anidados',
+    encadenamiento: 'encadenamiento secuencial'
   });
 
   // Ni insertar ni buscar tocan la estructura: producen la traza completa y la
@@ -139,6 +142,47 @@
             + ` y la clave ${clave} no se inserta.`
         })));
       }
+      return pasos;
+    }
+
+    // Encadenamiento secuencial: como los arreglos anidados, la clave se queda
+    // en su dirección y baja a la estructura secundaria. Lo único distinto es
+    // que la cadena no tiene tope: se recorre entera y la clave se engancha al
+    // final, así que no hay paso de saturación. Esta estructura nunca se llena,
+    // y eso es lo que la define.
+    if (tratamiento === TRATAMIENTOS.ENCADENAMIENTO) {
+      const cadena = anidados[direccion - 1] || [];
+      // Todas las posiciones de una cadena están ocupadas —no se llena
+      // dejando huecos— así que la condición nunca se cumple y el recorrido
+      // termina agotado, en la posición donde se engancha la clave nueva.
+      const recorrido = recorrerCadena({
+        cadena,
+        condicion: (ocupante) => ocupante === undefined
+      });
+
+      const recorridas = [];
+      for (const visita of recorrido.recorrido) {
+        contadores.accesos++;
+        recorridas.push(visita.posicion);
+        pasos.push(crearPaso(TIPOS_PASO.SONDEO, Object.assign(comun(), {
+          casilla: direccion,
+          posicion: visita.posicion,
+          colision: direccion,
+          recorridas: recorridas.slice(),
+          mensaje: `Cadena de la dirección ${direccion}: la posición ${visita.posicion} contiene la clave ${visita.clave}; se avanza.`
+        })));
+      }
+
+      contadores.accesos++;
+      pasos.push(crearPaso(TIPOS_PASO.INSERCION, Object.assign(comun(), {
+        casilla: direccion,
+        posicion: recorrido.posicion,
+        colision: direccion,
+        recorridas: recorridas.slice(),
+        clave,
+        efecto: { tipo: 'colocar-anidado', casilla: direccion, posicion: recorrido.posicion, clave },
+        mensaje: `Clave insertada: ${clave} al final de la cadena de la dirección ${direccion}, en la posición ${recorrido.posicion}.`
+      })));
       return pasos;
     }
 
@@ -282,6 +326,43 @@
       return pasos;
     }
 
+    // Con encadenamiento la búsqueda tampoco se va a otra dirección: recorre
+    // la cadena de esta. No hay posición vacía que pruebe la ausencia —una
+    // cadena no tiene huecos—, así que lo que la prueba es llegar al final.
+    if (tratamiento === TRATAMIENTOS.ENCADENAMIENTO) {
+      const cadena = anidados[direccion - 1] || [];
+      const recorrido = recorrerCadena({
+        cadena,
+        condicion: (candidato) => candidato === objetivo
+      });
+
+      for (const visita of recorrido.recorrido) {
+        contadores.accesos++;
+        contadores.comparaciones++;
+        if (!visita.detener) {
+          pasos.push(crearPaso(TIPOS_PASO.COMPARACION, Object.assign(comun(), {
+            casilla: direccion,
+            posicion: visita.posicion,
+            mensaje: `Cadena de la dirección ${direccion}: ${objetivo} no coincide con ${visita.clave} en la posición ${visita.posicion}; se avanza.`
+          })));
+          continue;
+        }
+        pasos.push(crearPaso(TIPOS_PASO.ENCONTRADA, Object.assign(comun(), {
+          casilla: direccion,
+          posicion: visita.posicion,
+          mensaje: `Clave localizada en la posición ${visita.posicion} de la cadena de la dirección ${direccion} tras ${contadores.comparaciones} comparaciones.`
+        })));
+      }
+
+      if (recorrido.agotado) {
+        pasos.push(crearPaso(TIPOS_PASO.NO_ENCONTRADA, Object.assign(comun(), {
+          casilla: direccion,
+          mensaje: `Clave no localizada en la estructura: la cadena de la dirección ${direccion} se recorrió entera tras ${contadores.comparaciones} comparaciones.`
+        })));
+      }
+      return pasos;
+    }
+
     // Con reasignación la búsqueda repite el mismo recorrido que hizo la
     // inserción, y para por la misma razón: halla la clave o halla un hueco.
     const sondeo = sondearLineal({
@@ -352,7 +433,15 @@
     // las de atrás se corren, y si la casilla quedó vacía sube a ella la
     // primera del anidado. Sin eso quedaría una dirección vacía con claves
     // colgando, que contradice lo que el dibujo dice.
-    if (tratamiento === TRATAMIENTOS.ANIDADOS) {
+    //
+    // El encadenamiento se vacía igual, y por eso comparte esta rama: sacar de
+    // una cadena y sacar de un arreglo anidado son el mismo movimiento sobre
+    // la estructura secundaria de una dirección. Lo único que cambia es cómo
+    // se llama lo que cierra el hueco.
+    if (tratamiento === TRATAMIENTOS.ANIDADOS || tratamiento === TRATAMIENTOS.ENCADENAMIENTO) {
+      const secundaria = tratamiento === TRATAMIENTOS.ANIDADOS
+        ? { sujeto: `El arreglo anidado de ${casilla}`, complemento: `del arreglo anidado de ${casilla}` }
+        : { sujeto: `La cadena de la dirección ${casilla}`, complemento: `de la cadena de la dirección ${casilla}` };
       const posicion = hallazgo.posicion;
       const anidado = anidados[casilla - 1] || [];
       // Solo hay algo que cerrar si queda una clave *detrás* de la que salió.
@@ -375,7 +464,7 @@
         accesos: contadores.accesos,
         mensaje: posicion === undefined
           ? `Clave ${clave} eliminada de la casilla ${casilla}.`
-          : `Clave ${clave} eliminada de la posición ${posicion} del arreglo anidado de ${casilla}.`
+          : `Clave ${clave} eliminada de la posición ${posicion} ${secundaria.complemento}.`
       }));
 
       // Nada que cerrar: el arreglo queda vacío y la casilla ya está en su
@@ -390,8 +479,8 @@
           comparaciones: contadores.comparaciones,
           accesos: contadores.accesos,
           mensaje: posicion === undefined
-            ? `La primera clave del arreglo anidado de ${casilla} sube a la casilla, y las demás se desplazan.`
-            : `El arreglo anidado de ${casilla} cierra el hueco: las claves de atrás se desplazan una posición.`
+            ? `La primera clave ${secundaria.complemento} sube a la casilla, y las demás se desplazan.`
+            : `${secundaria.sujeto} cierra el hueco: las claves de atrás se desplazan una posición.`
         }));
       }
       return pasos;

@@ -12,6 +12,7 @@ require('../js/algoritmos/binaria.js');
 require('../js/algoritmos/eliminacion.js');
 require('../js/algoritmos/colisiones/reasignacion.js');
 require('../js/algoritmos/colisiones/anidados.js');
+require('../js/algoritmos/colisiones/encadenamiento.js');
 require('../js/algoritmos/hash/comun.js');
 require('../js/algoritmos/hash/modulo.js');
 require('../js/algoritmos/hash/cuadrado.js');
