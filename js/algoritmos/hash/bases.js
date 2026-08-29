@@ -1,23 +1,29 @@
 (function () {
-  const { lineaDireccion, enmarcar } = window.CC2.algoritmos.hash.comun;
+  const { lineaDireccionDesdeCero, cifrasDeRango, enmarcar } = window.CC2.algoritmos.hash.comun;
 
   const BASE_POR_DEFECTO = 11;
   const BASE_MINIMA = 2;
-  // 36 es el techo de toString: diez cifras y veintiséis letras.
+  // Tope de conveniencia, no técnico: con bases mayores el desarrollo crece
+  // hasta dejar de ser una cuenta que el estudiante pueda comprobar a mano.
   const BASE_MAXIMA = 36;
 
-  // Conversión de bases (CLAUDE.md 5.3): convertir la clave a otra base,
-  // truncar y ajustar al rango.
+  // Conversión de bases (CLAUDE.md 5.3), con la fórmula del docente: **las
+  // cifras decimales de la clave se leen como si fueran cifras en base b**, se
+  // evalúa el polinomio que forman, y del resultado se toman las últimas
+  // cifras, las que caben en el rango.
   //
-  // La base es un parámetro del estudiante. Por defecto 11, que es la que se
-  // usa en clase: es la primera que obliga a una cifra que no existe en
-  // decimal —la A vale diez— y por eso deja ver que la representación cambió y
-  // no solo los dígitos. Con base 2 este mismo tema cubre el caso binario.
+  //   clave 1836, b = 6:  1×6³ + 8×6² + 3×6¹ + 6×6⁰ = 528
+  //   n = 100 → dos cifras → 28 → dirección 29
   //
-  // "Truncar" es quedarse con las últimas cifras de la representación, que en
-  // cualquier base son las que más cambian entre claves vecinas. Esas cifras se
-  // leen **en la base elegida**, no como si fueran decimales: leerlas como
-  // decimales sería imposible en cuanto apareciera una letra.
+  // No es una conversión de base en sentido estricto, y por eso las cifras de
+  // la clave pueden valer más que la base: el 8 y el 6 del ejemplo no existen
+  // en base 6. La operación **mezcla** la clave, no la representa, y eso es lo
+  // que se le pide a una función hash.
+  //
+  // Antes esto convertía de verdad (`clave.toString(base)`) y truncaba la
+  // representación, leyendo las cifras en esa base. Da otra dirección —1836 en
+  // base 6 es 12300, y truncado daba la casilla 8, no la 29— y no es lo que se
+  // enseña en clase (corregido el 2026-08-29).
   function validarBase(entrada) {
     const base = Number(entrada);
     if (!Number.isInteger(base) || base < BASE_MINIMA || base > BASE_MAXIMA) {
@@ -30,57 +36,63 @@
       valido: true,
       valor: base,
       advertencia: base === 10
-        ? 'En base 10 la representación coincide con la clave: el tema no transforma nada.'
+        ? 'En base 10 el desarrollo devuelve la clave misma: el tema no transforma nada.'
         : null
     };
   }
 
-  // Cuántas cifras hacen falta para direccionar n **en esta base**, que no es
-  // lo mismo que en decimal: con n = 12 y base 2, dos cifras solo alcanzan
-  // cuatro direcciones y ocho casillas quedarían muertas. Se cuenta con
-  // multiplicaciones enteras y no con logaritmos, porque en las potencias
-  // exactas el redondeo del logaritmo se equivoca por una cifra.
-  function cifrasEnBase(n, base) {
-    let cifras = 1;
-    let capacidad = base;
-    while (capacidad < n) {
-      capacidad *= base;
-      cifras++;
-    }
-    return cifras;
+  const SUPERINDICES = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+
+  function superindice(exponente) {
+    return String(exponente).split('').map((cifra) => SUPERINDICES[Number(cifra)]).join('');
   }
 
   function direccionBases(clave, n, parametros) {
     const base = (parametros && parametros.base) || BASE_POR_DEFECTO;
-    const cifras = cifrasEnBase(n, base);
-    const representacion = clave.toString(base).toUpperCase();
+    const cifrasClave = String(clave).split('').map(Number);
+    const mayorExponente = cifrasClave.length - 1;
 
-    // Si la representación es más corta que las cifras pedidas se toma entera:
-    // no hay nada que truncar.
-    const desde = Math.max(0, representacion.length - cifras);
-    const ultimas = representacion.slice(desde);
-    const valor = parseInt(ultimas, base);
+    let valor = 0;
+    for (let i = 0; i < cifrasClave.length; i++) {
+      valor += cifrasClave[i] * Math.pow(base, mayorExponente - i);
+    }
+
+    // El desarrollo entero y no solo el total: es el contenido didáctico del
+    // tema, igual que el cuadrado completo en la función cuadrado.
+    const desarrollo = cifrasClave
+      .map((cifra, i) => `${cifra}×${base}${superindice(mayorExponente - i)}`)
+      .join(' + ');
+
+    // El truncamiento es sobre el total **en decimal**: son cifras decimales,
+    // no cifras de la base. Y son las del rango —dos con n = 100, porque las
+    // direcciones se leen de 00 a 99— igual que en las otras funciones.
+    //
+    // De ahí el `+ 1` del cierre: esas dos cifras son cien valores que cuentan
+    // desde cero, y sumar uno es la única forma de llevarlos a 1..n sin caso
+    // especial. Sin el `+ 1` el total terminado en `00` no tendría dirección
+    // propia y caía en la casilla n por el ajuste del módulo, una excepción que
+    // aparece en una clave de cada cien.
+    const texto = String(valor);
+    const cifras = cifrasDeRango(n);
+    const desde = Math.max(0, texto.length - cifras);
+    const ultimas = texto.slice(desde);
+    const truncado = Number(ultimas);
 
     return {
-      direccion: Number(lineaDireccion(valor, n).resultado),
+      direccion: Number(lineaDireccionDesdeCero(truncado, n).resultado),
       calculo: [
         { etiqueta: 'Clave', expresion: '', resultado: String(clave) },
         {
-          etiqueta: `En base ${base}`,
-          expresion: `${clave} a base ${base}`,
-          resultado: representacion
+          etiqueta: `Cifras en base ${base}`,
+          expresion: desarrollo,
+          resultado: texto
         },
         {
-          etiqueta: `Últimas ${ultimas.length} cifras`,
-          expresion: enmarcar(representacion, desde, ultimas.length),
+          etiqueta: ultimas.length === 1 ? 'Última cifra' : `Últimas ${ultimas.length} cifras`,
+          expresion: enmarcar(texto, desde, ultimas.length),
           resultado: ultimas
         },
-        {
-          etiqueta: 'En decimal',
-          expresion: `${ultimas} en base ${base}`,
-          resultado: String(valor)
-        },
-        lineaDireccion(valor, n)
+        lineaDireccionDesdeCero(truncado, n)
       ]
     };
   }
@@ -93,7 +105,6 @@
     BASE_MINIMA,
     BASE_MAXIMA,
     direccionBases,
-    cifrasEnBase,
     validarBase
   };
 })();

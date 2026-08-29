@@ -336,13 +336,13 @@ Cada función devuelve `{ direccion, calculo }`, donde `calculo` es la lista de 
 | **Cuadrado** | Elevar al cuadrado, tomar las cifras centrales que numeran el rango desde cero y sumar 1 | — |
 | **Truncamiento** | Seleccionar posiciones fijas de los dígitos de la clave y sumar 1 | Las posiciones |
 | **Plegamiento** | Partir la clave en grupos, sumarlos o multiplicarlos, tomar las últimas cifras del total y sumar 1 | La operación |
-| **Conversión de bases** | Convertir a otra base, truncar y ajustar al rango | La base |
+| **Conversión de bases** | Leer las cifras de la clave como cifras en base b, evaluar el polinomio y tomar las últimas cifras del total | La base |
 
 Tres reglas comunes, en `algoritmos/hash/comun.js`:
 
 1. **Cuántas cifras se toman.** Hay dos cuentas y no son la misma:
    - **Cuadrado, truncamiento y plegamiento toman las cifras de `n − 1`** (`cifrasDeRango`): dos con `n = 100`, porque el número extraído numera el rango de `00` a `99` y la cuenta cierra con el `+ 1`. Tomar tres metería en el número una cifra que ninguna dirección usa. En el plegamiento esa cuenta es además el tamaño del grupo: con `n = 100`, pares.
-   - **La conversión de bases toma las cifras de `n`** (`cifrasNecesarias`): tres con `n = 100`, y se cuentan **en la base elegida** y no en decimal — con `n = 12` y base 2, dos cifras solo alcanzan cuatro direcciones y ocho casillas quedarían muertas.
+   - **La conversión de bases también toma las cifras de `n − 1`** (2026-08-29), y son cifras **decimales** del total del polinomio: dos con `n = 100`. Antes contaba cifras "en la base elegida", que era parte de la fórmula equivocada.
 2. **Hay dos formas de cerrar el cálculo**, y cada función declara la suya en su última línea:
    - **Valores que ya cuentan desde 1** (`lineaDireccion`): se usan tal cual si caen en `1..n`.
    - **Valores que cuentan desde 0** (`lineaDireccionDesdeCero`): la dirección es `valor + 1`. Es el caso del cuadrado, el truncamiento y el plegamiento, y el mismo cierre que ya tenía la función módulo.
@@ -358,13 +358,28 @@ Tres reglas comunes, en `algoritmos/hash/comun.js`:
 - **Los grupos se suman o se multiplican**, y eso lo elige el estudiante al crear la estructura (`operacion`), igual que las posiciones del truncamiento y por la misma razón: cambiarlo con claves puestas dejaría direcciones que no corresponden a ninguna cuenta. Sin indicar nada, se suman. Es el único parámetro que se digita eligiendo de una lista, no escribiendo: `parametro.opciones` hace que el formulario dibuje un `<select>`.
 - **Del total se toman las últimas cifras** —el acarreo que se sale por la izquierda se descarta, que es el plegado clásico— y después el `+ 1`. Con 3025 y `n = 100`: sumando, `55 → 56`; multiplicando, `750 → 50 → 51`.
 
-**Pendiente de consultar:** si el criterio vale también para conversión de bases. Hasta que el docente lo diga, sigue con las cifras de `n` y sin el `+ 1`.
+**Corrección del docente (2026-08-29), conversión de bases.** La fórmula era otra. No se convierte la clave a la base: **se leen sus cifras decimales como si fueran cifras en base `b` y se evalúa el polinomio que forman**, y del total se toman las últimas cifras.
 
-Detalles que no se deducen del enunciado y conviene no cambiar sin motivo: el cuadrado se calcula con `BigInt`, porque con claves largas supera el entero seguro y las cifras centrales saldrían falseadas; las posiciones del truncamiento se numeran desde 1 y de izquierda a derecha, como las casillas, y se toman **en el orden indicado**; el plegamiento parte de izquierda a derecha, así que el grupo corto queda al final; y "truncar" en conversión de bases es quedarse con las **últimas** cifras, leídas en esa base.
+```
+clave 1836, b = 6, n = 100
+
+  1×6³ + 8×6² + 3×6¹ + 6×6⁰  =  216 + 288 + 18 + 6  =  528
+  528 no cabe en 1..100  →  dos cifras (las del rango)  →  28  →  + 1  →  29
+```
+
+No es una conversión de base en sentido estricto, y ahí está lo que se venía haciendo mal: **las cifras de la clave pueden valer más que la base** —el `8` y el `6` del ejemplo no existen en base 6— porque la operación *mezcla* la clave, no la representa. Antes se convertía de verdad (`1836` en base 6 es `12300`), se truncaba esa representación y se leían las cifras en esa base, lo que daba la casilla 8 en vez de la 29.
+
+Con eso queda resuelto lo que estaba pendiente sobre las cifras: **se truncan cifras decimales del total, y son las del rango** (`cifrasDeRango`), igual que en las otras tres. Ya no se cuentan cifras "en la base elegida", y `cifrasEnBase` desaparece.
+
+**El `+ 1` también aplica aquí** (decisión del usuario, 2026-08-29). El enunciado del docente se detiene en el `28` —está explicando qué cifras se toman, no cerrando la dirección—, y la razón para sumar no es solo la consistencia con las otras cuatro: **el número truncado cuenta desde cero**. Con `n = 100` las dos últimas cifras van de `00` a `99`, que son exactamente cien valores, y sumar uno es la única forma de llevarlos a `1..100` sin caso especial. Sin el `+ 1`, el total terminado en `00` no tendría dirección propia y caía en la casilla `n` por el ajuste del módulo: una excepción que aparece en una clave de cada cien y es incómoda de explicar en el tablero. Cierra entonces con `lineaDireccionDesdeCero`, como cuadrado, truncamiento y plegamiento.
+
+**Consecuencia a tener presente:** con el `+ 1`, el ejercicio del docente da la casilla **29** y no la 28. Es la única diferencia entre lo que él escribió en el tablero y lo que muestra la aplicación.
+
+Detalles que no se deducen del enunciado y conviene no cambiar sin motivo: el cuadrado se calcula con `BigInt`, porque con claves largas supera el entero seguro y las cifras centrales saldrían falseadas; las posiciones del truncamiento se numeran desde 1 y de izquierda a derecha, como las casillas, y se toman **en el orden indicado**; el plegamiento parte de izquierda a derecha, así que el grupo corto queda al final; y "truncar" en conversión de bases es quedarse con las **últimas** cifras decimales del total.
 
 **Los parámetros se eligen al crear la estructura**, junto a `n`, `l` y el tratamiento de colisiones, y por la misma razón (§5.4): cambiarlos con claves ya colocadas dejaría direcciones que no corresponden a ninguna cuenta. Se validan contra `n` y `l` en ese momento, no al insertar.
 
-Deben soportarse en decimal y en binario. **Resuelto a medias (2026-08-22):** lo binario entró como la **base intermedia del cálculo** — conversión de bases con base 2 muestra la clave en binario y trunca bits en lugar de cifras. Lo que sigue sin resolverse es si además debe poder **digitarse** la clave en binario, o verse la estructura entera en binario, en los otros cuatro temas. Preguntarle al docente antes de construirlo: hoy la clave siempre se digita en decimal (§3.3).
+El documento original pedía soportarlas «en decimal y en binario». **Descartado (2026-08-29):** el usuario confirmó que lo binario no se vio en clase y no se va a implementar. Se daba por cubierto porque conversión de bases con base 2 mostraba la clave en binario y truncaba bits; con la fórmula del docente eso dejó de ocurrir —base 2 solo hace que las cifras de la clave pesen como bits— y al preguntarlo quedó claro que no hacía falta. **Las claves se digitan y se muestran siempre en decimal** (§3.3). No reabrir esto por "completar el enunciado": está decidido.
 
 ### 5.4 Tratamiento de colisiones internas
 
@@ -683,7 +698,7 @@ El documento incluye: encabezado con datos de la asignatura, configuración de l
 
 ### Fase 1 — implementar
 
-Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamiento, plegamiento, conversión de bases) en decimal y binario · tratamiento de colisiones (reasignación, arreglos anidados, encadenamiento secuencial) · otras búsquedas internas (residuos, árboles de búsqueda digital, residuos múltiples, tablas de índices, rejilla, árboles 2D).
+Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamiento, plegamiento, conversión de bases) **solo en decimal**, ya que lo binario quedó descartado (§5.3) · tratamiento de colisiones (reasignación, arreglos anidados, encadenamiento secuencial) · otras búsquedas internas (residuos, árboles de búsqueda digital, residuos múltiples, tablas de índices, rejilla, árboles 2D).
 
 **Orden de construcción confirmado: primero búsqueda secuencial, luego binaria.** Secuencial es el tema anterior a binaria en el orden de la asignatura, y sirve como la primera plantilla end-to-end (dominio → traza → elisión → animación → bitácora); binaria reutiliza ese mismo patrón, no al revés.
 

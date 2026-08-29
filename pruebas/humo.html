@@ -426,39 +426,48 @@
     function hashBases() {
       registro.push('', '── Conversión de bases ──');
 
+      // El ejercicio del docente: n = 100, b = 6, clave 1836. Las cifras de la
+      // clave se leen como cifras en base 6 y se evalúa el polinomio:
+      // 1×6³ + 8×6² + 3×6¹ + 6×6⁰ = 528; las dos últimas cifras son 28 y la
+      // dirección cierra con el + 1, como las otras cuatro funciones: casilla 29.
       const formularios = entrarATemaHash('Conversión de bases', {
-        nombre: 'Bases', n: 12, l: 4, base: '', tratamiento: 'reasignacion'
+        nombre: 'Bases', n: 100, l: 4, base: '6', tratamiento: 'reasignacion'
       });
+      operar(formularios, 'insertar', 1836);
+      agotarTraza();
+      registro.push('  base 6: ' + lineasCalculo().join(' | '));
+      afirmar(
+        lineasCalculo()[1].includes('8×6²'),
+        'el desarrollo muestra la clave leída como cifras en la base'
+      );
+      afirmar(
+        lineasCalculo()[1].includes('528'),
+        'el desarrollo llega al total del polinomio'
+      );
+      afirmar(
+        casillaEn(29).querySelector('.casilla').textContent === '1836',
+        'el ejercicio del docente cae en la casilla 29: 28 más el + 1 final'
+      );
 
-      // Sin base indicada se usa 11: 7412 → 5629 → últimas dos, 29 → 31 → 7.
+      // Sin base indicada se usa 11: 7×11³ + 4×11² + 1×11¹ + 2×11⁰ = 9814,
+      // las dos últimas cifras son 14 y con el + 1 la dirección es 15.
+      enviar(formularios[0], { nombre: 'Por defecto', n: 100, l: 4, base: '', tratamiento: 'reasignacion' });
       operar(formularios, 'insertar', 7412);
       agotarTraza();
       registro.push('  base 11: ' + lineasCalculo().join(' | '));
-      afirmar(lineasCalculo()[1].includes('5629'), 'sin base indicada se usa la de clase, 11');
+      afirmar(lineasCalculo()[1].includes('9814'), 'sin base indicada se usa la de clase, 11');
       afirmar(
-        casillaEn(7).querySelector('.casilla').textContent === '7412',
-        'la dirección sale de leer las últimas cifras en la base elegida'
+        casillaEn(15).querySelector('.casilla').textContent === '7412',
+        'la dirección son las últimas cifras del total, contadas en decimal'
       );
 
-      // Con base 2 el mismo tema cubre el binario: 7412 → 1110011110100.
-      enviar(formularios[0], { nombre: 'Binaria', n: 12, l: 4, base: '2', tratamiento: 'reasignacion' });
+      // Base 2: las cifras de la clave pesan como bits.
+      // 7×2³ + 4×2² + 1×2¹ + 2×2⁰ = 56 + 16 + 2 + 2 = 76.
+      enviar(formularios[0], { nombre: 'Binaria', n: 100, l: 4, base: '2', tratamiento: 'reasignacion' });
       operar(formularios, 'insertar', 7412);
       agotarTraza();
       registro.push('  base 2: ' + lineasCalculo().join(' | '));
-      afirmar(
-        lineasCalculo()[1].includes('1110011110100'),
-        'con base 2 la clave se muestra en binario'
-      );
-      // Las cifras a truncar se cuentan en la base elegida: con dos cifras
-      // decimales solo habría 4 direcciones y ocho casillas quedarían muertas.
-      afirmar(
-        lineasCalculo()[2].includes('Últimas 4 cifras'),
-        'con base 2 se truncan 4 bits, los que hacen falta para llegar a 12'
-      );
-      afirmar(
-        casillaEn(4).querySelector('.casilla').textContent === '7412',
-        'los últimos 4 bits, 0100, dan la casilla 4'
-      );
+      afirmar(lineasCalculo()[1].includes('76'), 'con base 2 las cifras de la clave pesan como bits');
 
       // Una base imposible se rechaza al crear, no al insertar.
       enviar(formularios[0], { nombre: 'Inválida', n: 12, l: 4, base: '99', tratamiento: 'reasignacion' });
@@ -775,12 +784,20 @@
 
     // Entra a un tema de transformación de claves y crea una estructura
     // dispersa. Devuelve los formularios para seguir operando sobre ella.
-    function entrarATemaHash(tema, { nombre, n, l, tratamiento }) {
+    // Los parámetros propios del tema —la base, las posiciones, la operación—
+    // se reenvían solo si el llamador los pide: pasarlos siempre haría fallar
+    // a los temas que no declaran ese campo, y `enviar` no perdona un campo
+    // que no existe (así se destapa un formulario que dejó de dibujarlo).
+    function entrarATemaHash(tema, opciones) {
       [...document.querySelectorAll('.tema-item')]
         .find((el) => el.textContent.includes(tema))
         .click();
       const formularios = [...document.querySelectorAll('form.panel')];
-      enviar(formularios[0], { nombre, n, l, tratamiento });
+      const campos = { nombre: opciones.nombre, n: opciones.n, l: opciones.l, tratamiento: opciones.tratamiento };
+      for (const propio of ['base', 'posiciones', 'operacion']) {
+        if (opciones[propio] !== undefined) campos[propio] = opciones[propio];
+      }
+      enviar(formularios[0], campos);
       return formularios;
     }
 

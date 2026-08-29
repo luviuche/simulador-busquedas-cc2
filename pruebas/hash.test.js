@@ -399,56 +399,65 @@ test('con grupos de dos cifras el total se recorta y después se ajusta', () => 
 
 // ── Conversión de bases ───────────────────────────────────────────────────
 
-const { direccionBases, validarBase, cifrasEnBase, BASE_POR_DEFECTO } = CC2.algoritmos.hash.bases;
+const { direccionBases, validarBase, BASE_POR_DEFECTO } = CC2.algoritmos.hash.bases;
 
-test('la conversión de bases trunca las últimas cifras y las lee en esa base', () => {
-  // 7412 en base 11 es 5629; las dos últimas cifras, 29, valen 2·11+9 = 31.
-  const { direccion, calculo } = direccionBases(7412, 12, { base: 11 });
-  assert.equal(calculo[1].resultado, '5629');
-  assert.equal(calculo[2].resultado, '29');
-  assert.equal(calculo[3].resultado, '31');
-  assert.equal(direccion, 7);
+test('las cifras de la clave se leen como cifras en la base y se evalúa el polinomio', () => {
+  // El ejercicio del docente: 1836 con b = 6 y n = 100.
+  // 1×6³ + 8×6² + 3×6¹ + 6×6⁰ = 216 + 288 + 18 + 6 = 528.
+  const { direccion, calculo } = direccionBases(1836, 100, { base: 6 });
+  assert.equal(calculo[1].resultado, '528');
+  assert.equal(calculo[1].expresion, '1×6³ + 8×6² + 3×6¹ + 6×6⁰');
+  // 528 no cabe en 1..100: se toman las dos últimas cifras, las del rango,
+  // y la dirección cierra con el + 1 como las otras cuatro funciones.
+  assert.equal(calculo[2].resultado, '28');
+  assert.equal(calculo[3].expresion, '28 + 1');
+  assert.equal(direccion, 29);
 });
 
-test('las cifras mayores que nueve se muestran como letras', () => {
-  // 10 en base 11 es A: es lo que hace visible que la representación cambió.
-  assert.equal(direccionBases(10, 100, { base: 11 }).calculo[1].resultado, 'A');
-  assert.equal(direccionBases(255, 100, { base: 16 }).calculo[1].resultado, 'FF');
+test('no es una conversión de base: las cifras pueden valer más que la base', () => {
+  // El 8 y el 6 de 1836 no existen en base 6, y aun así entran en la cuenta.
+  // Es lo que separa esta función de convertir la clave: mezcla, no representa.
+  // Convertida de verdad, 1836 en base 6 es 12300 y daría otra casilla.
+  assert.equal((1836).toString(6), '12300');
+  assert.equal(direccionBases(1836, 100, { base: 6 }).direccion, 29);
+});
+
+test('el desarrollo se muestra entero, no solo el total', () => {
+  // Es el contenido didáctico del tema, como el cuadrado completo en cuadrado.
+  const { direccion, calculo } = direccionBases(7412, 100, { base: 11 });
+  assert.equal(calculo[1].expresion, '7×11³ + 4×11² + 1×11¹ + 2×11⁰');
+  // 7·1331 + 4·121 + 11 + 2 = 9317 + 484 + 13 = 9814.
+  assert.equal(calculo[1].resultado, '9814');
+  assert.equal(calculo[2].resultado, '14');
+  assert.equal(direccion, 15);
+});
+
+test('se truncan cifras decimales del total, no cifras de la base', () => {
+  // Con n = 100 son dos —las direcciones se leen de 00 a 99— y con n = 12
+  // también dos, porque las cifras son las de n − 1 como en las otras
+  // funciones. El total se lee siempre en decimal.
+  assert.equal(direccionBases(1836, 100, { base: 6 }).calculo[2].resultado, '28');
+  assert.equal(direccionBases(1836, 1000, { base: 6 }).calculo[2].resultado, '528');
+});
+
+test('un total corto no se trunca y rotula la cifra en singular', () => {
+  // 1111 con b = 2 da 8+4+2+1 = 15; con n = 12 caben dos cifras y no sobra
+  // ninguna. Y 1000 con b = 2 da 8: una sola cifra.
+  assert.equal(direccionBases(1111, 12, { base: 2 }).calculo[1].resultado, '15');
+  assert.equal(direccionBases(1111, 12, { base: 2 }).calculo[2].resultado, '15');
+  assert.equal(direccionBases(1000, 12, { base: 2 }).calculo[2].etiqueta, 'Última cifra');
 });
 
 test('con base 2 el tema cubre el caso binario', () => {
-  // 7412 en binario es 1110011110100; con n = 12 hacen falta 4 bits, y los
-  // últimos cuatro son 0100 = 4.
-  const { direccion, calculo } = direccionBases(7412, 12, { base: 2 });
-  assert.equal(calculo[1].resultado, '1110011110100');
-  assert.equal(calculo[2].resultado, '0100');
-  assert.equal(direccion, 4);
+  // Las cifras de la clave pesan como bits: 7412 → 7·8 + 4·4 + 1·2 + 2 = 76.
+  const { calculo } = direccionBases(7412, 100, { base: 2 });
+  assert.equal(calculo[1].expresion, '7×2³ + 4×2² + 1×2¹ + 2×2⁰');
+  assert.equal(calculo[1].resultado, '76');
 });
 
-test('las cifras a truncar se cuentan en la base elegida, no en decimal', () => {
-  // Con dos cifras decimales para n = 12 solo habría 4 direcciones binarias y
-  // ocho casillas quedarían muertas: hacen falta 4 bits.
-  assert.equal(cifrasEnBase(12, 2), 4);
-  assert.equal(cifrasEnBase(12, 11), 2);
-  assert.equal(cifrasEnBase(100, 16), 2);
-  // En las potencias exactas no se pasa ni se queda corto.
-  assert.equal(cifrasEnBase(8, 2), 3);
-  assert.equal(cifrasEnBase(16, 2), 4);
-  assert.equal(cifrasEnBase(17, 2), 5);
-  assert.equal(cifrasEnBase(1, 2), 1);
-});
-
-test('en cualquier base admitida se alcanzan todas las casillas de n', () => {
-  // La regla que hace útil el tema: con las cifras que se truncan tiene que
-  // haber al menos tantas direcciones posibles como casillas.
-  for (const base of [2, 3, 8, 11, 16, 36]) {
-    for (const n of [1, 7, 12, 100, 999, 9999]) {
-      assert.ok(
-        Math.pow(base, cifrasEnBase(n, base)) >= n,
-        `base ${base} con n = ${n} no alcanza todas las casillas`
-      );
-    }
-  }
+test('en base 10 el desarrollo devuelve la clave misma', () => {
+  // Por eso se advierte al crear la estructura: el tema no transforma nada.
+  assert.equal(direccionBases(1836, 100, { base: 10 }).calculo[1].resultado, '1836');
 });
 
 test('sin base indicada se usa la de clase', () => {

@@ -30,7 +30,7 @@
             { id: 'hash-cuadrado', titulo: 'Función cuadrado', descripcion: 'Cifras centrales del cuadrado', disponible: true },
             { id: 'hash-truncamiento', titulo: 'Función truncamiento', descripcion: 'Selección de dígitos de la clave', disponible: true },
             { id: 'hash-plegamiento', titulo: 'Función plegamiento', descripcion: 'Suma o producto de las particiones', disponible: true },
-            { id: 'hash-bases', titulo: 'Conversión de bases', descripcion: 'Cambio de base y truncamiento', disponible: true }
+            { id: 'hash-bases', titulo: 'Conversión de bases', descripcion: 'Las cifras de la clave leídas en otra base', disponible: true }
           ]
         },
         {
@@ -322,10 +322,13 @@
       ]
     }),
 
-    // Con base 2 este mismo tema cubre el caso binario que pide el documento.
+    // No convierte la clave: lee sus cifras como cifras en base b y evalúa el
+    // polinomio (CLAUDE.md 5.3). Con base 2 eso hace que las cifras pesen como
+    // bits, pero no muestra la clave en binario: lo binario del documento
+    // quedó otra vez sin resolver.
     'hash-bases': temaHash({
       titulo: 'CONVERSIÓN DE BASES',
-      descripcion: 'Cambio de base y truncamiento',
+      descripcion: 'Las cifras de la clave leídas en otra base',
       direccionDe: algoritmos.hash.bases.direccionBases,
       parametros: [
         {
@@ -334,7 +337,7 @@
           tipo: 'numero',
           marcador: String(algoritmos.hash.bases.BASE_POR_DEFECTO),
           ayuda: `Entre ${algoritmos.hash.bases.BASE_MINIMA} y ${algoritmos.hash.bases.BASE_MAXIMA}. `
-            + `Si se deja vacío se usa ${algoritmos.hash.bases.BASE_POR_DEFECTO}; con 2 la clave se lee en binario.`,
+            + `Si se deja vacío se usa ${algoritmos.hash.bases.BASE_POR_DEFECTO}.`,
           validar: (entrada) => (
             entrada.trim() === ''
               ? { valido: true, valor: algoritmos.hash.bases.BASE_POR_DEFECTO }
