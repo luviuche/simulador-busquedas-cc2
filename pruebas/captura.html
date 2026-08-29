@@ -17,6 +17,10 @@
       secuencial → búsqueda secuencial a media traza
       hash       → función módulo, insertando una clave que colisiona
       hash-libre → función módulo, insertando en una casilla libre
+      eliminar-secuencial → eliminando una clave del medio, con desplazamiento
+      eliminar-binaria    → lo mismo, localizando la clave por división
+      eliminar-hash       → eliminando del medio de un sondeo: el grupo de
+                            atrás vuelve a pasar por la función hash
 
     Con ?paso=fin se recorre la traza completa en lugar de detenerse en el
     primer paso, que es lo que hay que mirar en la vista apilada y en el
@@ -36,6 +40,7 @@
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
+  <script src="../js/algoritmos/eliminacion.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
   <script src="../js/algoritmos/hash/comun.js"></script>
   <script src="../js/algoritmos/hash/modulo.js"></script>
@@ -79,7 +84,15 @@
       const boton = document.querySelector('[data-accion="siguiente"]');
       for (let i = 0; i < veces; i++) boton.click();
     };
-    const pasosAAvanzar = () => (parametros.get('paso') === 'fin' ? 20 : 1);
+    // ?paso= acepta `fin` (recorre la traza entera), un número de pasos —para
+    // detenerse en uno concreto, como el que marca la casilla que se elimina—
+    // o nada, que se queda en el primero.
+    const pasosAAvanzar = (alFinal = 20) => {
+      const paso = parametros.get('paso');
+      if (paso === 'fin') return alFinal;
+      const contados = Number(paso);
+      return Number.isFinite(contados) && contados > 0 ? contados : 1;
+    };
 
     function prepararBusqueda(nombreTema) {
       const formularios = entrarATema(nombreTema);
@@ -119,11 +132,52 @@
       avanzar(pasosAAvanzar());
     }
 
+    // Eliminación (CLAUDE.md 5.6). En las ordenadas la clave se localiza con
+    // el algoritmo del tema y las siguientes cierran el hueco; con ?paso=fin
+    // se llega al desplazamiento, y sin él al paso que marca la casilla.
+    function prepararEliminacion(nombreTema) {
+      const formularios = entrarATema(nombreTema);
+      enviar(formularios[0], { nombre: 'Práctica de clase', n: 24, l: 2 });
+      for (const clave of [10, 18, 24, 31, 37, 42, 50, 63, 71, 84, 90, 97]) {
+        enviar(formularios[1], { clave });
+      }
+      enviar(formularios[3], { eliminar: Number(parametros.get('clave')) || 84 });
+      avanzar(pasosAAvanzar());
+    }
+
+    // La eliminación que hay que ver en una tabla hash es la que obliga a
+    // redispersar: se borra la clave del medio de un sondeo y las de atrás
+    // vuelven a pasar por la función.
+    function prepararEliminacionHash() {
+      const formularios = entrarATema(parametros.get('tema') || 'Función módulo');
+      enviar(formularios[0], {
+        nombre: 'Práctica de clase',
+        n: Number(parametros.get('n')) || 12,
+        l: Number(parametros.get('l')) || 4,
+        posiciones: parametros.get('posiciones') || '',
+        base: parametros.get('base') || '',
+        operacion: parametros.get('operacion') || 'sumar',
+        tratamiento: parametros.get('tratamiento') || 'reasignacion'
+      });
+      // 1004, 1016 y 1028 comparten dirección: las tres forman el grupo que
+      // la eliminación tiene que volver a dispersar.
+      for (const clave of [1004, 1010, 1023, 1035, 1016, 1028]) {
+        enviar(formularios[1], { clave });
+        avanzar(12);
+      }
+      // La redispersión es larga: cada clave del grupo trae su cálculo entero.
+      enviar(formularios[3], { eliminar: Number(parametros.get('clave')) || 1016 });
+      avanzar(pasosAAvanzar(40));
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const vista = parametros.get('vista') || 'menu';
       if (vista === 'menu') return;
       if (vista === 'hash') return prepararHash({ colisiona: true });
       if (vista === 'hash-libre') return prepararHash({ colisiona: false });
+      if (vista === 'eliminar-hash') return prepararEliminacionHash();
+      if (vista === 'eliminar-binaria') return prepararEliminacion('Búsqueda binaria');
+      if (vista === 'eliminar-secuencial') return prepararEliminacion('Búsqueda secuencial');
       prepararBusqueda(vista === 'binaria' ? 'Búsqueda binaria' : 'Búsqueda secuencial');
     });
   </script>

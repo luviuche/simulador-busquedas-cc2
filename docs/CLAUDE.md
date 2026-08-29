@@ -8,7 +8,7 @@ Contexto de dominio del proyecto. Léelo completo antes de escribir código.
 
 Un **simulador didáctico de algoritmos de búsqueda** para la asignatura Ciencias de la Computación II (Ingeniería de Sistemas, Universidad Distrital Francisco José de Caldas).
 
-El estudiante crea una estructura de datos, inserta claves y **observa la animación** del algoritmo recorriéndola paso a paso, mientras un panel contabiliza comparaciones y accesos.
+El estudiante crea una estructura de datos, inserta claves, y busca y elimina **observando la animación** del algoritmo recorriéndola paso a paso, mientras un panel contabiliza comparaciones y accesos. Buscar y eliminar son la misma lección: eliminar es localizar con el algoritmo del tema y sacar (§5.6).
 
 **La animación no es un adorno: es el producto.** Sin ella no se puede observar el comportamiento de un algoritmo, que es lo único que esta aplicación existe para enseñar. Cualquier decisión técnica que degrade la animación está mal, por más limpia que sea.
 
@@ -212,10 +212,14 @@ Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o act
 {
   titulo, descripcion, orientacion, modo,
   buscar({ estructura, objetivo }) -> pasos,     // el algoritmo
+  eliminar({ estructura, clave }) -> pasos,      // buscar y además sacar (§5.6)
   insertar({ estructura, clave }) -> pasos,      // opcional: inserción con traza
   tratamientos: [{ valor, etiqueta }],           // opcional: selector al crear
   calculo: bool,                                 // opcional: panel de cálculo
-  apilada: { rangoDePaso(paso) },                // opcional: una fila por paso
+  apilada: {                                     // opcional: una fila por paso
+    rangoDePaso(paso),
+    aplicaA(paso)                                // opcional: pasos sin fila
+  },
   casillasRelevantes(paso) -> [índices base 1],  // qué no puede elidirse
   describirCasilla({ paso, indice, ocupada })    // -> { estado, modificadores }
     -> cómo se pinta cada casilla en el paso actual,
@@ -250,11 +254,12 @@ El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada
 │   │   ├── traza.js        contrato de paso y utilidades
 │   │   ├── secuencial.js
 │   │   ├── binaria.js
+│   │   ├── eliminacion.js  eliminar en las ordenadas: buscar y sacar
 │   │   ├── hash/
 │   │   │   ├── comun.js       cifras necesarias, ajuste al rango
 │   │   │   ├── modulo.js · cuadrado.js · truncamiento.js
 │   │   │   ├── plegamiento.js · bases.js
-│   │   │   └── operaciones.js traza de insertar y buscar, común a todas
+│   │   │   └── operaciones.js traza de insertar, buscar y eliminar
 │   │   └── colisiones/     reasignacion.js (anidados, encadenamiento)
 │   ├── vista/
 │   │   ├── componentes/    casilla, panel, alerta, métrica, bitácora, cálculo
@@ -379,6 +384,33 @@ Se elige al crear y no después porque el tratamiento cambia la **forma** de la 
 
 Por residuos, árboles de búsqueda digital, residuos múltiples, tablas de índices, método de la rejilla, árboles 2D. Mismo contrato: producen traza.
 
+### 5.6 Eliminación
+
+**La aplicación elimina claves, y cada tema elimina con su propio método** (pedido del usuario, 2026-08-29). No existe un algoritmo de borrado: eliminar es **localizar la clave con el algoritmo del tema y solo entonces sacarla**. Borrar en secuencial recorre desde la casilla 1; borrar en binaria divide; borrar en una tabla hash calcula la dirección. Por eso una traza de eliminación empieza siendo, literalmente, una traza de búsqueda: los pasos de borrado se le agregan detrás.
+
+Consecuencia directa: **que la clave no esté no se comprueba por adelantado.** Descubrirlo es el trabajo de la búsqueda, y el estudiante tiene que verla recorrer hasta concluirlo. Es la diferencia con la inserción, donde el duplicado y la saturación sí son estados de la estructura y se avisan de una vez, sin reproducir nada (§3.2).
+
+**En las estructuras ordenadas —secuencial y binaria— son dos pasos y no uno.** Primero se marca la casilla que sale, con su clave todavía dentro; después se cierra el hueco y las siguientes se desplazan. Con un solo paso la clave desaparece y las demás se corren a la vez, y no se alcanza a ver de cuál casilla salió, que es justo lo que la animación de eliminación existe para mostrar (§7).
+
+**En una tabla dispersa con reasignación hay que redispersar el grupo.** Borrar en medio de un sondeo deja un hueco que corta la cadena: una clave que se corrió más allá deja de ser alcanzable, porque la búsqueda se detiene en la primera casilla vacía que encuentra. Así lo explica el docente y así se implementa: **las claves que siguen al hueco vuelven a pasar por la función hash**, se levantan una a una y se vuelven a dispersar, con su cálculo y su sondeo a la vista.
+
+```
+7412 → dirección 3          3 [7412]        3 [7412]        3 [7412]
+5312 → dirección 3,         4 [5312]   →    4 [    ]   →    4 [9912]
+       sondea la 4          5 [9912]        5 [9912]        5 [    ]
+9912 → dirección 3,
+       sondea 4 y 5        se borra 5312   9912 vuelve a pasar por el hash:
+                                           dirección 3 ocupada, sondea la 4
+```
+
+El grupo se recorre **hasta la primera casilla vacía y no más allá**. Si hay una vacía, ninguna clave posterior pudo haberse corrido cruzándola, así que su cadena nunca pasó por aquí: "reorganizar las que colisionaron" y "reorganizar el grupo detrás del hueco" terminan siendo lo mismo. Una clave del grupo que sí estaba en su propia dirección se levanta igual —es parte del grupo— y el cálculo la devuelve a su sitio.
+
+Sin tratamiento no hay nada que redispersar: la casilla se vacía y ya, porque ninguna clave llegó a estar fuera de su dirección.
+
+**El paso declara su efecto, la vista lo aplica.** La traza sigue sin tocar la estructura (§4). Un paso puede llevar `efecto: { tipo: 'colocar' | 'retirar' | 'eliminar', casilla, clave }`, y la pantalla lo aplica al llegar y lo deshace al retroceder. Reconstruye desde el estado previo a la operación en vez de deshacer paso a paso: una eliminación con redispersión mueve varias claves, y las inversas encadenadas son justo donde se cuelan los errores. Antes de esto la pantalla adivinaba el efecto por el tipo del paso, lo que solo alcanzaba para una única colocación por operación.
+
+**En binaria, los pasos que sacan la clave no van apilados.** Sacar no es descartar, así que no les corresponde una fila más; y las filas ya dibujadas se leen del mismo arreglo, de modo que el desplazamiento las cambiaría todas hacia atrás. El tema lo declara con `apilada.aplicaA(paso)` y esos pasos se dibujan sobre la estructura completa, que es donde el desplazamiento se ve moverse.
+
 ---
 
 ## 6. Visualización
@@ -462,7 +494,7 @@ El **llenado automático** no reproduce nada: llena aplicando directamente el pa
 El profesor evalúa explícitamente que los bloques se muevan. Estas son las animaciones obligatorias:
 
 1. **Inserción** — la clave entra y las claves mayores se desplazan para abrirle lugar. Es la más visible y la que hay que resolver primero.
-2. **Eliminación** — la casilla se vacía y las siguientes se desplazan.
+2. **Eliminación** — la casilla se vacía y las siguientes se desplazan. Va en dos pasos, y por qué está en §5.6.
 3. **Paso del algoritmo** — cambio de estado de las casillas involucradas.
 4. **Elisión** — expansión y compresión de tramos.
 5. **Llenado automático** — inserciones sucesivas, no un salto al estado final.
@@ -565,6 +597,8 @@ Sombras cortas y definidas, nunca difusas. Sin gradientes ni glassmorphism. Tema
 | Longitud incorrecta | *Longitud de clave inválida: se esperan l dígitos.* |
 | Carácter no permitido | *Carácter no admitido en el alfabeto definido (A–Z).* |
 | Búsqueda sin resultado | *Clave no localizada en la estructura tras k comparaciones.* |
+| Clave eliminada (ordenada) | *Casilla i liberada: las k claves siguientes se desplazan una posición.* |
+| Clave levantada para redispersar | *Se retira la clave c de la casilla i: colisionó en su momento y hay que volver a dispersarla.* |
 | Colisión | *Colisión en la dirección d: se aplica tratamiento por [método].* |
 | Estructura vacía | *Estructura no inicializada: no existen claves para procesar.* |
 | `n` imposible | *Tamaño inviable: para l = 2 solo existen 90 claves distintas.* |
@@ -634,7 +668,7 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 **Orden de construcción confirmado: primero búsqueda secuencial, luego binaria.** Secuencial es el tema anterior a binaria en el orden de la asignatura, y sirve como la primera plantilla end-to-end (dominio → traza → elisión → animación → bitácora); binaria reutiliza ese mismo patrón, no al revés.
 
-**Estado de construcción:** secuencial, binaria y **las cinco funciones hash** implementadas y disponibles en el menú. Todas entran por la misma pantalla parametrizada, `vista/pantallas/tema-busqueda.js`.
+**Estado de construcción:** secuencial, binaria y **las cinco funciones hash** implementadas y disponibles en el menú. Todas entran por la misma pantalla parametrizada, `vista/pantallas/tema-busqueda.js`, y todas **insertan, buscan y eliminan** (§5.6), cada una con su algoritmo.
 
 La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 

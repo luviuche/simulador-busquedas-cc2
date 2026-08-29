@@ -28,6 +28,7 @@
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
+  <script src="../js/algoritmos/eliminacion.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
   <script src="../js/algoritmos/hash/comun.js"></script>
   <script src="../js/algoritmos/hash/modulo.js"></script>
@@ -254,6 +255,9 @@
       hashPlegamiento();
       hashBases();
       hashTablaGrande();
+      eliminarEnSecuencial();
+      eliminarEnBinaria();
+      eliminarConReasignacion();
     }
 
     // La tabla grande es donde se ve la regla del docente: en una estructura
@@ -516,6 +520,154 @@
 
       enviar(formularios[2], { objetivo: 1010 });
       afirmar(agotarTraza().includes('encontrada'), 'la búsqueda repite el mismo cálculo y la halla');
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Las claves dibujadas, en orden, ignorando las casillas vacías.
+    const clavesDibujadas = () => [...document.querySelectorAll('.casilla')]
+      .map((el) => el.textContent.replace(/[^0-9]/g, ''))
+      .filter(Boolean);
+
+    // Eliminar es buscar y además sacar: la clave se localiza con el algoritmo
+    // del tema. Aquí se comprueba lo que solo se ve por el DOM: que la casilla
+    // marcada conserva su clave antes de que las demás se muevan, que el
+    // desplazamiento la saca, y que retroceder la devuelve.
+    function eliminarEnSecuencial() {
+      registro.push('', '── Búsqueda secuencial · eliminar ──');
+
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes('Búsqueda secuencial'))
+        .click();
+      const formularios = [...document.querySelectorAll('form.panel')];
+      enviar(formularios[0], { nombre: 'Eliminar', n: 12, l: 2 });
+      for (const clave of [10, 20, 30, 40, 50]) enviar(formularios[1], { clave });
+
+      enviar(formularios[3], { eliminar: 30 });
+      // Dos comparaciones y el hallazgo: el tercer clic deja el paso que marca.
+      for (let i = 0; i < 3; i++) control('siguiente').click();
+
+      const marcada = document.querySelector('.casilla--eliminada');
+      afirmar(!!marcada, 'la casilla de la clave que sale queda marcada');
+      afirmar(
+        marcada && marcada.textContent.includes('30'),
+        'la casilla marcada conserva su clave: todavía no se ha desplazado nada'
+      );
+      registro.push('  al marcar: ' + clavesDibujadas().join(' '));
+
+      control('siguiente').click();
+      registro.push('  tras desplazar: ' + clavesDibujadas().join(' '));
+      afirmar(
+        clavesDibujadas().join(' ') === '10 20 40 50',
+        'la clave sale y las siguientes cierran el hueco'
+      );
+
+      control('anterior').click();
+      afirmar(
+        clavesDibujadas().join(' ') === '10 20 30 40 50',
+        'retroceder devuelve la clave a su casilla'
+      );
+
+      // Una clave que no está no se avisa por adelantado: la búsqueda tiene
+      // que recorrer hasta concluirlo, que es lo que el tema enseña.
+      enviar(formularios[3], { eliminar: 99 });
+      agotarTraza();
+      const bitacora = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
+      afirmar(
+        bitacora[bitacora.length - 1].includes('no localizada'),
+        'eliminar una clave ausente termina en la conclusión de la búsqueda'
+      );
+      afirmar(
+        clavesDibujadas().join(' ') === '10 20 40 50',
+        'la eliminación anterior quedó consumada y la fallida no tocó nada'
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // En binaria el apilado es el dispositivo de la búsqueda. Los pasos que
+    // sacan la clave no descartan nada, así que se dibujan sobre la estructura
+    // completa: es donde el desplazamiento se ve moverse.
+    function eliminarEnBinaria() {
+      registro.push('', '── Búsqueda binaria · eliminar ──');
+
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes('Búsqueda binaria'))
+        .click();
+      const formularios = [...document.querySelectorAll('form.panel')];
+      enviar(formularios[0], { nombre: 'Eliminar', n: 12, l: 2 });
+      for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) enviar(formularios[1], { clave });
+
+      enviar(formularios[3], { eliminar: 70 });
+      for (let i = 0; i < 2; i++) control('siguiente').click();
+      afirmar(
+        !!document.querySelector('.estructura-apilada'),
+        'mientras busca, la eliminación apila una estructura por paso'
+      );
+      registro.push('  buscando: ' + retratarEstructura());
+
+      control('siguiente').click();
+      afirmar(
+        !document.querySelector('.estructura-apilada') && !!document.querySelector('.estructura-horizontal'),
+        'al sacar la clave se vuelve a la estructura completa'
+      );
+      const marcada = document.querySelector('.casilla--eliminada');
+      afirmar(
+        !!marcada && marcada.textContent.includes('70'),
+        'la casilla marcada es la de la clave buscada, con su clave todavía dentro'
+      );
+
+      control('siguiente').click();
+      registro.push('  tras desplazar: ' + clavesDibujadas().join(' '));
+      afirmar(
+        clavesDibujadas().join(' ') === '10 20 30 40 50 60 80',
+        'la clave sale y la estructura queda ordenada y densa'
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // El caso que obliga a redispersar: borrar en medio de un sondeo deja un
+    // hueco que corta la cadena, y las claves de atrás vuelven a pasar por la
+    // función hash. Sin eso, buscar 9912 pararía en la casilla vacía.
+    function eliminarConReasignacion() {
+      registro.push('', '── Función módulo · eliminar con reasignación ──');
+
+      const formularios = entrarAModulo({ nombre: 'Eliminar', n: 10, l: 4, tratamiento: 'reasignacion' });
+      for (const clave of [7412, 5312, 9912]) {
+        enviar(formularios[1], { clave });
+        agotarTraza();
+      }
+      registro.push('  antes: ' + retratarEstructura());
+
+      enviar(formularios[3], { eliminar: 5312 });
+      agotarTraza(30);
+      registro.push('  después: ' + retratarEstructura());
+
+      afirmar(
+        casillaEn(3).querySelector('.casilla').textContent === '7412',
+        'la clave que estaba en su dirección no se mueve'
+      );
+      afirmar(
+        casillaEn(4).querySelector('.casilla').textContent === '9912',
+        'la clave de atrás se redispersa y sube a la casilla que quedó libre'
+      );
+      afirmar(
+        casillaEn(5).querySelector('.casilla').textContent === '',
+        'la casilla que ocupaba queda vacía'
+      );
+
+      const bitacora = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
+      afirmar(
+        bitacora.some((linea) => linea.includes('volver a dispersarla')),
+        'la bitácora deja ver que la clave se levantó para volver a dispersarse'
+      );
+
+      enviar(formularios[2], { objetivo: 9912 });
+      afirmar(
+        agotarTraza().includes('encontrada'),
+        'tras redispersar, la búsqueda vuelve a encontrar la clave movida'
+      );
 
       document.querySelector('.pantalla-tema__volver').click();
     }

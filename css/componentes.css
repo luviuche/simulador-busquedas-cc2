@@ -247,6 +247,20 @@ form input[type="checkbox"] {
   margin-left: var(--espacio-1);
 }
 
+/* Casilla de la que sale una clave: la que se elimina, y la que se levanta
+   para volver a dispersarse. Comparte el rojo de la colisión —las dos son un
+   paso que quita, no que coloca— y su refuerzo no cromático es la equis
+   (CLAUDE.md 8.1). */
+.casilla--eliminada {
+  border-color: var(--estado-colision-borde);
+  background: var(--estado-colision-relleno);
+}
+
+.casilla--eliminada::after {
+  content: '✕';
+  margin-left: var(--espacio-1);
+}
+
 /* Casilla que la prueba lineal recorrió y descartó: el trazo punteado la
    distingue de la casilla ocupada que nadie tocó (CLAUDE.md 8.1). */
 .casilla--sondeada {

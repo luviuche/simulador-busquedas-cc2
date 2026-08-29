@@ -139,6 +139,7 @@
       ],
       insertar: operar(hashOperaciones.insertar),
       buscar: operar(hashOperaciones.buscar),
+      eliminar: operar(hashOperaciones.eliminar),
       casillasRelevantes: (paso) => [paso.casilla, paso.direccion]
         .concat(paso.sondeadas || [])
         .filter(Boolean),
@@ -154,6 +155,11 @@
         if (paso.casilla === indice) {
           if (paso.tipo === 'encontrada') return { estado: 'encontrada', modificadores };
           if (paso.tipo === 'insercion') return { estado: 'insertada', modificadores };
+          // La clave que sale y la que se levanta para volver a dispersarse
+          // dejan la misma casilla vacía: lo que las distingue es la bitácora.
+          if (paso.tipo === 'eliminacion' || paso.tipo === 'extraccion') {
+            return { estado: 'eliminada', modificadores };
+          }
           if (paso.tipo === 'colision' || paso.tipo === 'rechazada') {
             return { estado: 'colision', modificadores };
           }
@@ -177,10 +183,18 @@
       titulo: 'BÚSQUEDA SECUENCIAL',
       descripcion: 'Recorrido lineal, clave por clave',
       buscar: ({ estructura, objetivo }) => algoritmos.secuencial.buscarSecuencial(estructura.claves, objetivo),
+      // Borrar en secuencial recorre desde la casilla 1, como buscar: la
+      // eliminación no tiene camino propio, usa el del tema (CLAUDE.md 5.6).
+      eliminar: ({ estructura, clave }) => algoritmos.eliminacion.eliminarPorBusqueda({
+        pasos: algoritmos.secuencial.buscarSecuencial(estructura.claves, clave),
+        claves: estructura.claves,
+        clave
+      }),
       casillasRelevantes: (paso) => (paso.casilla ? [paso.casilla] : []),
       describirCasilla: ({ paso, indice, ocupada }) => {
         if (paso && paso.casilla === indice) {
           if (paso.tipo === 'encontrada') return { estado: 'encontrada' };
+          if (paso.tipo === 'eliminacion') return { estado: 'eliminada' };
           if (paso.tipo === 'comparacion') return { estado: 'en-evaluacion' };
         }
         return { estado: ocupada ? 'ocupada' : 'vacia' };
@@ -192,17 +206,32 @@
       titulo: 'BÚSQUEDA BINARIA',
       descripcion: 'División sobre arreglo ordenado',
       buscar: ({ estructura, objetivo }) => algoritmos.binaria.buscarBinaria(estructura.claves, objetivo),
+      // Borrar en binaria divide, como buscar: la clave se localiza con el
+      // algoritmo del tema y solo entonces sale (CLAUDE.md 5.6).
+      eliminar: ({ estructura, clave }) => algoritmos.eliminacion.eliminarPorBusqueda({
+        pasos: algoritmos.binaria.buscarBinaria(estructura.claves, clave),
+        claves: estructura.claves,
+        clave
+      }),
       // Cada paso deja su propia estructura a la vista, con solo el tramo que
       // sobrevivió al descarte (pedido del docente): el apilado completo es el
       // paso a paso del algoritmo, legible de un vistazo al terminar.
       apilada: {
         rangoDePaso: (paso) => (
           paso.inicio === undefined ? null : { desde: paso.inicio, hasta: paso.fin }
-        )
+        ),
+        // Sacar la clave no es un descarte: no le corresponde una fila más.
+        // Esos pasos se dibujan sobre la estructura completa, que es donde el
+        // desplazamiento se ve moverse.
+        aplicaA: (paso) => paso.tipo !== 'eliminacion' && paso.tipo !== 'desplazamiento'
       },
-      casillasRelevantes: (paso) => [paso.inicio, paso.medio, paso.fin].filter(Boolean),
+      casillasRelevantes: (paso) => [paso.inicio, paso.medio, paso.fin, paso.casilla].filter(Boolean),
       describirCasilla: ({ paso, indice, ocupada }) => {
         if (!paso) return { estado: ocupada ? 'ocupada' : 'vacia' };
+
+        if (paso.tipo === 'eliminacion' && paso.casilla === indice) {
+          return { estado: 'eliminada' };
+        }
 
         if (paso.descartadas && paso.descartadas.includes(indice)) {
           return { estado: 'descartada' };

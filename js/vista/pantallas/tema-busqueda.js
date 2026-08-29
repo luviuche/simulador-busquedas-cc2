@@ -35,9 +35,10 @@
       // operación y se descartan al invalidarla.
       pasos: null,
       segmentosApilado: null,
-      // Colocación que la traza en curso promete y que aún no se ha aplicado
-      // a la estructura: { indice, casilla, clave }.
-      efectoPendiente: null,
+      // Las claves tal como estaban antes de la operación en curso. Es lo que
+      // permite reconstruir cualquier paso aplicando desde cero los efectos
+      // que la traza declara hasta ahí (ver `sincronizarEfectos`).
+      clavesBase: null,
       mostrarCompleta: false
     };
     const dom = { metricas: {} };
@@ -68,27 +69,39 @@
       return true;
     }
 
-    // La colocación se aplica al alcanzar su paso y se deshace al retroceder,
-    // de modo que la estructura visible siempre corresponde al paso en pantalla.
-    function sincronizarEfecto(indicePaso) {
-      if (!estado.efectoPendiente) return;
-      const { indice, casilla, clave } = estado.efectoPendiente;
-      const puesta = estado.estructura.claves[casilla - 1] === clave;
-      if (indicePaso >= indice && !puesta) {
-        dominio.estructura.colocarEn(estado.estructura, casilla, clave);
-      } else if (indicePaso < indice && puesta) {
-        dominio.estructura.retirarDe(estado.estructura, casilla);
+    // Cómo se aplica cada efecto que un paso puede declarar (ver traza.js).
+    const APLICADORES = {
+      colocar: (efecto) => dominio.estructura.colocarEn(estado.estructura, efecto.casilla, efecto.clave),
+      retirar: (efecto) => dominio.estructura.retirarDe(estado.estructura, efecto.casilla),
+      // En una estructura ordenada sacar la clave cierra el hueco: el dominio
+      // desplaza las siguientes, y el FLIP lo anima (CLAUDE.md 7).
+      eliminar: (efecto) => dominio.estructura.eliminar(estado.estructura, efecto.clave)
+    };
+
+    // La estructura visible siempre corresponde al paso en pantalla: se parte
+    // de cómo estaba antes de la operación y se aplican, en orden, los efectos
+    // de los pasos ya recorridos.
+    //
+    // Reconstruir en vez de deshacer paso a paso: una operación puede mover
+    // varias claves —la redispersión de un grupo retira y recoloca todo un
+    // tramo— y las inversas encadenadas son justo donde se cuelan los errores.
+    // Rehacer desde el estado base no puede desincronizarse.
+    function sincronizarEfectos(indicePaso) {
+      if (!estado.clavesBase || !estado.pasos) return;
+      estado.estructura.claves = estado.clavesBase.slice();
+      const hasta = Math.min(indicePaso, estado.pasos.length - 1);
+      for (let i = 0; i <= hasta; i++) {
+        const efecto = estado.pasos[i].efecto;
+        if (efecto) APLICADORES[efecto.tipo](efecto);
       }
     }
 
-    // Abandonar una inserción a medio reproducir no puede dejar la clave en el
-    // limbo: al invalidar, la operación se consuma antes de olvidarla.
+    // Abandonar una operación a medio reproducir no puede dejar la estructura
+    // en el limbo: al invalidar, la operación se consuma antes de olvidarla.
     function invalidarReproduccion() {
       if (estado.reproductor) estado.reproductor.detener();
-      if (estado.efectoPendiente) {
-        sincronizarEfecto(Infinity);
-        estado.efectoPendiente = null;
-      }
+      sincronizarEfectos(Infinity);
+      estado.clavesBase = null;
       estado.reproductor = null;
       estado.pasoActual = null;
       estado.indicePaso = -1;
@@ -356,8 +369,15 @@
       dom.estructuraEl.scrollTop = dom.estructuraEl.scrollHeight;
     }
 
+    // El apilado es el dispositivo de la búsqueda: una fila por descarte. Los
+    // pasos que sacan una clave no descartan nada y además cambian la
+    // estructura bajo las filas ya dibujadas —que se leen del mismo arreglo—,
+    // así que el tema puede declarar que no le aplican y esos pasos se dibujan
+    // sobre la estructura completa, que es donde se ve el desplazamiento.
     function renderizarEstructura(paso, indicePaso) {
-      if (config.apilada && estado.pasos && indicePaso >= 0) {
+      const aplicaApilado = !config.apilada || !config.apilada.aplicaA || !paso
+        || config.apilada.aplicaA(paso);
+      if (config.apilada && estado.pasos && indicePaso >= 0 && aplicaApilado) {
         renderizarApilado(indicePaso);
         return;
       }
@@ -386,6 +406,7 @@
     // único que las diferencia desde aquí: el reproductor solo recorre pasos.
     function reproducirOperacion(pasos, mensajeInicial) {
       estado.pasos = pasos;
+      estado.clavesBase = estado.estructura.claves.slice();
       calcularSegmentosApilado();
       dom.seccionReproduccion.hidden = false;
       registrarBitacora(mensajeInicial);
@@ -396,7 +417,7 @@
         alCambiarPaso: (paso, indice) => {
           estado.pasoActual = paso;
           estado.indicePaso = indice;
-          sincronizarEfecto(indice);
+          sincronizarEfectos(indice);
           if (dom.calculo) dom.calculo.actualizar(paso ? paso.calculo : null);
           renderizarEstructura(paso, indice);
           actualizarMetricas(paso);
@@ -442,14 +463,10 @@
         return;
       }
 
-      const pasos = config.insertar({ estructura: estado.estructura, clave: validacion.valor });
-      const indiceColocacion = pasos.findIndex((paso) => paso.tipo === 'insercion');
-      estado.efectoPendiente = indiceColocacion === -1 ? null : {
-        indice: indiceColocacion,
-        casilla: pasos[indiceColocacion].casilla,
-        clave: pasos[indiceColocacion].clave
-      };
-      reproducirOperacion(pasos, `Inserción iniciada: clave ${validacion.valor}.`);
+      reproducirOperacion(
+        config.insertar({ estructura: estado.estructura, clave: validacion.valor }),
+        `Inserción iniciada: clave ${validacion.valor}.`
+      );
     }
 
     // Llenado numérico (CLAUDE.md 12: el alfabético queda diferido). Inserta de
@@ -518,6 +535,51 @@
         config.buscar({ estructura: estado.estructura, objetivo: validacion.valor }),
         `Búsqueda iniciada: clave objetivo ${validacion.valor}.`
       );
+    }
+
+    // Eliminar es buscar y además sacar (CLAUDE.md 5.6): la clave se localiza
+    // con el algoritmo del tema, así que la traza empieza siendo la de una
+    // búsqueda. Que la clave no esté **no** se comprueba antes: descubrirlo es
+    // justamente el trabajo de la búsqueda, y el estudiante tiene que verla
+    // recorrer hasta concluirlo. Es la diferencia con la inserción, donde el
+    // duplicado sí es un estado de la estructura y se avisa de una vez.
+    function eliminarClave(texto) {
+      const validacion = dominio.clave.validarClaveNumerica(texto, estado.estructura.l);
+      if (!validacion.valido) {
+        mostrarAlerta('error', validacion.mensaje);
+        return;
+      }
+      if (dominio.estructura.estaVacia(estado.estructura)) {
+        mostrarAlerta('error', 'Estructura no inicializada: no existen claves para procesar.');
+        return;
+      }
+      limpiarAlerta();
+      invalidarReproduccion();
+      reproducirOperacion(
+        config.eliminar({ estructura: estado.estructura, clave: validacion.valor }),
+        `Eliminación iniciada: clave ${validacion.valor}.`
+      );
+    }
+
+    function crearPanelEliminacion() {
+      const contenedor = document.createElement('form');
+      contenedor.className = 'panel';
+      contenedor.innerHTML = `
+        <h2 class="panel__titulo texto-nivel-2">Eliminar clave</h2>
+        <label class="texto-nivel-3">Clave por eliminar
+          <input type="text" name="eliminar" inputmode="numeric" required>
+        </label>
+        <div class="pantalla-tema__controles">
+          <button type="submit" class="boton boton--primario">Eliminar clave</button>
+        </div>
+      `;
+      contenedor.addEventListener('submit', (evento) => {
+        evento.preventDefault();
+        if (!requiereEstructura()) return;
+        const datos = new FormData(contenedor);
+        eliminarClave(String(datos.get('eliminar')));
+      });
+      return contenedor;
     }
 
     function crearFormularioConfiguracion() {
@@ -807,6 +869,7 @@
       crearFormularioConfiguracion(),
       crearFormularioInsercion(),
       crearPanelBusqueda(),
+      crearPanelEliminacion(),
       crearPanelReproduccion(),
       crearPanelMetricas(),
       vista.componentes.panel.crearPanel({ titulo: 'Bitácora', contenido: dom.bitacora })

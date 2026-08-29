@@ -61,6 +61,7 @@
       pasos.push(crearPaso(TIPOS_PASO.INSERCION, Object.assign(comun(), {
         casilla: direccion,
         clave,
+        efecto: { tipo: 'colocar', casilla: direccion, clave },
         mensaje: `Clave insertada: ${clave} en la casilla ${direccion}.`
       })));
       return pasos;
@@ -108,6 +109,7 @@
         colision: direccion,
         sondeadas: sondeadas.slice(),
         clave,
+        efecto: { tipo: 'colocar', casilla: visita.casilla, clave },
         mensaje: `Clave insertada: ${clave} en la casilla ${visita.casilla} tras ${sondeadas.length + 1} sondeos.`
       })));
     }
@@ -215,8 +217,131 @@
     return pasos;
   }
 
+  // Eliminación en una tabla dispersa (CLAUDE.md 5.6). Localiza la clave con
+  // la misma búsqueda del tema —el borrado no tiene camino propio— y la saca.
+  //
+  // Sin tratamiento ahí se acaba: la casilla se vacía y no hay cadena que
+  // romper, porque ninguna clave llegó a estar fuera de su dirección.
+  //
+  // Con reasignación hace falta algo más. Borrar en medio de un sondeo deja un
+  // hueco que corta la cadena: una clave que se corrió más allá deja de ser
+  // alcanzable, porque la búsqueda se detiene en la primera casilla vacía que
+  // encuentra. Por eso **las claves que siguen al hueco vuelven a pasar por la
+  // función hash** (así lo explica el docente): se levantan una a una y se
+  // vuelven a dispersar, con su cálculo y su sondeo a la vista.
+  //
+  // El grupo se recorre hasta la primera casilla vacía y no más allá: si hay
+  // una vacía, ninguna clave posterior pudo haberse corrido cruzándola, así
+  // que su cadena nunca pasó por aquí y nada de lo que sigue está en riesgo.
+  function eliminar({ claves, n, clave, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO }) {
+    const pasos = buscar({ claves, n, objetivo: clave, direccionDe, parametros, tratamiento });
+    const hallazgo = pasos[pasos.length - 1];
+    if (hallazgo.tipo !== TIPOS_PASO.ENCONTRADA) return pasos;
+
+    const contadores = { comparaciones: hallazgo.comparaciones, accesos: hallazgo.accesos };
+    const casilla = hallazgo.casilla;
+
+    // Una sola tabla simulada para toda la operación: la traza no toca la
+    // estructura real, pero sí necesita saber cómo va quedando para que cada
+    // sondeo de la redispersión mire el estado que tendrá en ese momento.
+    const simulacion = claves.slice();
+    delete simulacion[casilla - 1];
+
+    pasos.push(crearPaso(TIPOS_PASO.ELIMINACION, {
+      calculo: hallazgo.calculo,
+      direccion: hallazgo.direccion,
+      casilla,
+      clave,
+      efecto: { tipo: 'retirar', casilla },
+      comparaciones: contadores.comparaciones,
+      accesos: contadores.accesos,
+      mensaje: `Clave ${clave} eliminada de la casilla ${casilla}.`
+    }));
+
+    if (tratamiento !== TRATAMIENTOS.REASIGNACION) return pasos;
+
+    for (let salto = 1; salto <= n - 1; salto++) {
+      const origen = ((casilla - 1 + salto) % n) + 1;
+      const reubicada = simulacion[origen - 1];
+      if (reubicada === undefined) break;
+
+      contadores.accesos++;
+      delete simulacion[origen - 1];
+      pasos.push(crearPaso(TIPOS_PASO.EXTRACCION, {
+        casilla: origen,
+        clave: reubicada,
+        efecto: { tipo: 'retirar', casilla: origen },
+        comparaciones: contadores.comparaciones,
+        accesos: contadores.accesos,
+        mensaje: `Se retira la clave ${reubicada} de la casilla ${origen}: colisionó en su momento y hay que volver a dispersarla.`
+      }));
+
+      const nueva = direccionDe(reubicada, n, parametros);
+      pasos.push(...pasosDelCalculo(nueva.calculo, contadores));
+
+      const comunReubicada = () => ({
+        calculo: nueva.calculo,
+        direccion: nueva.direccion,
+        comparaciones: contadores.comparaciones,
+        accesos: contadores.accesos
+      });
+
+      contadores.accesos++;
+      if (simulacion[nueva.direccion - 1] === undefined) {
+        simulacion[nueva.direccion - 1] = reubicada;
+        pasos.push(crearPaso(TIPOS_PASO.INSERCION, Object.assign(comunReubicada(), {
+          casilla: nueva.direccion,
+          clave: reubicada,
+          efecto: { tipo: 'colocar', casilla: nueva.direccion, clave: reubicada },
+          mensaje: nueva.direccion === origen
+            ? `La clave ${reubicada} vuelve a la casilla ${origen}: su dirección quedó libre.`
+            : `La clave ${reubicada} se recoloca en la casilla ${nueva.direccion}, su dirección.`
+        })));
+        continue;
+      }
+
+      // Su dirección sigue ocupada: vuelve a sondear, igual que al insertarla
+      // la primera vez. Siempre encuentra sitio —se acaba de liberar al menos
+      // una casilla— así que el sondeo no puede agotarse.
+      const sondeo = sondearLineal({
+        claves: simulacion,
+        n,
+        desde: nueva.direccion,
+        condicion: (ocupante) => ocupante === undefined
+      });
+
+      const sondeadas = [];
+      for (const visita of sondeo.recorrido) {
+        contadores.accesos++;
+        if (!visita.detener) {
+          sondeadas.push(visita.casilla);
+          pasos.push(crearPaso(TIPOS_PASO.SONDEO, Object.assign(comunReubicada(), {
+            casilla: visita.casilla,
+            colision: nueva.direccion,
+            sondeadas: sondeadas.slice(),
+            mensaje: `Prueba lineal: la casilla ${visita.casilla} contiene la clave ${visita.clave}; se avanza.`
+          })));
+          continue;
+        }
+        simulacion[visita.casilla - 1] = reubicada;
+        pasos.push(crearPaso(TIPOS_PASO.INSERCION, Object.assign(comunReubicada(), {
+          casilla: visita.casilla,
+          colision: nueva.direccion,
+          sondeadas: sondeadas.slice(),
+          clave: reubicada,
+          efecto: { tipo: 'colocar', casilla: visita.casilla, clave: reubicada },
+          mensaje: visita.casilla === origen
+            ? `La clave ${reubicada} vuelve a la casilla ${origen} tras ${sondeadas.length + 1} sondeos.`
+            : `La clave ${reubicada} se recoloca en la casilla ${visita.casilla} tras ${sondeadas.length + 1} sondeos.`
+        })));
+      }
+    }
+
+    return pasos;
+  }
+
   window.CC2 = window.CC2 || {};
   window.CC2.algoritmos = window.CC2.algoritmos || {};
   window.CC2.algoritmos.hash = window.CC2.algoritmos.hash || {};
-  window.CC2.algoritmos.hash.operaciones = { TRATAMIENTOS, NOMBRE_TRATAMIENTO, insertar, buscar };
+  window.CC2.algoritmos.hash.operaciones = { TRATAMIENTOS, NOMBRE_TRATAMIENTO, insertar, buscar, eliminar };
 })();
