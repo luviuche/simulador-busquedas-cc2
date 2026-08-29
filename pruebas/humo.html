@@ -70,6 +70,8 @@
       formulario.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     }
 
+    const aviso = () => document.querySelector('.pantalla-tema__alertas .alerta');
+
     // Insertar, buscar y eliminar comparten un panel: se escribe la clave una
     // vez y el botón dice qué hacer con ella. `formularios` queda en dos —la
     // configuración y las operaciones—, así que la operación se nombra y no
@@ -294,6 +296,7 @@
       eliminarEnSecuencial();
       eliminarEnBinaria();
       eliminarConReasignacion();
+      avisosDeLaTraza();
     }
 
     // La tabla grande es donde se ve la regla del docente: en una estructura
@@ -703,6 +706,68 @@
       afirmar(
         agotarTraza().includes('encontrada'),
         'tras redispersar, la búsqueda vuelve a encontrar la clave movida'
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Lo que pasa durante la traza tiene que decirse, no solo verse en la
+    // estructura, y el aviso tiene que seguir a la vista aunque la columna
+    // esté desplazada: con el scroll abajo, un aviso en el borde superior
+    // quedaba fuera de la vista y había que subir a buscarlo.
+    function avisosDeLaTraza() {
+      registro.push('', '── Avisos ──');
+
+      const formularios = entrarAModulo({ nombre: 'Avisos', n: 10, l: 4, tratamiento: 'ninguno' });
+      operar(formularios, 'insertar', 7412);
+      agotarTraza();
+      afirmar(
+        !!aviso() && aviso().textContent.includes('insertada'),
+        'la inserción deja constancia en el aviso, no solo en la bitácora'
+      );
+
+      // 5312 comparte dirección con 7412 y sin tratamiento no entra.
+      operar(formularios, 'insertar', 5312);
+      agotarTraza();
+      registro.push('  aviso final: ' + aviso().textContent);
+      afirmar(
+        aviso().classList.contains('alerta--error') && aviso().textContent.includes('no insertada'),
+        'la clave rechazada se anuncia como error'
+      );
+
+      control('anterior').click();
+      registro.push('  al retroceder: ' + aviso().textContent);
+      afirmar(
+        aviso().classList.contains('alerta--advertencia') && aviso().textContent.includes('Colisión'),
+        'retroceder devuelve el aviso que correspondía a ese punto: la colisión'
+      );
+
+      // El aviso está anclado: no se va con el desplazamiento de la columna.
+      const lateral = document.querySelector('.pantalla-tema__panel-lateral');
+      lateral.scrollTop = lateral.scrollHeight;
+      const cajaLateral = lateral.getBoundingClientRect();
+      const cajaAviso = aviso().getBoundingClientRect();
+      registro.push(
+        `  panel desplazado ${Math.round(lateral.scrollTop)} px de ${lateral.scrollHeight};`
+        + ` aviso en ${Math.round(cajaAviso.top)}, panel de ${Math.round(cajaLateral.top)} a ${Math.round(cajaLateral.bottom)}`
+      );
+      afirmar(
+        cajaAviso.top >= cajaLateral.top - 1 && cajaAviso.bottom <= cajaLateral.bottom,
+        'el aviso sigue a la vista con el panel lateral desplazado hasta abajo'
+      );
+
+      // Los pasos de trámite no avisan: sin eso el aviso parpadearía en cada
+      // clic y dejaría de leerse como una noticia.
+      operar(formularios, 'buscar', 7412);
+      control('siguiente').click();
+      afirmar(
+        !aviso(),
+        'los primeros pasos del cálculo no levantan aviso'
+      );
+      agotarTraza();
+      afirmar(
+        !!aviso() && aviso().textContent.includes('localizada'),
+        'al hallar la clave el aviso lo dice'
       );
 
       document.querySelector('.pantalla-tema__volver').click();

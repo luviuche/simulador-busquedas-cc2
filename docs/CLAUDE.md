@@ -446,6 +446,19 @@ Comprobarlo tiene truco y conviene no repetir el error: **medir la caja no sirve
 
 Solo la inserción limpia el campo al terminar: es la que se repite clave tras clave al preparar el escenario. Buscar y eliminar dejan el valor, que suele ser el mismo con el que se quiere seguir operando. `Enter` inserta.
 
+**El aviso va anclado arriba del panel lateral y no se desplaza con él** (pedido del usuario, 2026-08-29). Con la columna abajo —en operaciones o en la bitácora— un aviso en el borde superior quedaba fuera de la vista y había que subir a buscarlo, que es tanto como no darlo. Va ahí y no al pie de la ventana ni sobre el lienzo porque **el alto del lienzo es el recurso escaso**: una tabla dispersa ya no cabe en una ventana de 700 px (544 px de contenido en 390 px visibles), y una banda al pie se lo quitaría — y si apareciera y desapareciera según haya mensaje, el lienzo cambiaría de alto a cada paso y la estructura daría saltos. La lateral no le quita nada.
+
+**Lo que pasa durante la traza se dice, no solo se ve.** La bitácora registra todos los pasos; el aviso destaca los que deciden el resultado, para no tener que leerla entera para saber qué pasó:
+
+| Paso | Aviso |
+|---|---|
+| `colision` | advertencia |
+| `rechazada` · `saturada` | error |
+| `no-encontrada` | advertencia |
+| `encontrada` · `insercion` · `eliminacion` | información |
+
+Los pasos de recorrido —comparación, sondeo, cálculo, desplazamiento, extracción— **no avisan**: son el trámite, no la noticia, y avisar en cada uno haría parpadear el panel y dejaría de leerse. El aviso **se deduce del punto de la traza y no se acumula**: al retroceder vuelve a decir lo que correspondía ahí, buscando hacia atrás la última noticia, igual que la estructura se rehace desde su estado base (§5.6).
+
 Detalle que hace falta y es fácil de omitir: las filas del grid van con `minmax(0, 1fr)`, no `1fr`. Sin el `minmax(0, …)` una fila de grid no puede encogerse por debajo de su contenido, y el panel lateral vuelve a estirar el lienzo aunque la pantalla tenga el alto fijado.
 
 ### 6.3 Estructuras apiladas (binaria)
@@ -605,6 +618,7 @@ Sombras cortas y definidas, nunca difusas. Sin gradientes ni glassmorphism. Tema
 | Clave eliminada (ordenada) | *Casilla i liberada: las k claves siguientes se desplazan una posición.* |
 | Clave levantada para redispersar | *Se retira la clave c de la casilla i: colisionó en su momento y hay que volver a dispersarla.* |
 | Colisión | *Colisión en la dirección d: se aplica tratamiento por [método].* |
+| Colisión sin tratamiento | *Colisión en la dirección d: la casilla ya contiene la clave c.* — sin tratamiento no hay nada que aplicar, y decirlo dejaba la frase «se aplica tratamiento por ninguno» |
 | Estructura vacía | *Estructura no inicializada: no existen claves para procesar.* |
 | `n` imposible | *Tamaño inviable: para l = 2 solo existen 90 claves distintas.* |
 | Archivo incompatible | *Archivo no compatible con el tema activo.* |

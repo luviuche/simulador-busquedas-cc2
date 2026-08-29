@@ -70,7 +70,12 @@
     pasos.push(crearPaso(TIPOS_PASO.COLISION, Object.assign(comun(), {
       casilla: direccion,
       colision: direccion,
-      mensaje: `Colisión en la dirección ${direccion}: se aplica tratamiento por ${NOMBRE_TRATAMIENTO[tratamiento]}.`
+      // Sin tratamiento no hay nada que "aplicar": decirlo así deja la frase
+      // «se aplica tratamiento por ninguno», que además de mal escrita miente
+      // sobre lo que va a pasar. Se dice qué se encontró y ya.
+      mensaje: tratamiento === TRATAMIENTOS.NINGUNO
+        ? `Colisión en la dirección ${direccion}: la casilla ya contiene la clave ${claves[direccion - 1]}.`
+        : `Colisión en la dirección ${direccion}: se aplica tratamiento por ${NOMBRE_TRATAMIENTO[tratamiento]}.`
     })));
 
     // Sin tratamiento la colisión es el final: la clave no entra. Es el

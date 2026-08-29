@@ -233,6 +233,25 @@
   padding-right: var(--espacio-2);
 }
 
+/* La alerta se ancla arriba del panel lateral y no se va con el desplazamiento
+   (pedido del usuario, 2026-08-29): con la columna abajo, en operaciones o en
+   la bitácora, un aviso en el borde superior quedaba fuera de la vista y había
+   que subir a buscarlo. No va al pie de la ventana ni sobre el lienzo porque
+   el alto del lienzo es el recurso escaso —una tabla dispersa ya no cabe en
+   una ventana de 700 px— y la lateral no le quita nada. */
+.pantalla-tema__alertas {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* Opaca: los paneles pasan por debajo al desplazarse. */
+  background: var(--superficie-hundida);
+}
+
+/* Sin mensaje no ocupa ni su hueco del `gap` de la columna. */
+.pantalla-tema__alertas:empty {
+  display: none;
+}
+
 .pantalla-tema__controles {
   display: flex;
   align-items: center;

@@ -56,13 +56,52 @@
     }
 
     function mostrarAlerta(tipo, mensaje) {
+      // Repintar el mismo aviso lo haría anunciarse otra vez al lector de
+      // pantalla y parpadear en cada paso: si no cambió, se deja como está.
+      const vigente = dom.alertas.firstChild;
+      if (vigente && vigente.dataset.tipo === tipo && vigente.dataset.mensaje === mensaje) return;
+
       dom.alertas.innerHTML = '';
       const icono = tipo === 'error' ? '✕' : tipo === 'advertencia' ? '!' : 'i';
-      dom.alertas.appendChild(vista.componentes.panel.crearAlerta({ tipo, mensaje, icono }));
+      const el = vista.componentes.panel.crearAlerta({ tipo, mensaje, icono });
+      el.dataset.tipo = tipo;
+      el.dataset.mensaje = mensaje;
+      dom.alertas.appendChild(el);
     }
 
     function limpiarAlerta() {
       dom.alertas.innerHTML = '';
+    }
+
+    // Qué pasos de una traza merecen un aviso, y con qué gravedad. La bitácora
+    // registra todos; el aviso destaca los que deciden el resultado, para no
+    // tener que leer la bitácora entera para saber qué pasó. Los pasos de
+    // recorrido —comparación, sondeo, cálculo, desplazamiento— no avisan: son
+    // el trámite, no la noticia.
+    const AVISO_POR_PASO = Object.freeze({
+      colision: 'advertencia',
+      rechazada: 'error',
+      saturada: 'error',
+      'no-encontrada': 'advertencia',
+      encontrada: 'info',
+      insercion: 'info',
+      eliminacion: 'info'
+    });
+
+    // El aviso se deduce del punto de la traza y no se acumula: al retroceder
+    // vuelve a decir lo que correspondía ahí, igual que la estructura (ver
+    // `sincronizarEfectos`). Se busca hacia atrás porque el paso en pantalla
+    // suele ser de trámite y la noticia vigente es la última que hubo.
+    function sincronizarAviso(indicePaso) {
+      if (!estado.pasos) return;
+      for (let i = Math.min(indicePaso, estado.pasos.length - 1); i >= 0; i--) {
+        const tipo = AVISO_POR_PASO[estado.pasos[i].tipo];
+        if (tipo) {
+          mostrarAlerta(tipo, estado.pasos[i].mensaje);
+          return;
+        }
+      }
+      limpiarAlerta();
     }
 
     function requiereEstructura() {
@@ -425,6 +464,7 @@
           if (dom.calculo) dom.calculo.actualizar(paso ? paso.calculo : null);
           renderizarEstructura(paso, indice);
           actualizarMetricas(paso);
+          sincronizarAviso(indice);
           if (paso) registrarBitacora(paso.mensaje);
         }
       });
@@ -846,6 +886,11 @@
     const panelLateral = document.createElement('div');
     panelLateral.className = 'pantalla-tema__panel-lateral';
     dom.alertas = document.createElement('div');
+    dom.alertas.className = 'pantalla-tema__alertas';
+    // Anunciada sin robar el foco: el aviso llega mientras el usuario sigue
+    // operando, no interrumpe (CLAUDE.md 13).
+    dom.alertas.setAttribute('role', 'status');
+    dom.alertas.setAttribute('aria-live', 'polite');
     dom.bitacora = vista.componentes.bitacora.crearBitacora();
 
     panelLateral.append(
