@@ -70,6 +70,14 @@
       formulario.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     }
 
+    // Insertar, buscar y eliminar comparten un panel: se escribe la clave una
+    // vez y el botón dice qué hacer con ella.
+    function operar(formularios, accion, valor) {
+      const panel = formularios[1];
+      panel.querySelector('[name="clave"]').value = valor;
+      panel.querySelector(`[data-accion="${accion}"]`).click();
+    }
+
     function entrarATema(nombreTema) {
       [...document.querySelectorAll('.tema-item')]
         .find((el) => el.textContent.includes(nombreTema))
@@ -98,9 +106,9 @@
       const formularios = entrarATema(nombreTema);
       enviar(formularios[0], { nombre: 'Práctica de clase', n: 24, l: 2 });
       for (const clave of [10, 18, 24, 31, 37, 42, 50, 63, 71, 84, 90, 97]) {
-        enviar(formularios[1], { clave });
+        operar(formularios, 'insertar', clave);
       }
-      enviar(formularios[2], { objetivo: 84 });
+      operar(formularios, 'buscar', 84);
       avanzar(pasosAAvanzar());
     }
 
@@ -125,10 +133,10 @@
       // 1004, 1016 y 1028 caen todas en la dirección 9: preparan el terreno
       // para que la última inserción tenga algo con qué chocar.
       for (const clave of [1004, 1010, 1023, 1035, 1016]) {
-        enviar(formularios[1], { clave });
+        operar(formularios, 'insertar', clave);
         avanzar(12);
       }
-      enviar(formularios[1], { clave: Number(parametros.get('clave')) || (colisiona ? 1028 : 1001) });
+      operar(formularios, 'insertar', Number(parametros.get('clave')) || (colisiona ? 1028 : 1001));
       avanzar(pasosAAvanzar());
     }
 
@@ -139,9 +147,9 @@
       const formularios = entrarATema(nombreTema);
       enviar(formularios[0], { nombre: 'Práctica de clase', n: 24, l: 2 });
       for (const clave of [10, 18, 24, 31, 37, 42, 50, 63, 71, 84, 90, 97]) {
-        enviar(formularios[1], { clave });
+        operar(formularios, 'insertar', clave);
       }
-      enviar(formularios[3], { eliminar: Number(parametros.get('clave')) || 84 });
+      operar(formularios, 'eliminar', Number(parametros.get('clave')) || 84);
       avanzar(pasosAAvanzar());
     }
 
@@ -162,11 +170,11 @@
       // 1004, 1016 y 1028 comparten dirección: las tres forman el grupo que
       // la eliminación tiene que volver a dispersar.
       for (const clave of [1004, 1010, 1023, 1035, 1016, 1028]) {
-        enviar(formularios[1], { clave });
+        operar(formularios, 'insertar', clave);
         avanzar(12);
       }
       // La redispersión es larga: cada clave del grupo trae su cálculo entero.
-      enviar(formularios[3], { eliminar: Number(parametros.get('clave')) || 1016 });
+      operar(formularios, 'eliminar', Number(parametros.get('clave')) || 1016);
       avanzar(pasosAAvanzar(40));
     }
 

@@ -70,6 +70,16 @@
       formulario.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     }
 
+    // Insertar, buscar y eliminar comparten un panel: se escribe la clave una
+    // vez y el botón dice qué hacer con ella. `formularios` queda en dos —la
+    // configuración y las operaciones—, así que la operación se nombra y no
+    // se deduce de la posición del formulario.
+    function operar(formularios, accion, valor) {
+      const panel = formularios[1];
+      panel.querySelector('[name="clave"]').value = valor;
+      panel.querySelector(`[data-accion="${accion}"]`).click();
+    }
+
     const estadoDe = (casilla) =>
       casilla.className.replace(/casilla(--)?/g, '').trim().replace(/\s+/g, '+');
 
@@ -138,7 +148,7 @@
 
       const formularios = [...document.querySelectorAll('form.panel')];
       enviar(formularios[0], { nombre: 'Prueba de humo', n, l });
-      for (const clave of claves) enviar(formularios[1], { clave });
+      for (const clave of claves) operar(formularios, 'insertar', clave);
 
       const dibujadas = [...document.querySelectorAll('.casilla')].length;
       afirmar(dibujadas <= n, `la elisión acota lo dibujado (${dibujadas} de ${n} casillas)`);
@@ -159,13 +169,39 @@
         'el desplazamiento vive en el panel lateral, no en la página'
       );
 
+      // Las tres operaciones comparten un panel: un solo campo de clave y un
+      // botón por operación. Tres paneles con un campo idéntico cada uno
+      // empujaban la reproducción fuera de la pantalla.
+      afirmar(
+        document.querySelectorAll('.pantalla-tema__panel-lateral [name="clave"]').length === 1,
+        'las tres operaciones comparten un solo campo de clave'
+      );
+      afirmar(
+        ['insertar', 'buscar', 'eliminar'].every((accion) => !!formularios[1].querySelector(`[data-accion="${accion}"]`)),
+        'el panel de operaciones ofrece insertar, buscar y eliminar'
+      );
+      // Cinco paneles y no siete: configuración, operaciones, reproducción,
+      // métricas y bitácora. No se afirma que todos quepan sin desplazar
+      // —a 700 px de alto no caben, y el panel lateral scrollea para eso—,
+      // sino que ya no hay tres formularios repetidos empujándolos hacia
+      // abajo. El alto medido queda en el registro para ver regresiones.
+      const paneles = [...lateral.querySelectorAll('.panel')];
+      afirmar(paneles.length === 5, `el panel lateral tiene cinco paneles (tiene ${paneles.length})`);
+      afirmar(
+        paneles[2].contains(control('siguiente')),
+        'la reproducción va justo después de las operaciones'
+      );
+      registro.push(
+        `  panel lateral: ${lateral.scrollHeight} px de contenido en ${lateral.clientHeight} px visibles`
+      );
+
       const caja = document.querySelector('.estructura-horizontal, .estructura-vertical').getBoundingClientRect();
       afirmar(
         caja.top >= 0 && caja.bottom <= window.innerHeight,
         `la estructura entra completa en el viewport (${Math.round(caja.top)}–${Math.round(caja.bottom)} de ${window.innerHeight})`
       );
 
-      enviar(formularios[2], { objetivo });
+      operar(formularios, 'buscar', objetivo);
       const siguiente = control('siguiente');
       const anteriorBoton = control('anterior');
 
@@ -274,7 +310,7 @@
         nombre: 'Tabla grande', n: 100, l: 4, tratamiento: 'reasignacion'
       });
       for (const clave of claves) {
-        enviar(formularios[1], { clave });
+        operar(formularios, 'insertar', clave);
         agotarTraza();
       }
 
@@ -310,7 +346,7 @@
 
       // Buscar una clave colocada al principio obliga a volver atrás: si el
       // desplazamiento solo supiera avanzar, la casilla quedaría por encima.
-      enviar(formularios[2], { objetivo: claves[0] });
+      operar(formularios, 'buscar', claves[0]);
       agotarTraza();
       const cajaBusqueda = verticalEl.getBoundingClientRect();
       const encontrada = document.querySelector('.casilla--encontrada').getBoundingClientRect();
@@ -350,7 +386,7 @@
       );
 
       // 7412 con n = 12 → grupos de 2 → 74 + 12 = 86 → 86 + 1 = 87 → 3.
-      enviar(formularios[1], { clave: 7412 });
+      operar(formularios, 'insertar', 7412);
       agotarTraza();
       registro.push('  suma: ' + lineasCalculo().join(' | '));
       afirmar(lineasCalculo()[2].includes('74 + 12'), 'el desarrollo muestra la suma de los grupos');
@@ -364,7 +400,7 @@
       enviar(formularios[0], {
         nombre: 'Plegada por producto', n: 12, l: 4, operacion: 'multiplicar', tratamiento: 'reasignacion'
       });
-      enviar(formularios[1], { clave: 7412 });
+      operar(formularios, 'insertar', 7412);
       agotarTraza();
       registro.push('  producto: ' + lineasCalculo().join(' | '));
       afirmar(lineasCalculo()[2].includes('74 × 12'), 'con la otra operación el desarrollo muestra el producto');
@@ -392,7 +428,7 @@
       });
 
       // Sin base indicada se usa 11: 7412 → 5629 → últimas dos, 29 → 31 → 7.
-      enviar(formularios[1], { clave: 7412 });
+      operar(formularios, 'insertar', 7412);
       agotarTraza();
       registro.push('  base 11: ' + lineasCalculo().join(' | '));
       afirmar(lineasCalculo()[1].includes('5629'), 'sin base indicada se usa la de clase, 11');
@@ -403,7 +439,7 @@
 
       // Con base 2 el mismo tema cubre el binario: 7412 → 1110011110100.
       enviar(formularios[0], { nombre: 'Binaria', n: 12, l: 4, base: '2', tratamiento: 'reasignacion' });
-      enviar(formularios[1], { clave: 7412 });
+      operar(formularios, 'insertar', 7412);
       agotarTraza();
       registro.push('  base 2: ' + lineasCalculo().join(' | '));
       afirmar(
@@ -460,7 +496,7 @@
 
       // 7412 con posiciones 1 y 3 → cifras 7 y 1 → 71 + 1 → 72 no cabe en 1..12 → 12.
       enviar(formularios[0], { nombre: 'Truncada', n: 12, l: 4, posiciones: '1,3', tratamiento: 'reasignacion' });
-      enviar(formularios[1], { clave: 7412 });
+      operar(formularios, 'insertar', 7412);
       agotarTraza();
       registro.push('  cálculo: ' + lineasCalculo().join(' | '));
       afirmar(
@@ -492,7 +528,7 @@
       });
 
       // 1004² = 1008016 → centrales "08" → 8 + 1 → dirección 9.
-      enviar(formularios[1], { clave: 1004 });
+      operar(formularios, 'insertar', 1004);
       agotarTraza();
       registro.push('  cálculo: ' + lineasCalculo().join(' | '));
       afirmar(
@@ -506,7 +542,7 @@
 
       // 1010² = 1020100 → centrales "20" → 21 no cabe en 1..12 y se ajusta a 9,
       // así que choca con la anterior y la reasignación la manda a la 10.
-      enviar(formularios[1], { clave: 1010 });
+      operar(formularios, 'insertar', 1010);
       const retrato = agotarTraza();
       registro.push('  estructura: ' + retrato);
       afirmar(
@@ -518,7 +554,7 @@
         'la clave ajustada colisiona y la reasignación la coloca en la casilla 10'
       );
 
-      enviar(formularios[2], { objetivo: 1010 });
+      operar(formularios, 'buscar', 1010);
       afirmar(agotarTraza().includes('encontrada'), 'la búsqueda repite el mismo cálculo y la halla');
 
       document.querySelector('.pantalla-tema__volver').click();
@@ -541,9 +577,9 @@
         .click();
       const formularios = [...document.querySelectorAll('form.panel')];
       enviar(formularios[0], { nombre: 'Eliminar', n: 12, l: 2 });
-      for (const clave of [10, 20, 30, 40, 50]) enviar(formularios[1], { clave });
+      for (const clave of [10, 20, 30, 40, 50]) operar(formularios, 'insertar', clave);
 
-      enviar(formularios[3], { eliminar: 30 });
+      operar(formularios, 'eliminar', 30);
       // Dos comparaciones y el hallazgo: el tercer clic deja el paso que marca.
       for (let i = 0; i < 3; i++) control('siguiente').click();
 
@@ -570,7 +606,7 @@
 
       // Una clave que no está no se avisa por adelantado: la búsqueda tiene
       // que recorrer hasta concluirlo, que es lo que el tema enseña.
-      enviar(formularios[3], { eliminar: 99 });
+      operar(formularios, 'eliminar', 99);
       agotarTraza();
       const bitacora = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
       afirmar(
@@ -596,9 +632,9 @@
         .click();
       const formularios = [...document.querySelectorAll('form.panel')];
       enviar(formularios[0], { nombre: 'Eliminar', n: 12, l: 2 });
-      for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) enviar(formularios[1], { clave });
+      for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) operar(formularios, 'insertar', clave);
 
-      enviar(formularios[3], { eliminar: 70 });
+      operar(formularios, 'eliminar', 70);
       for (let i = 0; i < 2; i++) control('siguiente').click();
       afirmar(
         !!document.querySelector('.estructura-apilada'),
@@ -635,12 +671,12 @@
 
       const formularios = entrarAModulo({ nombre: 'Eliminar', n: 10, l: 4, tratamiento: 'reasignacion' });
       for (const clave of [7412, 5312, 9912]) {
-        enviar(formularios[1], { clave });
+        operar(formularios, 'insertar', clave);
         agotarTraza();
       }
       registro.push('  antes: ' + retratarEstructura());
 
-      enviar(formularios[3], { eliminar: 5312 });
+      operar(formularios, 'eliminar', 5312);
       agotarTraza(30);
       registro.push('  después: ' + retratarEstructura());
 
@@ -663,7 +699,7 @@
         'la bitácora deja ver que la clave se levantó para volver a dispersarse'
       );
 
-      enviar(formularios[2], { objetivo: 9912 });
+      operar(formularios, 'buscar', 9912);
       afirmar(
         agotarTraza().includes('encontrada'),
         'tras redispersar, la búsqueda vuelve a encontrar la clave movida'
@@ -736,7 +772,7 @@
         `el panel del cálculo cabe junto a la estructura (${Math.round(cajaCalculo.right)} de ${window.innerWidth} de ancho)`
       );
 
-      enviar(formularios[1], { clave: 7412 });
+      operar(formularios, 'insertar', 7412);
       afirmar(lineasCalculo().length === 1, 'la inserción arranca revelando una sola línea del cálculo');
 
       control('siguiente').click();
@@ -773,16 +809,16 @@
 
       // Crear otra estructura con una inserción a medio reproducir no puede
       // arrastrar la clave pendiente a la estructura nueva.
-      enviar(formularios[1], { clave: 1111 });
+      operar(formularios, 'insertar', 1111);
       enviar(formularios[0], { nombre: 'Recreada', n: 10, l: 4, tratamiento: 'ninguno' });
       afirmar(
         document.querySelectorAll('.fila-casilla .casilla--vacia').length === 10,
         'crear otra estructura no arrastra la clave a medio insertar'
       );
 
-      enviar(formularios[1], { clave: 7412 });
+      operar(formularios, 'insertar', 7412);
       agotarTraza();
-      enviar(formularios[2], { objetivo: 7412 });
+      operar(formularios, 'buscar', 7412);
       const retrato = agotarTraza();
       afirmar(retrato.includes('encontrada'), 'la búsqueda localiza la clave por su dirección');
       const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
@@ -798,10 +834,10 @@
       registro.push('', '── Función módulo · colisión sin tratamiento ──');
 
       const formularios = entrarAModulo({ nombre: 'Choque', n: 10, l: 4, tratamiento: 'ninguno' });
-      enviar(formularios[1], { clave: 7412 });
+      operar(formularios, 'insertar', 7412);
       agotarTraza();
       // 5312 mod 10 = 2 → dirección 3, la misma que 7412.
-      enviar(formularios[1], { clave: 5312 });
+      operar(formularios, 'insertar', 5312);
       const retrato = agotarTraza();
       registro.push('  estructura: ' + retrato);
 
@@ -829,7 +865,7 @@
 
       const formularios = entrarAModulo({ nombre: 'Reasignada', n: 10, l: 4, tratamiento: 'reasignacion' });
       for (const clave of [7412, 5312, 9912]) {
-        enviar(formularios[1], { clave });
+        operar(formularios, 'insertar', clave);
         agotarTraza();
       }
       const retrato = retratarEstructura();
@@ -849,7 +885,7 @@
       );
       afirmar(retrato.includes('sondeada'), 'las casillas recorridas por la prueba lineal quedan marcadas');
 
-      enviar(formularios[2], { objetivo: 9912 });
+      operar(formularios, 'buscar', 9912);
       const retratoBusqueda = agotarTraza();
       afirmar(retratoBusqueda.includes('encontrada'), 'la búsqueda repite el recorrido y halla la clave');
       const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
@@ -869,9 +905,9 @@
 
       const formularios = [...document.querySelectorAll('form.panel')];
       enviar(formularios[0], { nombre: 'Sin resultado', n: 16, l: 2 });
-      for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) enviar(formularios[1], { clave });
+      for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) operar(formularios, 'insertar', clave);
 
-      enviar(formularios[2], { objetivo: 45 });
+      operar(formularios, 'buscar', 45);
       for (let i = 0; i < 10; i++) control('siguiente').click();
 
       const cierre = document.querySelector('.apilada__cierre');

@@ -12,19 +12,23 @@
   // config = {
   //   titulo, descripcion, orientacion, modo,
   //   buscar({ estructura, objetivo }) -> pasos,
+  //   eliminar({ estructura, clave }) -> pasos,   // buscar y además sacar
   //   insertar({ estructura, clave }) -> pasos,   // opcional: inserción con traza
   //   tratamientos: [{ valor, etiqueta }],        // opcional: selector al crear
   //   calculo: bool,                              // opcional: panel de cálculo
   //   casillasRelevantes(paso) -> [indices base 1],
   //   describirCasilla({ paso, indice, ocupada }) -> { estado, modificadores },
-  //   apilada: { rangoDePaso(paso) },             // opcional: una fila por paso
+  //   apilada: {                                  // opcional: una fila por paso
+  //     rangoDePaso(paso),
+  //     aplicaA(paso)                             // opcional: pasos sin fila
+  //   },
   //   metricas: [{ id, etiqueta, valor({ estructura, paso }) -> string }]
   // }
   //
-  // Los temas que declaran `insertar` convierten la inserción en una operación
-  // reproducible: la traza no toca la estructura y es esta pantalla la que
-  // aplica el efecto al llegar al paso que coloca la clave, y lo deshace al
-  // retroceder (ver `sincronizarEfecto`).
+  // Ninguna operación toca la estructura al trazar (CLAUDE.md 4). Un paso puede
+  // declarar el `efecto` que produce —colocar, retirar o eliminar— y es esta
+  // pantalla la que lo aplica al llegar y lo deshace al retroceder, rehaciendo
+  // desde el estado previo a la operación (ver `sincronizarEfectos`).
   function crearPantallaTema(config, alVolver) {
     const estado = {
       estructura: null,
@@ -561,27 +565,6 @@
       );
     }
 
-    function crearPanelEliminacion() {
-      const contenedor = document.createElement('form');
-      contenedor.className = 'panel';
-      contenedor.innerHTML = `
-        <h2 class="panel__titulo texto-nivel-2">Eliminar clave</h2>
-        <label class="texto-nivel-3">Clave por eliminar
-          <input type="text" name="eliminar" inputmode="numeric" required>
-        </label>
-        <div class="pantalla-tema__controles">
-          <button type="submit" class="boton boton--primario">Eliminar clave</button>
-        </div>
-      `;
-      contenedor.addEventListener('submit', (evento) => {
-        evento.preventDefault();
-        if (!requiereEstructura()) return;
-        const datos = new FormData(contenedor);
-        eliminarClave(String(datos.get('eliminar')));
-      });
-      return contenedor;
-    }
-
     function crearFormularioConfiguracion() {
       const contenedor = document.createElement('form');
       contenedor.className = 'panel';
@@ -699,50 +682,51 @@
       return opcion ? opcion.etiqueta.toLowerCase() : valor;
     }
 
-    function crearFormularioInsercion() {
+    // Insertar, buscar y eliminar viven en un solo panel (pedido del docente,
+    // 2026-08-29). Las tres operan sobre lo mismo —una clave— y tres paneles
+    // con un campo idéntico cada uno repetían el mismo formulario tres veces y
+    // empujaban métricas y bitácora fuera de la pantalla.
+    //
+    // Los botones nombran solo el verbo y no `Insertar clave`: el campo que
+    // tienen encima ya dice sobre qué operan, y tres rótulos con la palabra
+    // repetida no caben en una fila del panel (CLAUDE.md 9).
+    function crearPanelOperaciones() {
       const contenedor = document.createElement('form');
       contenedor.className = 'panel';
       contenedor.innerHTML = `
-        <h2 class="panel__titulo texto-nivel-2">Insertar clave</h2>
+        <h2 class="panel__titulo texto-nivel-2">Operaciones</h2>
         <label class="texto-nivel-3">Clave
           <input type="text" name="clave" inputmode="numeric" required>
         </label>
         <div class="pantalla-tema__controles">
-          <button type="submit" class="boton boton--primario">Insertar clave</button>
+          <button type="submit" class="boton boton--primario" data-accion="insertar">Insertar</button>
+          <button type="button" class="boton" data-accion="buscar">Buscar</button>
+          <button type="button" class="boton" data-accion="eliminar">Eliminar</button>
+        </div>
+        <div class="pantalla-tema__controles">
           <button type="button" class="boton" data-accion="llenado-automatico">Llenado automático</button>
         </div>
       `;
+
+      // Solo la inserción limpia el campo: es la que se repite clave tras
+      // clave al preparar el escenario. Buscar y eliminar dejan el valor, que
+      // suele ser el mismo con el que se quiere seguir operando.
+      const operar = (operacion, limpiar) => () => {
+        if (!requiereEstructura()) return;
+        operacion(String(new FormData(contenedor).get('clave')));
+        if (limpiar) contenedor.reset();
+      };
+
+      // Enter inserta, que es la operación que se repite.
       contenedor.addEventListener('submit', (evento) => {
         evento.preventDefault();
-        if (!requiereEstructura()) return;
-        const datos = new FormData(contenedor);
-        insertarClave(String(datos.get('clave')));
-        contenedor.reset();
+        operar(insertarClave, true)();
       });
+      contenedor.querySelector('[data-accion="buscar"]').addEventListener('click', operar(iniciarBusqueda, false));
+      contenedor.querySelector('[data-accion="eliminar"]').addEventListener('click', operar(eliminarClave, false));
       contenedor.querySelector('[data-accion="llenado-automatico"]').addEventListener('click', () => {
         if (!requiereEstructura()) return;
         llenarAutomaticamente();
-      });
-      return contenedor;
-    }
-
-    function crearPanelBusqueda() {
-      const contenedor = document.createElement('form');
-      contenedor.className = 'panel';
-      contenedor.innerHTML = `
-        <h2 class="panel__titulo texto-nivel-2">Buscar clave</h2>
-        <label class="texto-nivel-3">Clave objetivo
-          <input type="text" name="objetivo" inputmode="numeric" required>
-        </label>
-        <div class="pantalla-tema__controles">
-          <button type="submit" class="boton boton--primario">Buscar clave</button>
-        </div>
-      `;
-      contenedor.addEventListener('submit', (evento) => {
-        evento.preventDefault();
-        if (!requiereEstructura()) return;
-        const datos = new FormData(contenedor);
-        iniciarBusqueda(String(datos.get('objetivo')));
       });
       return contenedor;
     }
@@ -867,9 +851,7 @@
     panelLateral.append(
       dom.alertas,
       crearFormularioConfiguracion(),
-      crearFormularioInsercion(),
-      crearPanelBusqueda(),
-      crearPanelEliminacion(),
+      crearPanelOperaciones(),
       crearPanelReproduccion(),
       crearPanelMetricas(),
       vista.componentes.panel.crearPanel({ titulo: 'Bitácora', contenido: dom.bitacora })

@@ -206,7 +206,7 @@ Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o act
 
 ### La pantalla de tema es una sola, parametrizada
 
-`vista/pantallas/tema-busqueda.js` contiene **toda** la pantalla de trabajo —configurar, insertar, llenado automático, reproducir la traza, elidir, métricas, bitácora, alertas— y la comparten todos los temas de búsqueda interna. Un tema nuevo no escribe pantalla: escribe una entrada en `TEMAS` (en `app.js`) con lo único que le es propio:
+`vista/pantallas/tema-busqueda.js` contiene **toda** la pantalla de trabajo —configurar, operar sobre una clave (insertar, buscar, eliminar), llenado automático, reproducir la traza, elidir, métricas, bitácora, alertas— y la comparten todos los temas de búsqueda interna. Un tema nuevo no escribe pantalla: escribe una entrada en `TEMAS` (en `app.js`) con lo único que le es propio:
 
 ```js
 {
@@ -440,7 +440,11 @@ La estructura se dibuja **centrada** en el lienzo, horizontal y verticalmente. E
 
 Comprobarlo tiene truco y conviene no repetir el error: **medir la caja no sirve**. `.estructura-vertical` lleva `max-height: 100%`, así que su rectángulo siempre cae dentro del viewport aunque por dentro sobresalgan filas. Lo que hay que comparar es `scrollHeight` contra `clientHeight`, o dónde queda la casilla marcada respecto de la caja. La comprobación vieja medía la caja y por eso el defecto vivió sin que ninguna prueba lo viera.
 
-**La pantalla de tema se ancla al alto del viewport y la página nunca scrollea.** El desplazamiento vive dentro del panel lateral. Si scrollea la página, el panel lateral —que acumula configuración, inserción, búsqueda, métricas y bitácora— estira el lienzo y empuja la estructura fuera de la pantalla: al proyectar en el salón se pierde justo lo que la aplicación existe para mostrar.
+**La pantalla de tema se ancla al alto del viewport y la página nunca scrollea.** El desplazamiento vive dentro del panel lateral. Si scrollea la página, el panel lateral —que acumula configuración, operaciones, reproducción, métricas y bitácora— estira el lienzo y empuja la estructura fuera de la pantalla: al proyectar en el salón se pierde justo lo que la aplicación existe para mostrar.
+
+**Insertar, buscar y eliminar comparten un solo panel** (pedido del docente, 2026-08-29). Las tres operan sobre lo mismo —una clave—, así que el panel tiene un campo y tres botones, más el llenado automático. Antes eran tres paneles con un campo idéntico cada uno: repetían el mismo formulario tres veces y empujaban reproducción, métricas y bitácora hacia abajo, que es la misma presión que el ancla al viewport existe para contener. El panel lateral queda en cinco paneles y no siete. No es que ahora todo quepa sin desplazar —en una ventana de 700 px el lateral sigue midiendo bastante más de lo visible, y para eso scrollea—, pero en la ventana de proyección la reproducción vuelve a quedar a la vista sin buscarla.
+
+Solo la inserción limpia el campo al terminar: es la que se repite clave tras clave al preparar el escenario. Buscar y eliminar dejan el valor, que suele ser el mismo con el que se quiere seguir operando. `Enter` inserta.
 
 Detalle que hace falta y es fácil de omitir: las filas del grid van con `minmax(0, 1fr)`, no `1fr`. Sin el `minmax(0, …)` una fila de grid no puede encogerse por debajo de su contenido, y el panel lateral vuelve a estirar el lienzo aunque la pantalla tenga el alto fijado.
 
@@ -583,8 +587,9 @@ Sombras cortas y definidas, nunca difusas. Sin gradientes ni glassmorphism. Tema
 ## 9. Voz de la interfaz
 
 - Los mensajes describen el estado del sistema; no se disculpan ni interpelan al usuario.
-- Los botones nombran la acción: *Insertar clave*, no *Aceptar*.
-- Una acción conserva el mismo nombre en todo el flujo: si el botón dice *Insertar clave*, la bitácora registra *Clave insertada*.
+- Los botones nombran la acción: *Insertar*, no *Aceptar*. Nunca un verbo genérico.
+- **El botón nombra el verbo; el objeto lo pone el campo si ya está a la vista.** En el panel de operaciones los tres botones dicen *Insertar*, *Buscar* y *Eliminar* a secas, porque el campo que tienen encima ya dice *Clave*: repetir la palabra tres veces en una fila no cabe y no agrega nada. Un botón suelto, sin campo que lo acompañe, sí nombra el objeto completo.
+- Una acción conserva el mismo nombre en todo el flujo: si el botón dice *Insertar*, la bitácora registra *Clave insertada*.
 - Vocabulario técnico riguroso, nunca coloquial.
 - Sentencia capital, nunca Mayúscula En Cada Palabra.
 
