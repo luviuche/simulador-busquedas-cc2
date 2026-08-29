@@ -28,9 +28,23 @@
         tratamiento,
         // La dispersa nace con las n casillas vacías: su longitud no crece con
         // las inserciones, cambia solo qué posiciones están definidas.
-        claves: modo === MODOS.DISPERSA ? new Array(n) : []
+        claves: modo === MODOS.DISPERSA ? new Array(n) : [],
+        // Estructuras secundarias por dirección (CLAUDE.md 5.4): una por
+        // casilla, y solo el tratamiento por arreglos anidados las llena. Se
+        // declaran siempre para que dibujar y contar no dependan de qué
+        // tratamiento se eligió, igual que `claves`.
+        anidados: modo === MODOS.DISPERSA ? new Array(n) : [],
+        // Cuántas casillas tiene cada anidado. Cero significa que no hay
+        // estructura secundaria, que es el caso de los otros tratamientos.
+        tamanoAnidado: 0
       }
     };
+  }
+
+  // El arreglo anidado de una dirección, siempre como arreglo: quien dibuja o
+  // recorre no tiene que distinguir "todavía no existe" de "está vacío".
+  function anidadoDe(estructura, indice) {
+    return (estructura.anidados && estructura.anidados[indice - 1]) || [];
   }
 
   // Mantiene la invariante "siempre ordenada ascendente" (CLAUDE.md 3.2)
@@ -47,18 +61,31 @@
   }
 
   // Único contador válido para los dos modos: en la dispersa `claves.length`
-  // es siempre n, ocupada o no, así que hay que contar las definidas.
+  // es siempre n, ocupada o no, así que hay que contar las definidas. Las de
+  // los arreglos anidados cuentan igual: están en la estructura.
   function cantidadClaves(estructura) {
     if (estructura.modo !== MODOS.DISPERSA) return estructura.claves.length;
     let total = 0;
     for (let i = 0; i < estructura.claves.length; i++) {
       if (estructura.claves[i] !== undefined) total++;
     }
+    for (const anidado of estructura.anidados || []) {
+      if (!anidado) continue;
+      for (const clave of anidado) if (clave !== undefined) total++;
+    }
     return total;
   }
 
+  // Cuántas claves caben. Con arreglos anidados no son `n` sino `n × (1 + k)`:
+  // medir contra `n` daría la estructura por llena teniendo sitio de sobra, y
+  // el factor de carga mentiría por el mismo motivo.
+  function capacidad(estructura) {
+    if (estructura.modo !== MODOS.DISPERSA) return estructura.n;
+    return estructura.n * (1 + (estructura.tamanoAnidado || 0));
+  }
+
   function estaLlena(estructura) {
-    return cantidadClaves(estructura) >= estructura.n;
+    return cantidadClaves(estructura) >= capacidad(estructura);
   }
 
   function estaVacia(estructura) {
@@ -67,9 +94,18 @@
 
   // Índice base 1 de la casilla que contiene la clave, o 0 si no está
   // (CLAUDE.md 3.1). Sirve para la invariante de unicidad en los dos modos.
+  //
+  // Una clave que vive en un arreglo anidado devuelve la **dirección** que lo
+  // sostiene: es la casilla a la que pertenece, y es lo que hay que decir para
+  // rechazar un duplicado.
   function casillaDe(estructura, valor) {
     const posicion = estructura.claves.indexOf(valor);
-    return posicion === -1 ? 0 : posicion + 1;
+    if (posicion !== -1) return posicion + 1;
+    const anidados = estructura.anidados || [];
+    for (let i = 0; i < anidados.length; i++) {
+      if (anidados[i] && anidados[i].indexOf(valor) !== -1) return i + 1;
+    }
+    return 0;
   }
 
   // El índice devuelto es siempre base 1 (CLAUDE.md 3.1): este es el único
@@ -130,6 +166,58 @@
     return { exito: true, indice, valor };
   }
 
+  // Colocación y retiro en el arreglo anidado de una dirección. Son las
+  // hermanas de `colocarEn` y `retirarDe`: el algoritmo ya decidió dirección y
+  // posición, el dominio solo las aplica.
+  function colocarEnAnidado(estructura, indice, posicion, valor) {
+    if (estructura.modo !== MODOS.DISPERSA) {
+      return { exito: false, mensaje: 'Arreglo anidado no aplicable a una estructura ordenada.' };
+    }
+    if (indice < 1 || indice > estructura.n) {
+      return { exito: false, mensaje: `Dirección fuera de rango: ${indice} no pertenece a 1..${estructura.n}.` };
+    }
+    if (!estructura.anidados[indice - 1]) estructura.anidados[indice - 1] = [];
+    const anidado = estructura.anidados[indice - 1];
+    if (anidado[posicion - 1] !== undefined) {
+      return { exito: false, mensaje: `Casilla ocupada: la posición ${posicion} del arreglo anidado de ${indice} ya contiene una clave.` };
+    }
+    anidado[posicion - 1] = valor;
+    return { exito: true, indice, posicion };
+  }
+
+  function retirarDeAnidado(estructura, indice, posicion) {
+    const anidado = estructura.anidados && estructura.anidados[indice - 1];
+    const valor = anidado && anidado[posicion - 1];
+    if (valor === undefined) {
+      return { exito: false, mensaje: `Casilla vacía: la posición ${posicion} del arreglo anidado de ${indice} no contiene ninguna clave.` };
+    }
+    delete anidado[posicion - 1];
+    // Sin recortar la cola, sacar la última clave dejaría un hueco al final y
+    // el mismo estado tendría dos representaciones: `[a]` y `[a, <hueco>]`.
+    // No mueve ninguna clave —las de delante conservan su posición—, solo deja
+    // de contar un vacío que nadie ocupa.
+    while (anidado.length > 0 && anidado[anidado.length - 1] === undefined) anidado.length--;
+    return { exito: true, indice, posicion, valor };
+  }
+
+  // Cierra los huecos del arreglo anidado y, si la casilla de la dirección
+  // quedó vacía, sube a ella la primera clave del anidado.
+  //
+  // Lo segundo no es cosmético: una dirección vacía con claves colgando de su
+  // arreglo contradice lo que el dibujo dice —que la casilla es donde aterrizó
+  // la clave y el anidado es para las que chocaron con ella—, y dejaría la
+  // primera comparación de la búsqueda contra una casilla que nadie ocupa.
+  function compactarAnidado(estructura, indice) {
+    const anidado = estructura.anidados && estructura.anidados[indice - 1];
+    if (!anidado) return { exito: true, indice };
+    const restantes = anidado.filter((clave) => clave !== undefined);
+    if (estructura.claves[indice - 1] === undefined && restantes.length > 0) {
+      estructura.claves[indice - 1] = restantes.shift();
+    }
+    estructura.anidados[indice - 1] = restantes;
+    return { exito: true, indice };
+  }
+
   window.CC2 = window.CC2 || {};
   window.CC2.dominio = window.CC2.dominio || {};
   window.CC2.dominio.estructura = {
@@ -139,7 +227,12 @@
     eliminar,
     colocarEn,
     retirarDe,
+    colocarEnAnidado,
+    retirarDeAnidado,
+    compactarAnidado,
+    anidadoDe,
     cantidadClaves,
+    capacidad,
     casillaDe,
     estaLlena,
     estaVacia

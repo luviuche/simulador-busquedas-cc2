@@ -1,18 +1,21 @@
 (function () {
   const { TIPOS_PASO, crearPaso } = window.CC2.algoritmos.traza;
   const { sondearLineal } = window.CC2.algoritmos.colisiones.reasignacion;
+  const { recorrerAnidado } = window.CC2.algoritmos.colisiones.anidados;
 
   // Tratamientos de colisión disponibles (CLAUDE.md 5.4). El docente pidió que
   // no fueran temas aparte sino parte de la transformación de claves: se eligen
   // al crear la estructura, porque cambian su forma y no solo su comportamiento.
   const TRATAMIENTOS = Object.freeze({
     NINGUNO: 'ninguno',
-    REASIGNACION: 'reasignacion'
+    REASIGNACION: 'reasignacion',
+    ANIDADOS: 'anidados'
   });
 
   const NOMBRE_TRATAMIENTO = Object.freeze({
     ninguno: 'ninguno',
-    reasignacion: 'reasignación'
+    reasignacion: 'reasignación',
+    anidados: 'arreglos anidados'
   });
 
   // Ni insertar ni buscar tocan la estructura: producen la traza completa y la
@@ -44,7 +47,7 @@
     return pasos;
   }
 
-  function insertar({ claves, n, clave, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO }) {
+  function insertar({ claves, n, clave, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO, anidados = [], tamanoAnidado = 0 }) {
     const contadores = { comparaciones: 0, accesos: 0 };
     const { direccion, calculo } = direccionDe(clave, n, parametros);
     const pasos = pasosDelCalculo(calculo, contadores);
@@ -89,6 +92,56 @@
       return pasos;
     }
 
+    // Arreglos anidados: la clave que chocó no busca otra dirección, se queda
+    // en la que le tocó y baja al arreglo secundario de esa dirección. Es lo
+    // que separa este tratamiento de la reasignación —la clave nunca se aleja
+    // de su dirección— y por eso el límite es la capacidad del arreglo y no la
+    // de la tabla.
+    if (tratamiento === TRATAMIENTOS.ANIDADOS) {
+      const recorrido = recorrerAnidado({
+        anidado: anidados[direccion - 1] || [],
+        tamano: tamanoAnidado,
+        condicion: (ocupante) => ocupante === undefined
+      });
+
+      const recorridas = [];
+      for (const visita of recorrido.recorrido) {
+        contadores.accesos++;
+        if (!visita.detener) {
+          recorridas.push(visita.posicion);
+          pasos.push(crearPaso(TIPOS_PASO.SONDEO, Object.assign(comun(), {
+            casilla: direccion,
+            posicion: visita.posicion,
+            colision: direccion,
+            recorridas: recorridas.slice(),
+            mensaje: `Arreglo anidado de ${direccion}: la posición ${visita.posicion} contiene la clave ${visita.clave}; se avanza.`
+          })));
+          continue;
+        }
+        pasos.push(crearPaso(TIPOS_PASO.INSERCION, Object.assign(comun(), {
+          casilla: direccion,
+          posicion: visita.posicion,
+          colision: direccion,
+          recorridas: recorridas.slice(),
+          clave,
+          efecto: { tipo: 'colocar-anidado', casilla: direccion, posicion: visita.posicion, clave },
+          mensaje: `Clave insertada: ${clave} en la posición ${visita.posicion} del arreglo anidado de ${direccion}.`
+        })));
+      }
+
+      if (recorrido.agotado) {
+        pasos.push(crearPaso(TIPOS_PASO.SATURADA, Object.assign(comun(), {
+          casilla: direccion,
+          colision: direccion,
+          recorridas: recorridas.slice(),
+          mensaje: `Arreglo anidado de la dirección ${direccion} saturado: `
+            + (tamanoAnidado === 1 ? 'su única posición está ocupada' : `sus ${tamanoAnidado} posiciones están ocupadas`)
+            + ` y la clave ${clave} no se inserta.`
+        })));
+      }
+      return pasos;
+    }
+
     const sondeo = sondearLineal({
       claves,
       n,
@@ -129,7 +182,7 @@
     return pasos;
   }
 
-  function buscar({ claves, n, objetivo, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO }) {
+  function buscar({ claves, n, objetivo, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO, anidados = [], tamanoAnidado = 0 }) {
     const contadores = { comparaciones: 0, accesos: 0 };
     const { direccion, calculo } = direccionDe(objetivo, n, parametros);
     const pasos = pasosDelCalculo(calculo, contadores);
@@ -180,6 +233,52 @@
         casilla: direccion,
         mensaje: `Clave no localizada en la estructura tras ${contadores.comparaciones} comparaciones.`
       })));
+      return pasos;
+    }
+
+    // Con arreglos anidados la búsqueda no se va a otra dirección: baja al
+    // arreglo de esta. Para en la clave o en la primera posición vacía, que
+    // prueba la ausencia porque el anidado se llena en orden.
+    if (tratamiento === TRATAMIENTOS.ANIDADOS) {
+      const anidado = anidados[direccion - 1] || [];
+      const recorrido = recorrerAnidado({
+        anidado,
+        tamano: tamanoAnidado,
+        condicion: (candidato) => candidato === undefined || candidato === objetivo
+      });
+
+      for (const visita of recorrido.recorrido) {
+        contadores.accesos++;
+        if (visita.clave !== undefined) contadores.comparaciones++;
+        if (!visita.detener) {
+          pasos.push(crearPaso(TIPOS_PASO.COMPARACION, Object.assign(comun(), {
+            casilla: direccion,
+            posicion: visita.posicion,
+            mensaje: `Arreglo anidado de ${direccion}: ${objetivo} no coincide con ${visita.clave} en la posición ${visita.posicion}; se avanza.`
+          })));
+          continue;
+        }
+        if (visita.clave === objetivo) {
+          pasos.push(crearPaso(TIPOS_PASO.ENCONTRADA, Object.assign(comun(), {
+            casilla: direccion,
+            posicion: visita.posicion,
+            mensaje: `Clave localizada en la posición ${visita.posicion} del arreglo anidado de ${direccion} tras ${contadores.comparaciones} comparaciones.`
+          })));
+        } else {
+          pasos.push(crearPaso(TIPOS_PASO.NO_ENCONTRADA, Object.assign(comun(), {
+            casilla: direccion,
+            posicion: visita.posicion,
+            mensaje: `Clave no localizada en la estructura: la posición ${visita.posicion} del arreglo anidado de ${direccion} está vacía.`
+          })));
+        }
+      }
+
+      if (recorrido.agotado) {
+        pasos.push(crearPaso(TIPOS_PASO.NO_ENCONTRADA, Object.assign(comun(), {
+          casilla: direccion,
+          mensaje: `Clave no localizada en la estructura tras ${contadores.comparaciones} comparaciones: el arreglo anidado de ${direccion} está lleno y ninguna coincide.`
+        })));
+      }
       return pasos;
     }
 
@@ -238,13 +337,65 @@
   // El grupo se recorre hasta la primera casilla vacía y no más allá: si hay
   // una vacía, ninguna clave posterior pudo haberse corrido cruzándola, así
   // que su cadena nunca pasó por aquí y nada de lo que sigue está en riesgo.
-  function eliminar({ claves, n, clave, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO }) {
-    const pasos = buscar({ claves, n, objetivo: clave, direccionDe, parametros, tratamiento });
+  function eliminar({ claves, n, clave, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO, anidados = [], tamanoAnidado = 0 }) {
+    const pasos = buscar({
+      claves, n, objetivo: clave, direccionDe, parametros, tratamiento, anidados, tamanoAnidado
+    });
     const hallazgo = pasos[pasos.length - 1];
     if (hallazgo.tipo !== TIPOS_PASO.ENCONTRADA) return pasos;
 
     const contadores = { comparaciones: hallazgo.comparaciones, accesos: hallazgo.accesos };
     const casilla = hallazgo.casilla;
+
+    // Con arreglos anidados la clave sale de donde esté —la casilla de la
+    // dirección o una posición de su arreglo— y después el arreglo se cierra:
+    // las de atrás se corren, y si la casilla quedó vacía sube a ella la
+    // primera del anidado. Sin eso quedaría una dirección vacía con claves
+    // colgando, que contradice lo que el dibujo dice.
+    if (tratamiento === TRATAMIENTOS.ANIDADOS) {
+      const posicion = hallazgo.posicion;
+      const anidado = anidados[casilla - 1] || [];
+      // Solo hay algo que cerrar si queda una clave *detrás* de la que salió.
+      // Sacar la última del arreglo no mueve nada, y un paso que no mueve nada
+      // sobra en la traza.
+      const hayQueCerrar = posicion === undefined
+        ? anidado.some((entrada) => entrada !== undefined)
+        : anidado.some((entrada, i) => entrada !== undefined && i + 1 > posicion);
+
+      pasos.push(crearPaso(TIPOS_PASO.ELIMINACION, {
+        calculo: hallazgo.calculo,
+        direccion: hallazgo.direccion,
+        casilla,
+        posicion,
+        clave,
+        efecto: posicion === undefined
+          ? { tipo: 'retirar', casilla }
+          : { tipo: 'retirar-anidado', casilla, posicion },
+        comparaciones: contadores.comparaciones,
+        accesos: contadores.accesos,
+        mensaje: posicion === undefined
+          ? `Clave ${clave} eliminada de la casilla ${casilla}.`
+          : `Clave ${clave} eliminada de la posición ${posicion} del arreglo anidado de ${casilla}.`
+      }));
+
+      // Nada que cerrar: el arreglo queda vacío y la casilla ya está en su
+      // sitio. Un paso que no mueve nada sobra.
+      if (hayQueCerrar) {
+        pasos.push(crearPaso(TIPOS_PASO.DESPLAZAMIENTO, {
+          calculo: hallazgo.calculo,
+          direccion: hallazgo.direccion,
+          casilla,
+          clave,
+          efecto: { tipo: 'compactar-anidado', casilla },
+          comparaciones: contadores.comparaciones,
+          accesos: contadores.accesos,
+          mensaje: posicion === undefined
+            ? `La primera clave del arreglo anidado de ${casilla} sube a la casilla, y las demás se desplazan.`
+            : `El arreglo anidado de ${casilla} cierra el hueco: las claves de atrás se desplazan una posición.`
+        }));
+      }
+      return pasos;
+    }
 
     // Una sola tabla simulada para toda la operación: la traza no toca la
     // estructura real, pero sí necesita saber cómo va quedando para que cada

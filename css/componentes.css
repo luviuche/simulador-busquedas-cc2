@@ -247,6 +247,25 @@ form input[type="checkbox"] {
   margin-left: var(--espacio-1);
 }
 
+/* Casilla del arreglo anidado de una dirección (CLAUDE.md 5.4). Se separa de
+   la casilla de la tabla con un canal a la izquierda de la primera, para que
+   la fila se lea como lo que es: la tabla, y al lado su estructura secundaria.
+   El borde más delgado las agrupa visualmente sin darles otro color, que está
+   reservado a los estados del algoritmo (CLAUDE.md 8.1). */
+.casilla--anidada {
+  min-width: 52px;
+  border-style: dotted;
+}
+
+.casilla--anidada.casilla--ocupada,
+.casilla--anidada.casilla--encontrada,
+.casilla--anidada.casilla--insertada,
+.casilla--anidada.casilla--colision,
+.casilla--anidada.casilla--eliminada,
+.casilla--anidada.casilla--en-evaluacion {
+  border-style: solid;
+}
+
 /* Casilla de la que sale una clave: la que se elimina, y la que se levanta
    para volver a dispersarse. Comparte el rojo de la colisión —las dos son un
    paso que quita, no que coloca— y su refuerzo no cromático es la equis

@@ -30,6 +30,7 @@
   <script src="../js/algoritmos/binaria.js"></script>
   <script src="../js/algoritmos/eliminacion.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
+  <script src="../js/algoritmos/colisiones/anidados.js"></script>
   <script src="../js/algoritmos/hash/comun.js"></script>
   <script src="../js/algoritmos/hash/modulo.js"></script>
   <script src="../js/algoritmos/hash/cuadrado.js"></script>
@@ -63,9 +64,14 @@
       registro.push((condicion ? '✔ ' : '✕ ') + descripcion);
     }
 
+    // Asignar `.value` no dispara `change`, y hay campos que reaccionan a otro
+    // —el tamaño del arreglo anidado aparece al elegir ese tratamiento—: sin
+    // el evento, la prueba vería un formulario que el usuario nunca ve.
     function enviar(formulario, valores) {
       for (const [nombre, valor] of Object.entries(valores)) {
-        formulario.querySelector(`[name="${nombre}"]`).value = valor;
+        const campo = formulario.querySelector(`[name="${nombre}"]`);
+        campo.value = valor;
+        campo.dispatchEvent(new Event('change', { bubbles: true }));
       }
       formulario.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     }
@@ -297,6 +303,7 @@
       eliminarEnBinaria();
       eliminarConReasignacion();
       avisosDeLaTraza();
+      anidados();
     }
 
     // La tabla grande es donde se ve la regla del docente: en una estructura
@@ -782,6 +789,128 @@
       document.querySelector('.pantalla-tema__volver').click();
     }
 
+    // Arreglos anidados: cada dirección dibuja su estructura secundaria al
+    // lado, como una matriz. La primera columna es la tabla y las demás el
+    // arreglo, así que hay que comprobar que cada casilla cae en su columna y
+    // que la clave que chocó no se fue a otra dirección.
+    function anidados() {
+      registro.push('', '── Arreglos anidados ──');
+
+      const formularios = entrarATemaHash('Función módulo', {
+        nombre: 'Anidados', n: 10, l: 4, tratamiento: 'anidados'
+      });
+      // El tamaño del arreglo no se pide: la matriz es de n × n, así que sale
+      // de n. Pedirlo era el error que el usuario corrigió.
+      afirmar(
+        !formularios[0].querySelector('[name="tamanoAnidado"]'),
+        'el formulario no pide el tamaño del arreglo: sale de n'
+      );
+
+      // 7412, 5312 y 9912 comparten la dirección 3.
+      for (const clave of [7412, 5312, 9912, 1023]) {
+        operar(formularios, 'insertar', clave);
+        agotarTraza();
+      }
+
+      const fila = (indice) => [...document.querySelectorAll('.fila-casilla')]
+        .find((f) => {
+          const marca = f.querySelector('.escala__marca');
+          return marca && marca.textContent === String(indice);
+        });
+      const contenido = (indice) => [...fila(indice).querySelectorAll('.casilla')]
+        .map((el) => el.textContent.replace(/[^0-9]/g, '') || '·')
+        .join(' ');
+
+      registro.push('  dirección 3: ' + contenido(3));
+      registro.push('  dirección 4: ' + contenido(4));
+      afirmar(contenido(3).startsWith('7412 5312 9912'), 'las tres claves de la dirección 3 caen en su fila');
+      afirmar(/^1023( ·)+$/.test(contenido(4)), 'una dirección sin colisiones dibuja su arreglo vacío');
+      // Matriz de n × n: la tabla más n − 1 columnas de arreglo. Con n = 10
+      // son nueve, y caben sin elidir.
+      const anidadasDibujadas = fila(3).querySelectorAll('.casilla--anidada').length;
+      afirmar(
+        anidadasDibujadas === 9,
+        `cada dirección dibuja n − 1 = 9 casillas anidadas (dibuja ${anidadasDibujadas})`
+      );
+
+      // La clave nunca se aleja de su dirección: es lo que separa este
+      // tratamiento de la reasignación.
+      afirmar(
+        [...document.querySelectorAll('.fila-casilla')].every((f) => {
+          const marca = f.querySelector('.escala__marca');
+          return !marca || !['5', '6'].includes(marca.textContent)
+            || ![...f.querySelectorAll('.casilla')].some((c) => c.textContent.replace(/[^0-9]/g, ''));
+        }),
+        'ninguna clave se fue a otra dirección'
+      );
+
+      operar(formularios, 'buscar', 9912);
+      agotarTraza();
+      const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+      afirmar(metricas[0] === '3', `buscar en el arreglo cuesta 3 comparaciones (reporta ${metricas[0]})`);
+      // La matriz es de n × n, así que caben 100 claves y no 10: medir contra
+      // n daría más de 1 con la tabla a medio llenar.
+      afirmar(
+        metricas[2] === '0.04',
+        `el factor de carga se mide contra n × n = 100 (reporta ${metricas[2]})`
+      );
+
+      // Al sacar la de la tabla, la primera del arreglo sube a ocuparla.
+      operar(formularios, 'eliminar', 7412);
+      agotarTraza(20);
+      registro.push('  tras eliminar 7412: ' + contenido(3));
+      afirmar(contenido(3).startsWith('5312 9912'), 'la primera del arreglo sube a la casilla y las demás se desplazan');
+
+      // Con el arreglo lleno la clave no entra y se dice por qué.
+      // Con n = 2 una dirección sostiene 2 claves: la tabla y una del arreglo.
+      enviar(formularios[0], { nombre: 'Lleno', n: 2, l: 4, tratamiento: 'anidados' });
+      for (const clave of [7412, 5312]) {
+        operar(formularios, 'insertar', clave);
+        agotarTraza();
+      }
+      operar(formularios, 'insertar', 9912);
+      agotarTraza();
+      registro.push('  saturado: ' + aviso().textContent);
+      afirmar(
+        aviso().classList.contains('alerta--error') && aviso().textContent.includes('saturado'),
+        'con el arreglo lleno la clave no entra y el aviso lo dice'
+      );
+
+      // Con n grande el arreglo tiene n − 1 columnas y no caben: elide con la
+      // misma regla que la tabla —la primera, la última, las ocupadas, y un
+      // tramo diciendo cuánto se resumió—.
+      enviar(formularios[0], { nombre: 'Ancha', n: 100, l: 4, tratamiento: 'anidados' });
+      for (const clave of [1004, 1104, 1204]) {
+        operar(formularios, 'insertar', clave);
+        agotarTraza();
+      }
+      const filaAncha = [...document.querySelectorAll('.fila-casilla')]
+        .find((f) => {
+          const marca = f.querySelector('.escala__marca');
+          return marca && marca.textContent === '5';
+        });
+      const dibujadasEnAncha = filaAncha.querySelectorAll('.casilla--anidada').length;
+      registro.push(
+        `  n = 100: ${dibujadasEnAncha} casillas anidadas dibujadas de 99, con `
+        + `${filaAncha.querySelectorAll('.tramo-elidido--anidado').length} tramo(s)`
+      );
+      afirmar(
+        dibujadasEnAncha < 99 && filaAncha.querySelectorAll('.tramo-elidido--anidado').length > 0,
+        'con n grande el arreglo anidado elide como la tabla, con su tramo'
+      );
+      // Todas las filas dibujan las mismas columnas: si cada una elidiera por
+      // su cuenta, la matriz dejaría de estar alineada.
+      const anchos = [...document.querySelectorAll('.fila-casilla')]
+        .filter((f) => f.querySelector('.casilla'))
+        .map((f) => f.querySelectorAll('.casilla--anidada, .tramo-elidido--anidado').length);
+      afirmar(
+        new Set(anchos).size === 1,
+        `todas las filas dibujan las mismas columnas (anchos: ${[...new Set(anchos)].join(', ')})`
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
     // Entra a un tema de transformación de claves y crea una estructura
     // dispersa. Devuelve los formularios para seguir operando sobre ella.
     // Los parámetros propios del tema —la base, las posiciones, la operación—
@@ -794,7 +923,7 @@
         .click();
       const formularios = [...document.querySelectorAll('form.panel')];
       const campos = { nombre: opciones.nombre, n: opciones.n, l: opciones.l, tratamiento: opciones.tratamiento };
-      for (const propio of ['base', 'posiciones', 'operacion']) {
+      for (const propio of ['base', 'posiciones', 'operacion', 'tamanoAnidado']) {
         if (opciones[propio] !== undefined) campos[propio] = opciones[propio];
       }
       enviar(formularios[0], campos);

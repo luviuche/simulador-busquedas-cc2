@@ -91,12 +91,16 @@
   // Factor de carga: cuánto de la estructura está ocupado. Es la métrica que
   // explica el comportamiento de una tabla hash —las colisiones se disparan
   // mucho antes de llenarla— y por eso acompaña a los temas de transformación.
+  //
+  // Se mide contra la **capacidad** y no contra n: con arreglos anidados caben
+  // n × (1 + k) claves, y dividir por n daría más de 1 con la tabla a medio
+  // llenar.
   const METRICA_FACTOR_CARGA = {
     id: 'factor-carga',
     etiqueta: 'Factor de carga',
     valor: ({ estructura }) => (
       estructura
-        ? (dominio.estructura.cantidadClaves(estructura) / estructura.n).toFixed(2)
+        ? (dominio.estructura.cantidadClaves(estructura) / dominio.estructura.capacidad(estructura)).toFixed(2)
         : '0.00'
     )
   };
@@ -123,7 +127,9 @@
       objetivo,
       direccionDe,
       parametros: estructura.parametros,
-      tratamiento: estructura.tratamiento
+      tratamiento: estructura.tratamiento,
+      anidados: estructura.anidados,
+      tamanoAnidado: estructura.tamanoAnidado
     });
 
     return {
@@ -135,24 +141,47 @@
       parametros,
       tratamientos: [
         { valor: hashOperaciones.TRATAMIENTOS.NINGUNO, etiqueta: 'Sin tratamiento' },
-        { valor: hashOperaciones.TRATAMIENTOS.REASIGNACION, etiqueta: 'Reasignación (prueba lineal)' }
+        { valor: hashOperaciones.TRATAMIENTOS.REASIGNACION, etiqueta: 'Reasignación (prueba lineal)' },
+        { valor: hashOperaciones.TRATAMIENTOS.ANIDADOS, etiqueta: 'Arreglos anidados' }
       ],
+      // Con arreglos anidados la estructura es una **matriz de n × n**: la
+      // primera columna es la tabla y las otras `n − 1` el arreglo de cada
+      // dirección, así que en una dirección caben `n` claves contando la suya
+      // (CLAUDE.md 5.4). El tamaño no se pide: sale de `n`.
+      anidados: {
+        columnas: (estructura) => (
+          estructura.tratamiento === hashOperaciones.TRATAMIENTOS.ANIDADOS
+            ? estructura.n - 1
+            : 0
+        )
+      },
       insertar: operar(hashOperaciones.insertar),
       buscar: operar(hashOperaciones.buscar),
       eliminar: operar(hashOperaciones.eliminar),
       casillasRelevantes: (paso) => [paso.casilla, paso.direccion]
         .concat(paso.sondeadas || [])
         .filter(Boolean),
-      describirCasilla: ({ paso, indice, ocupada }) => {
+      // `posicion` distingue la casilla de la tabla —donde es `undefined`— de
+      // cada casilla del arreglo anidado de esa dirección. Un paso marca una
+      // sola de las dos, así que las dos tienen que coincidir para pintar.
+      describirCasilla: ({ paso, indice, posicion, ocupada }) => {
         const base = ocupada ? 'ocupada' : 'vacia';
         if (!paso) return { estado: base };
 
         const modificadores = [];
         // La dirección que dio el hash se sigue marcando aunque el sondeo ya
         // se haya ido de ella: es lo que deja ver cuánto se alejó la clave.
-        if (paso.direccion === indice && paso.casilla !== indice) modificadores.push('direccion');
+        if (paso.direccion === indice && paso.casilla !== indice && posicion === undefined) {
+          modificadores.push('direccion');
+        }
 
-        if (paso.casilla === indice) {
+        // Posiciones del anidado ya recorridas por esta inserción: el rastro
+        // que deja ver por qué la clave terminó donde terminó.
+        if (posicion !== undefined && paso.casilla === indice) {
+          if (paso.recorridas && paso.recorridas.includes(posicion)) modificadores.push('sondeada');
+        }
+
+        if (paso.casilla === indice && paso.posicion === posicion) {
           if (paso.tipo === 'encontrada') return { estado: 'encontrada', modificadores };
           if (paso.tipo === 'insercion') return { estado: 'insertada', modificadores };
           // La clave que sale y la que se levanta para volver a dispersarse
@@ -160,14 +189,18 @@
           if (paso.tipo === 'eliminacion' || paso.tipo === 'extraccion') {
             return { estado: 'eliminada', modificadores };
           }
-          if (paso.tipo === 'colision' || paso.tipo === 'rechazada') {
+          if (paso.tipo === 'colision' || paso.tipo === 'rechazada' || paso.tipo === 'saturada') {
             return { estado: 'colision', modificadores };
           }
           return { estado: 'en-evaluacion', modificadores };
         }
-        if (paso.colision === indice) return { estado: 'colision', modificadores };
-        if (paso.sondeadas && paso.sondeadas.includes(indice)) {
-          return { estado: base, modificadores: modificadores.concat('sondeada') };
+        // Estas dos hablan de casillas de la tabla, no del anidado: sin acotar
+        // por `posicion`, una colisión pintaría de rojo la fila entera.
+        if (posicion === undefined) {
+          if (paso.colision === indice) return { estado: 'colision', modificadores };
+          if (paso.sondeadas && paso.sondeadas.includes(indice)) {
+            return { estado: base, modificadores: modificadores.concat('sondeada') };
+          }
         }
         return { estado: base, modificadores };
       },

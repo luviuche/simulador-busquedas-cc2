@@ -260,7 +260,7 @@ El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada
 │   │   │   ├── modulo.js · cuadrado.js · truncamiento.js
 │   │   │   ├── plegamiento.js · bases.js
 │   │   │   └── operaciones.js traza de insertar, buscar y eliminar
-│   │   └── colisiones/     reasignacion.js (anidados, encadenamiento)
+│   │   └── colisiones/     reasignacion.js · anidados.js (falta encadenamiento)
 │   ├── vista/
 │   │   ├── componentes/    casilla, panel, alerta, métrica, bitácora, cálculo
 │   │   ├── pantallas/
@@ -394,6 +394,35 @@ La traza debe registrar **cada casilla recorrida** por el tratamiento, no solo e
 Se elige al crear y no después porque el tratamiento cambia la **forma** de la estructura y no solo su comportamiento: arreglos anidados y encadenamiento necesitan estructuras secundarias por dirección, así que cambiarlo con claves ya colocadas obligaría a redispersar la tabla entera. Como efecto secundario, comparar dos tratamientos es crear dos estructuras con las mismas claves y ponerlas lado a lado, que es como se explica en clase.
 
 `ninguno` es un tratamiento más, y el que deja ver la función hash pura: al chocar, la clave **no entra** y la casilla se marca como colisión. Es el estado inicial del selector.
+
+#### Arreglos anidados (2026-08-29)
+
+**La estructura es una matriz de `n × n`.** La primera columna es la tabla y las otras `n − 1` son el arreglo anidado de cada dirección, así que en una dirección caben `n` claves contando la suya. **El tamaño no se pide: sale de `n`.** Pedirlo como parámetro fue el primer intento y estaba mal — es forma de la estructura, no una elección del estudiante.
+
+**La clave nunca se aleja de su dirección**, y eso es lo que lo separa de la reasignación: el límite es la capacidad del arreglo de esa dirección, no la de la tabla.
+
+- **La clave que obtuvo la dirección se queda en la casilla de la tabla**; el anidado es para las siguientes. Una dirección sin colisiones no usa su arreglo.
+- **Cuando el arreglo se llena, la clave no entra** y se dice por qué. Deja ver el límite del método, que es la razón de que después se enseñe encadenamiento. Dejarlo crecer sin tope lo convertiría en encadenamiento y los dos temas se verían igual.
+- **Búsqueda:** primero la casilla de la dirección, después el arreglo posición por posición. Hasta `n` comparaciones, y eso es lo que la métrica debe dejar ver. Una posición vacía prueba la ausencia: el arreglo se llena en orden.
+- **Eliminación:** la clave sale de donde esté y el arreglo cierra el hueco. Si la que salió era la de la tabla, **sube la primera del anidado a ocuparla** — sin eso quedaría una dirección vacía con claves colgando, que contradice lo que el dibujo dice y dejaría la primera comparación de la búsqueda contra una casilla que nadie ocupa.
+- **El factor de carga se mide contra la capacidad, `n × n`.** Dividir por `n` daría más de 1 con la tabla a medio llenar.
+
+**Cómo se dibuja** (maqueta acordada con el usuario, que la había trabajado igual): la fila de cada dirección se lee como una matriz, con un canal entre la tabla y su arreglo.
+
+```
+         tabla        arreglo anidado (n - 1 = 9)
+  dir      ·        1      2      3     ...     9
+    3   [ 7412 ]  [5312] [9912] [    ]  ...  [    ]
+    4   [ 1023 ]  [    ] [    ] [    ]  ...  [    ]
+```
+
+**El arreglo elide con la misma regla que la tabla** (§6.2): la primera posición, la última, las ocupadas, y un tramo diciendo cuánto se resumió. Con `n = 10` sus nueve columnas caben y no se elide nada, que es el caso del salón; con `n = 100` serían 99 columnas por fila y sin elidir habría que desplazarse a lo ancho, encima del desplazamiento vertical que el lienzo ya tiene.
+
+Las posiciones vacías que sí se dibujan son la única excepción a la regla de no dibujar casillas vacías: ahí no son direcciones intermedias sino la capacidad del arreglo, y ver cuánto queda antes de que el método se agote es lo que el tema enseña.
+
+**Los segmentos del anidado se calculan una sola vez para todas las filas**, sobre las posiciones ocupadas de la estructura entera. Si cada fila elidiera por su cuenta tendrían distinta cantidad de columnas y la matriz dejaría de estar alineada, que es justo lo que la hace legible — el mismo cuidado que las columnas del apilado de binaria (§6.3).
+
+El tema lo declara con `anidados: { columnas(estructura) }`, y `describirCasilla` recibe `posicion` para distinguir la casilla de la tabla —donde es `undefined`— de cada casilla del arreglo.
 
 ### 5.5 Otras búsquedas internas
 
@@ -706,7 +735,7 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 
-**Tratamientos de colisión construidos: `ninguno` y `reasignación` (prueba lineal).** Arreglos anidados y encadenamiento secuencial faltan, y no son un simple `direccionDe` más: necesitan estructuras secundarias por dirección, es decir un modelo de datos y un dibujo que hoy no existen. Antes de construirlos hay que decidir con el docente **cómo se ven** esas estructuras secundarias.
+**Tratamientos de colisión construidos: `ninguno`, `reasignación` (prueba lineal) y `arreglos anidados` (§5.4).** Falta **encadenamiento secuencial**. Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el dibujo en matriz, así que el encadenamiento ya no parte de cero: lo que cambia es que su estructura secundaria no tiene tope.
 
 Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al stack de respaldo), y ni `css/impresion.css` ni `persistencia/archivo.js` (.cc2) están construidos.
 

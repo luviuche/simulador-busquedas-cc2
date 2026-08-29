@@ -118,7 +118,16 @@
       retirar: (efecto) => dominio.estructura.retirarDe(estado.estructura, efecto.casilla),
       // En una estructura ordenada sacar la clave cierra el hueco: el dominio
       // desplaza las siguientes, y el FLIP lo anima (CLAUDE.md 7).
-      eliminar: (efecto) => dominio.estructura.eliminar(estado.estructura, efecto.clave)
+      eliminar: (efecto) => dominio.estructura.eliminar(estado.estructura, efecto.clave),
+      // Arreglos anidados (CLAUDE.md 5.4): la estructura secundaria de una
+      // dirección se toca con las mismas tres operaciones que la tabla.
+      'colocar-anidado': (efecto) => dominio.estructura.colocarEnAnidado(
+        estado.estructura, efecto.casilla, efecto.posicion, efecto.clave
+      ),
+      'retirar-anidado': (efecto) => dominio.estructura.retirarDeAnidado(
+        estado.estructura, efecto.casilla, efecto.posicion
+      ),
+      'compactar-anidado': (efecto) => dominio.estructura.compactarAnidado(estado.estructura, efecto.casilla)
     };
 
     // La estructura visible siempre corresponde al paso en pantalla: se parte
@@ -131,7 +140,12 @@
     // Rehacer desde el estado base no puede desincronizarse.
     function sincronizarEfectos(indicePaso) {
       if (!estado.clavesBase || !estado.pasos) return;
-      estado.estructura.claves = estado.clavesBase.slice();
+      estado.estructura.claves = estado.clavesBase.claves.slice();
+      // Cada anidado se copia aparte: sin eso, compactar uno mutaría el propio
+      // estado base y el paso siguiente rehacería sobre algo ya movido.
+      estado.estructura.anidados = estado.clavesBase.anidados.map(
+        (anidado) => (anidado ? anidado.slice() : anidado)
+      );
       const hasta = Math.min(indicePaso, estado.pasos.length - 1);
       for (let i = 0; i <= hasta; i++) {
         const efecto = estado.pasos[i].efecto;
@@ -180,6 +194,74 @@
 
     function esVertical() {
       return config.orientacion === 'vertical';
+    }
+
+    // Cuántas columnas de arreglo anidado dibuja cada dirección (CLAUDE.md 5.4).
+    // Cero cuando el tratamiento elegido no tiene estructuras secundarias, que
+    // es el caso de los demás y de todos los temas que no son hash.
+    function columnasAnidadas() {
+      return (config.anidados && estado.estructura) ? config.anidados.columnas(estado.estructura) : 0;
+    }
+
+    // Las columnas del arreglo anidado, elididas con la misma regla que la
+    // tabla (CLAUDE.md 6.2): la primera, la última, y las posiciones que hay
+    // que ver, con un tramo diciendo cuánto se resumió.
+    //
+    // **Se calculan una sola vez para todas las filas**, sobre las posiciones
+    // ocupadas de la estructura entera. Si cada fila elidiera por su cuenta,
+    // tendrían distinta cantidad de columnas y la matriz dejaría de estar
+    // alineada, que es justo lo que la hace legible.
+    function segmentosAnidados(paso) {
+      const columnas = columnasAnidadas();
+      if (columnas === 0) return [];
+
+      const relevantes = [];
+      for (let indice = 1; indice <= estado.estructura.n; indice++) {
+        const anidado = dominio.estructura.anidadoDe(estado.estructura, indice);
+        for (let posicion = 1; posicion <= anidado.length; posicion++) {
+          if (anidado[posicion - 1] !== undefined) relevantes.push(posicion);
+        }
+      }
+      if (paso && paso.posicion) relevantes.push(paso.posicion);
+
+      return vista.elision.calcularSegmentos({
+        n: columnas,
+        relevantes,
+        // El arreglo se dibuja a lo ancho de la fila, así que su umbral es el
+        // horizontal: con n = 10 sus nueve columnas caben y no se elide nada.
+        orientacion: 'horizontal',
+        mostrarCompleta: estado.mostrarCompleta,
+        vecinas: false
+      });
+    }
+
+    // La fila de una dirección con arreglo anidado se lee como una matriz: la
+    // primera columna es la tabla —donde aterrizó la clave que obtuvo la
+    // dirección— y las demás son su arreglo, en orden de llegada. Las vacías
+    // se dibujan a propósito: ver cuánto espacio queda antes de que el método
+    // se agote es lo que el tema enseña.
+    function casillasAnidadas(paso, indice, segmentos) {
+      const anidado = dominio.estructura.anidadoDe(estado.estructura, indice);
+      return segmentos.map((segmento) => {
+        // Un tramo solo esconde posiciones vacías: las ocupadas son relevantes
+        // en todas las filas, así que ninguna cae dentro de un tramo.
+        if (segmento.tipo === 'tramo') {
+          const tramoEl = crearTramo(segmento.desde, segmento.hasta);
+          tramoEl.classList.add('tramo-elidido--anidado');
+          return tramoEl;
+        }
+        const posicion = segmento.indice;
+        const clave = anidado[posicion - 1];
+        const descripcion = config.describirCasilla({ paso, indice, posicion, ocupada: clave !== undefined });
+        return vista.componentes.casilla.crearCasilla({
+          clave,
+          // Identidad propia por posición: dos casillas vacías con la misma
+          // identidad dejarían al FLIP sin saber cuál se movió (CLAUDE.md 7).
+          indice: `${indice}.${posicion}`,
+          estado: descripcion.estado,
+          modificadores: (descripcion.modificadores || []).concat('anidada')
+        });
+      });
     }
 
     function segmentosDe(relevantes) {
@@ -262,6 +344,8 @@
       const relevantesDelPasoActual = paso ? config.casillasRelevantes(paso) : [];
       const indiceSeguido = relevantesDelPasoActual[0];
       let grupoSeguido = null;
+      // Una sola vez para todas las filas: es lo que mantiene la matriz alineada.
+      const columnasDelAnidado = vertical ? segmentosAnidados(paso) : [];
 
       // Casilla y marca de la escala se dibujan en la misma línea: es lo que
       // mantiene la numeración alineada con lo que rotula cuando hay elisión
@@ -281,8 +365,9 @@
             const tramoEl = crearTramo(segmento.desde, segmento.hasta);
             // Sin rótulo, el grupo tiene un solo hijo: en vertical el grid lo
             // metería en la columna de la escala, así que se lo manda a la de
-            // las casillas a mano.
-            if (vertical) tramoEl.style.gridColumn = '2';
+            // las casillas a mano. Con arreglos anidados cruza la matriz
+            // entera, que es lo que dice que se saltaron filas completas.
+            if (vertical) tramoEl.style.gridColumn = columnasAnidadas() > 0 ? '2 / -1' : '2';
             grupo.appendChild(tramoEl);
             dom.estructuraEl.appendChild(grupo);
             continue;
@@ -298,8 +383,12 @@
             modificadores: descripcion.modificadores
           });
           const marcaEl = crearMarca(indice, n);
+          const anidadas = vertical ? casillasAnidadas(paso, indice, columnasDelAnidado) : [];
+          if (anidadas.length > 0) {
+            grupo.style.gridTemplateColumns = `3ch auto repeat(${anidadas.length}, auto)`;
+          }
 
-          grupo.append(...(vertical ? [marcaEl, casillaEl] : [casillaEl, marcaEl]));
+          grupo.append(...(vertical ? [marcaEl, casillaEl, ...anidadas] : [casillaEl, marcaEl]));
           dom.estructuraEl.appendChild(grupo);
           if (indice === indiceSeguido) grupoSeguido = grupo;
         }
@@ -449,7 +538,10 @@
     // único que las diferencia desde aquí: el reproductor solo recorre pasos.
     function reproducirOperacion(pasos, mensajeInicial) {
       estado.pasos = pasos;
-      estado.clavesBase = estado.estructura.claves.slice();
+      estado.clavesBase = {
+        claves: estado.estructura.claves.slice(),
+        anidados: (estado.estructura.anidados || []).map((anidado) => (anidado ? anidado.slice() : anidado))
+      };
       calcularSegmentosApilado();
       dom.seccionReproduccion.hidden = false;
       registrarBitacora(mensajeInicial);
@@ -634,8 +726,16 @@
           : `<input type="${parametro.tipo === 'numero' ? 'number' : 'text'}"
                     name="${parametro.nombre}"
                     placeholder="${parametro.marcador || ''}">`;
+        // Un parámetro puede ser del tratamiento y no del tema —el tamaño del
+        // arreglo anidado lo es—: entonces solo se muestra cuando ese
+        // tratamiento está elegido. Sigue existiendo en el formulario aunque
+        // esté oculto, y su validación resuelve el vacío como el valor por
+        // defecto, así que no hace falta un camino aparte para leerlo.
+        const alcance = parametro.soloConTratamiento
+          ? ` data-solo-con-tratamiento="${parametro.soloConTratamiento}"`
+          : '';
         return `
-        <label class="texto-nivel-3">${parametro.etiqueta}
+        <label class="texto-nivel-3"${alcance}>${parametro.etiqueta}
           ${control}
           <span class="campo__ayuda texto-nivel-5">${parametro.ayuda || ''}</span>
         </label>
@@ -658,6 +758,19 @@
           <button type="submit" class="boton boton--primario">Crear estructura</button>
         </div>
       `;
+      // Los campos que pertenecen a un tratamiento aparecen y desaparecen con
+      // él, para que el formulario no pida un dato que no se va a usar.
+      const camposDelTratamiento = [...contenedor.querySelectorAll('[data-solo-con-tratamiento]')];
+      const selector = contenedor.querySelector('[name="tratamiento"]');
+      function sincronizarCamposDelTratamiento() {
+        const elegido = selector ? selector.value : null;
+        for (const campo of camposDelTratamiento) {
+          campo.hidden = campo.dataset.soloConTratamiento !== elegido;
+        }
+      }
+      if (selector) selector.addEventListener('change', sincronizarCamposDelTratamiento);
+      sincronizarCamposDelTratamiento();
+
       contenedor.addEventListener('submit', (evento) => {
         evento.preventDefault();
         const datos = new FormData(contenedor);
@@ -697,6 +810,12 @@
         invalidarReproduccion();
         resultado.estructura.nombre = nombre;
         resultado.estructura.parametros = parametros;
+        // El tamaño del anidado no se pide: es forma de la estructura y sale
+        // de `n`. El dominio lo necesita para saber cuánto cabe, y la vista
+        // para saber cuántas columnas tiene la matriz.
+        resultado.estructura.tamanoAnidado = config.anidados
+          ? config.anidados.columnas(resultado.estructura)
+          : 0;
         estado.estructura = resultado.estructura;
         limpiarAlerta();
         // Las advertencias del tema pesan más que la del tamaño: hablan de una
@@ -707,6 +826,9 @@
           ? `, tratamiento de colisiones por ${etiquetaTratamiento(tratamiento)}`
           : '';
         const detalleParametros = (config.parametros || [])
+          // Un parámetro de otro tratamiento no se registra: la bitácora diría
+          // que se creó con un dato que la estructura no usa.
+          .filter((parametro) => !parametro.soloConTratamiento || parametro.soloConTratamiento === tratamiento)
           .map((parametro) => `, ${parametro.etiqueta.toLowerCase()} ${parametros[parametro.nombre]}`)
           .join('');
         registrarBitacora(`Estructura creada: n = ${n}, l = ${l}${detalleParametros}${detalleTratamiento}.`);

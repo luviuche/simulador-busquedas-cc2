@@ -396,12 +396,30 @@
   text-align: right;
 }
 
+/* Un canal separa la tabla de su arreglo anidado. Sin él la fila se lee como
+   un arreglo de k+1 casillas iguales y se pierde cuál es la dirección, que es
+   justo lo que la primera columna significa (CLAUDE.md 5.4). */
+.fila-casilla .casilla--anidada:nth-child(3) {
+  margin-left: var(--espacio-3);
+}
+
 .fila-casilla .tramo-elidido {
   height: 24px;
   border-left: none;
   border-right: none;
   border-top: 1px dashed var(--borde-fuerte);
   border-bottom: 1px dashed var(--borde-fuerte);
+}
+
+/* El tramo del arreglo anidado corre a lo ancho de la fila y no a lo alto de
+   la tabla, así que recupera el trazo vertical y el alto de una casilla: es
+   una elisión horizontal dentro de una estructura vertical. */
+.fila-casilla .tramo-elidido--anidado {
+  height: 40px;
+  border-top: none;
+  border-bottom: none;
+  border-left: 1px dashed var(--borde-fuerte);
+  border-right: 1px dashed var(--borde-fuerte);
 }
 
 /* Panel del cálculo de la dirección (CLAUDE.md 5.3): el desarrollo se revela
