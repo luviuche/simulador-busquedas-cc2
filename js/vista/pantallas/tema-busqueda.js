@@ -109,6 +109,12 @@
       return el;
     }
 
+    // El tramo dice cuántas casillas resume y no entre qué direcciones va
+    // (pedido del usuario, 2026-08-29). El rótulo `6–8` en la escala se
+    // multiplicaba: cada clave insertada parte un tramo en dos, y la tabla
+    // terminaba con más números de escala que claves. Lo que el tema enseña es
+    // dónde cayó cada clave; el rango elidido no aporta a eso, y el conteo
+    // basta para que la escala no parezca que pierde casillas.
     function crearTramo(desde, hasta) {
       const el = document.createElement('div');
       el.className = 'tramo-elidido';
@@ -216,11 +222,12 @@
           grupo.className = vertical ? 'fila-casilla' : 'columna-casilla';
 
           if (segmento.tipo === 'tramo') {
-            const marcaEl = document.createElement('span');
-            marcaEl.className = 'escala__marca escala__marca--tramo';
-            marcaEl.textContent = `${segmento.desde}–${segmento.hasta}`;
             const tramoEl = crearTramo(segmento.desde, segmento.hasta);
-            grupo.append(...(vertical ? [marcaEl, tramoEl] : [tramoEl, marcaEl]));
+            // Sin rótulo, el grupo tiene un solo hijo: en vertical el grid lo
+            // metería en la columna de la escala, así que se lo manda a la de
+            // las casillas a mano.
+            if (vertical) tramoEl.style.gridColumn = '2';
+            grupo.appendChild(tramoEl);
             dom.estructuraEl.appendChild(grupo);
             continue;
           }
@@ -307,13 +314,10 @@
             tramoEl.style.gridColumn = columna;
             tramoEl.style.gridRow = String(filaCasillas);
 
-            const marcaEl = document.createElement('span');
-            marcaEl.className = 'escala__marca escala__marca--tramo';
-            marcaEl.textContent = desde === hasta ? String(desde) : `${desde}–${hasta}`;
-            marcaEl.style.gridColumn = columna;
-            marcaEl.style.gridRow = String(filaCasillas + 1);
-
-            agregar(orden, tramoEl, marcaEl);
+            // La fila de la escala queda vacía en esta columna: su alto lo
+            // sostienen las marcas de las casillas, que nunca faltan —una fila
+            // del apilado siempre dibuja las relevantes de su paso.
+            agregar(orden, tramoEl);
             return;
           }
 

@@ -397,7 +397,7 @@ Solo se dibuja lo relevante del paso actual. Es lo que permite que `n` no tenga 
 - Casillas relevantes: `i` en secuencial · `inicio, medio, fin` en binaria · `d` en hash · `d` más el recorrido del tratamiento cuando hay colisión.
 - **En una estructura dispersa, toda casilla ocupada es relevante**, aunque el paso actual no la toque. Dónde quedó cada clave *es* el resultado de la función hash: comprimirla dentro de un tramo borra justamente lo que el tema enseña. En las ordenadas no hace falta, porque las claves ocupan siempre el mismo prefijo y su posición no dice nada por sí sola.
 - **En una estructura dispersa no se dibujan vecinas** (pedido del docente, 2026-08-23). Una tabla grande se dibuja con sus extremos y las claves colocadas, y nada entre medias: `1 ⋯ 15 ⋯ 21 ⋯ 56 ⋯ 100`. Es como se dibuja en el tablero y es lo que el tema enseña — las direcciones vacías intermedias no dicen nada y son las que llenaban la pantalla. Con seis claves en `n = 100` la diferencia son 8 casillas dibujadas contra 20, y 15 filas contra 27. **No se pierde el sondeo de la reasignación**: `casillasRelevantes` ya trae las casillas sondeadas, así que el recorrido de la clave se dibuja entero sin necesidad de vecinas. Lo decide quien dibuja, con `vecinas: false` en `calcularSegmentos`.
-- **Cada tramo comprimido muestra cuántas casillas oculta.** Sin eso se pierde la noción del tamaño real.
+- **Cada tramo comprimido muestra cuántas casillas oculta, y nada más.** Sin el conteo se pierde la noción del tamaño real. **Lo que sí se quitó es el rótulo del rango elidido** (`6–8` en la escala, pedido del usuario, 2026-08-29): se multiplicaba con la estructura, porque cada clave insertada parte un tramo en dos y la tabla acababa con más números de escala que claves. Lo que el tema enseña es dónde cayó cada clave, y el rango elidido no aporta a eso. Vale en los tres dibujos —secuencial, binaria apilada y hash—, para que la elisión se lea igual en toda la aplicación.
 - **Un tramo de una sola casilla no se comprime: se dibuja.** El rótulo `⋯ 1 ⋯` ocupa más que la casilla que esconde. Aparece de forma natural en binaria, cuando `inicio`, `medio` y `fin` con sus vecinas dejan una casilla suelta entre dos visibles.
 - La expansión y compresión de tramos se anima; no es un salto brusco.
 - Control "Ver estructura completa" que desactiva la elisión.
@@ -433,9 +433,11 @@ El modo lo activa la configuración del tema (`apilada.rangoDePaso`); los temas 
 
 ### 6.4 Regla de índices
 
-Bajo la estructura horizontal —y al costado de la vertical— corre una escala continua que numera las posiciones, con marcas mayores cada 5. Cuando hay elisión, la escala se comprime pero **mantiene visible la numeración real**: un tramo comprimido se rotula con el rango que oculta (`22–39`). Es el elemento distintivo del producto.
+Bajo la estructura horizontal —y al costado de la vertical— corre una escala continua que numera las posiciones, con marcas mayores cada 5. Cuando hay elisión, la escala se comprime pero **mantiene visible la numeración real de lo dibujado**: cada casilla que sobrevive conserva su índice, así que la numeración nunca miente sobre dónde está una clave. Es el elemento distintivo del producto. **El tramo comprimido no se rotula** (ver 6.2): declara cuánto oculta desde su propia casilla (`⋯ 18 ⋯`) y deja el hueco de la escala vacío.
 
 **Cada casilla y su marca se dibujan en la misma columna** (`.columna-casilla`), no en dos filas independientes. Con elisión los tramos tienen ancho propio, y dos contenedores paralelos desalinean la numeración de lo que rotula — que es precisamente el error que la escala existe para no cometer. En vertical el par es `.fila-casilla` y la marca va a la izquierda, pero la regla es la misma: van juntos.
+
+Dos consecuencias de que el tramo ya no lleve marca, ambas de alineación: la estructura horizontal alinea sus grupos **por arriba** (`align-items: flex-start`) —al pie, el grupo del tramo, más bajo por no tener marca, se hundiría a la altura de la numeración— y en vertical el tramo se manda a mano a la segunda columna del grid, que si no el navegador lo metería en la de la escala.
 
 ### 6.5 El cálculo de la dirección (transformación de claves)
 

@@ -248,7 +248,10 @@
 /* Estructura horizontal (secuencial, binaria) */
 .estructura-horizontal {
   display: flex;
-  align-items: flex-end;
+  /* Por arriba y no por abajo: el tramo elidido no lleva marca de escala, así
+     que su grupo es más bajo que los de las casillas y alinearlo al pie lo
+     dejaría hundido a la altura de la numeración. */
+  align-items: flex-start;
   gap: var(--espacio-2);
   /* Deja aire arriba para el corchete del rango activo, que se dibuja fuera
      del flujo sobre las casillas. */
@@ -294,9 +297,6 @@
   font-weight: 500;
 }
 
-.escala__marca--tramo {
-  font-size: 10px;
-}
 
 /* Estructuras apiladas (CLAUDE.md 6.3): una fila por paso, cada una con el
    tramo que sobrevivió al descarte. Un solo grid para todas las filas — no un

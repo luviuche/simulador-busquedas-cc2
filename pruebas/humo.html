@@ -81,9 +81,10 @@
       // El retrato es el mismo en ambas: la orientación no cambia qué se dice.
       return [...document.querySelectorAll('.columna-casilla, .fila-casilla')].map((grupo) => {
         const casilla = grupo.querySelector('.casilla');
-        const marca = grupo.querySelector('.escala__marca').textContent;
-        if (!casilla) return `[${marca}]`;
-        return marca + ':' + estadoDe(casilla);
+        // Un tramo elidido no lleva marca de escala: se retrata por lo que
+        // dice el propio tramo, que es cuántas casillas resume.
+        if (!casilla) return `[${grupo.querySelector('.tramo-elidido').textContent.trim()}]`;
+        return grupo.querySelector('.escala__marca').textContent + ':' + estadoDe(casilla);
       }).join(' ');
     }
 
@@ -273,7 +274,8 @@
         agotarTraza();
       }
 
-      const marcas = [...document.querySelectorAll('.fila-casilla .escala__marca')].map((el) => el.textContent);
+      const marcas = [...document.querySelectorAll('.fila-casilla')]
+        .map((fila) => (fila.querySelector('.escala__marca') || fila.querySelector('.tramo-elidido')).textContent.trim());
       registro.push('  dibujado: ' + marcas.join(' · '));
 
       const dibujadas = document.querySelectorAll('.casilla').length;
@@ -315,9 +317,11 @@
 
       // La escala sigue completa aunque falten casillas: lo dibujado más lo
       // que declaran los tramos son las n casillas de la estructura.
-      const ocultas = [...document.querySelectorAll('.escala__marca--tramo')]
-        .map((el) => el.textContent.split('–').map(Number))
-        .reduce((suma, [desde, hasta]) => suma + (hasta - desde + 1), 0);
+      // El conteo del propio tramo (`⋯ 3 ⋯`) es lo único que queda declarando
+      // lo elidido desde que la escala dejó de rotular el rango.
+      const ocultas = [...document.querySelectorAll('.tramo-elidido')]
+        .map((el) => Number(el.textContent.replace(/[^0-9]/g, '')))
+        .reduce((suma, cantidad) => suma + cantidad, 0);
       afirmar(
         ocultas + dibujadas === 100,
         `la escala no pierde casillas (${dibujadas} dibujadas + ${ocultas} elididas)`
@@ -532,8 +536,12 @@
     const lineasCalculo = () => [...document.querySelectorAll('.calculo__linea')]
       .map((el) => el.textContent.replace(/\s+/g, ' ').trim());
 
+    // Las filas de tramo elidido no tienen marca: se saltan, no se rotulan.
     const casillaEn = (indice) => [...document.querySelectorAll('.fila-casilla')]
-      .find((fila) => fila.querySelector('.escala__marca').textContent === String(indice));
+      .find((fila) => {
+        const marca = fila.querySelector('.escala__marca');
+        return marca && marca.textContent === String(indice);
+      });
 
     // El cálculo de la dirección es el contenido didáctico del tema: tiene que
     // revelarse línea por línea con el reproductor, y retroceder tiene que
