@@ -3,7 +3,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* Ancho fijo y sin encoger: la casilla no se dimensiona por lo que lleva
+     dentro. Es lo que mantiene la forma de la estructura mientras se insertan
+     claves —y la de la matriz de arreglos anidados, donde una columna que
+     cambia de ancho descoloca todas las de su derecha—. */
+  width: var(--ancho-casilla);
   min-width: 40px;
+  flex: none;
   height: 40px;
   padding: 0 var(--espacio-2);
   border-radius: var(--radio-casilla);
@@ -251,9 +257,12 @@ form input[type="checkbox"] {
    la casilla de la tabla con un canal a la izquierda de la primera, para que
    la fila se lea como lo que es: la tabla, y al lado su estructura secundaria.
    El borde más delgado las agrupa visualmente sin darles otro color, que está
-   reservado a los estados del algoritmo (CLAUDE.md 8.1). */
+   reservado a los estados del algoritmo (CLAUDE.md 8.1).
+
+   La casilla anidada mide lo mismo que la de la tabla: son la misma clase de
+   casilla y guardan la misma clase de clave, y darles anchos distintos
+   rompería la lectura de matriz. */
 .casilla--anidada {
-  min-width: 52px;
   border-style: dotted;
 }
 

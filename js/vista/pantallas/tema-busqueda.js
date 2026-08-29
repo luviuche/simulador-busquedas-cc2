@@ -196,6 +196,15 @@
       return config.orientacion === 'vertical';
     }
 
+    // Todas las casillas de la pantalla miden lo mismo, y lo que miden sale de
+    // `l`: una casilla que crece cuando le entra una clave deforma la fila y,
+    // en la matriz de arreglos anidados, descoloca todas las columnas a su
+    // derecha. El ancho se fija en la raíz de la pantalla para que lo hereden
+    // por igual la tabla, sus arreglos y el apilado.
+    function ajustarAnchoDeCasilla(l) {
+      pantalla.style.setProperty('--ancho-casilla', `${vista.componentes.casilla.anchoParaCifras(l)}px`);
+    }
+
     // Cuántas columnas de arreglo anidado dibuja cada dirección (CLAUDE.md 5.4).
     // Cero cuando el tratamiento elegido no tiene estructuras secundarias, que
     // es el caso de los demás y de todos los temas que no son hash.
@@ -384,8 +393,23 @@
           });
           const marcaEl = crearMarca(indice, n);
           const anidadas = vertical ? casillasAnidadas(paso, indice, columnasDelAnidado) : [];
-          if (anidadas.length > 0) {
-            grupo.style.gridTemplateColumns = `3ch auto repeat(${anidadas.length}, auto)`;
+          if (vertical) {
+            // Pistas de ancho fijo, una por casilla. Con `auto` cada fila era
+            // un grid aparte que repartía el sobrante a su manera: la fila con
+            // clave quedaba más ancha que la vacía y las columnas de la matriz
+            // dejaban de coincidir entre filas. El tramo elidido es la
+            // excepción —se dimensiona por su contenido— porque lleva dentro
+            // un conteo y no una clave.
+            const pistas = columnasDelAnidado.map((segmento, columna) => {
+              if (segmento.tipo === 'tramo') return 'max-content';
+              // La primera columna del arreglo lleva el canal que la separa de
+              // la tabla: su pista tiene que contarlo, o la casilla se saldría
+              // de ella y se montaría sobre la siguiente.
+              return columna === 0
+                ? 'calc(var(--ancho-casilla) + var(--espacio-3))'
+                : 'var(--ancho-casilla)';
+            });
+            grupo.style.gridTemplateColumns = ['3ch', 'var(--ancho-casilla)', ...pistas].join(' ');
           }
 
           grupo.append(...(vertical ? [marcaEl, casillaEl, ...anidadas] : [casillaEl, marcaEl]));
@@ -414,7 +438,12 @@
       const segmentos = estado.segmentosApilado;
 
       dom.estructuraEl.className = 'estructura-apilada';
-      dom.estructuraEl.style.gridTemplateColumns = `auto repeat(${segmentos.length}, minmax(40px, max-content))`;
+      // Una pista por segmento, del ancho único de casilla; el tramo elidido
+      // se dimensiona por su conteo, que no es una clave.
+      const pistas = segmentos.map(
+        (segmento) => (segmento.tipo === 'tramo' ? 'max-content' : 'var(--ancho-casilla)')
+      );
+      dom.estructuraEl.style.gridTemplateColumns = ['auto', ...pistas].join(' ');
       dom.estructuraEl.innerHTML = '';
 
       const elementosUltimaFila = [];
@@ -817,6 +846,7 @@
           ? config.anidados.columnas(resultado.estructura)
           : 0;
         estado.estructura = resultado.estructura;
+        ajustarAnchoDeCasilla(l);
         limpiarAlerta();
         // Las advertencias del tema pesan más que la del tamaño: hablan de una
         // decisión que el estudiante acaba de tomar y puede rehacer.

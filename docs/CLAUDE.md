@@ -548,6 +548,19 @@ Cada paso carga las líneas reveladas hasta ese momento —no solo la última—
 
 El **llenado automático** no reproduce nada: llena aplicando directamente el paso que coloca de cada traza. Llenar es preparar el escenario, no la lección; la lección es la clave que se inserta a mano.
 
+### 6.6 Ancho de casilla (2026-08-29)
+
+**Todas las casillas de una estructura miden lo mismo, tengan clave dentro o no.** El ancho sale de `l` —lo que ocupa una clave de `l` cifras con su marca— y se fija al crear la estructura, en la variable `--ancho-casilla` de la raíz de la pantalla; lo heredan por igual la tabla, sus arreglos anidados y el apilado.
+
+Antes cada casilla se dimensionaba por su contenido y la estructura se deformaba a medida que se insertaban claves: con `n = 10` y `l = 4`, la casilla vacía medía 42 px, la que tenía clave 50 y la recién insertada 60, así que la fila con clave empezaba 11 px a la izquierda de la vacía y las columnas del arreglo anidado dejaban de corresponderse. En una matriz eso es fatal: lo que se enseña es cuánto espacio queda en cada dirección, y no se lee si las columnas no están alineadas.
+
+Dos detalles que sostienen la regla:
+
+- **El ancho se mide, no se calcula con `ch`.** El mismo valor lo usan las pistas del grid de las filas, y allí `ch` resolvería contra la fuente de la fila —proporcional— y no contra la monoespaciada de la casilla. Se mide una casilla de prueba en el DOM (`vista.componentes.casilla.anchoParaCifras`), con sus dos marcas más anchas (`◂` de insertada y `✕` de eliminada), y así el ancho reservado ya contiene el relleno, el borde y la fuente que de verdad esté cargada.
+- **Las pistas del grid son fijas, salvo el tramo elidido.** Con `auto`, cada fila era un grid independiente que repartía el sobrante a su manera. El tramo sí se dimensiona por su contenido: lleva un conteo dentro, no una clave. La primera columna del arreglo anidado suma además el canal que la separa de la tabla (§5.4).
+
+La prueba de humo lo vigila con `afirmarCasillasParejas` y `afirmarColumnasAlineadas`: es un defecto de layout, invisible para `node --test`.
+
 ---
 
 ## 7. Animación
@@ -775,3 +788,4 @@ Búsquedas externas e índices para archivos · toda la unidad de grafos. Se mue
 - Elidir casillas ocupadas en una estructura dispersa: esconden el resultado de la función hash (§6.2).
 - Contar en decimal las cifras a truncar en conversión de bases: con base 2 y `n = 12` se tomarían 2 bits, y ocho casillas quedarían inalcanzables (§5.3).
 - Elevar la clave al cuadrado con aritmética normal: por encima del entero seguro las cifras centrales dejan de ser las del cuadrado (§5.3).
+- Dejar que la casilla se dimensione por lo que lleva dentro —`min-width` con relleno, o pistas `auto` en el grid de la fila—: la estructura se deforma clave a clave y la matriz de arreglos anidados pierde la alineación de sus columnas (§6.6).

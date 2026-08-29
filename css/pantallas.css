@@ -337,10 +337,6 @@
   padding: var(--espacio-2);
 }
 
-.estructura-apilada .casilla {
-  width: 100%;
-}
-
 .estructura-apilada .escala__marca {
   text-align: center;
   /* Separa cada paso del siguiente sin romper el row-gap uniforme del grid. */

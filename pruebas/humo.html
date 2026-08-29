@@ -88,6 +88,42 @@
       panel.querySelector(`[data-accion="${accion}"]`).click();
     }
 
+    // Todas las casillas dibujadas miden lo mismo, lleven clave, marca o nada.
+    // Una casilla que se dimensiona por su contenido deforma la estructura a
+    // medida que se insertan claves: la fila con clave queda más ancha que la
+    // vacía y, en la matriz de arreglos anidados, descoloca todas las columnas
+    // a su derecha. Se mide el dibujo real porque el defecto es de layout y
+    // `node --test` no puede verlo.
+    function afirmarCasillasParejas(contexto) {
+      const casillas = [...document.querySelectorAll('.casilla')];
+      const anchos = [...new Set(casillas.map((c) => Math.round(c.getBoundingClientRect().width)))];
+      afirmar(
+        anchos.length === 1,
+        `${contexto}: las ${casillas.length} casillas miden lo mismo (anchos: ${anchos.join(', ')})`
+      );
+      // La marca de insertada o eliminada vive dentro de la casilla: si no le
+      // cupiera, el ancho fijo la estaría recortando en lugar de reservarle
+      // sitio, que es lo que se midió al crear la estructura.
+      const desbordadas = casillas.filter((c) => c.scrollWidth > c.clientWidth + 1);
+      afirmar(
+        desbordadas.length === 0,
+        `${contexto}: nada se sale de su casilla (${desbordadas.length} desbordada(s))`
+      );
+    }
+
+    // En la vista vertical cada fila es un grid aparte: que las columnas caigan
+    // en la misma x en todas las filas es lo único que hace legible la matriz.
+    function afirmarColumnasAlineadas(contexto) {
+      const columnas = [...document.querySelectorAll('.fila-casilla')]
+        .filter((fila) => fila.querySelector('.casilla'))
+        .map((fila) => [...fila.querySelectorAll('.casilla')]
+          .map((c) => Math.round(c.getBoundingClientRect().left)).join(','));
+      afirmar(
+        new Set(columnas).size === 1,
+        `${contexto}: todas las filas alinean sus columnas (${new Set(columnas).size} disposición(es))`
+      );
+    }
+
     const estadoDe = (casilla) =>
       casilla.className.replace(/casilla(--)?/g, '').trim().replace(/\s+/g, '+');
 
@@ -230,6 +266,9 @@
       }
 
       afirmar(retrato.includes('encontrada'), `localiza la clave ${objetivo}`);
+      // Con la clave hallada a la vista: su marca ✓ es de las que ensanchaban
+      // la casilla y desalineaban la fila —o la columna del apilado—.
+      afirmarCasillasParejas(nombreTema);
 
       if (apilada) {
         // Cada estructura resultante descarta parte de la anterior: ninguna
@@ -609,6 +648,9 @@
         'la casilla marcada conserva su clave: todavía no se ha desplazado nada'
       );
       registro.push('  al marcar: ' + clavesDibujadas().join(' '));
+      // La marca ✕ de la casilla que sale es lo más ancho que se dibuja dentro
+      // de una casilla: aquí se comprueba que le cabe sin ensanchar la suya.
+      afirmarCasillasParejas('secuencial al marcar la clave que sale');
 
       control('siguiente').click();
       registro.push('  tras desplazar: ' + clavesDibujadas().join(' '));
@@ -832,6 +874,10 @@
         anidadasDibujadas === 9,
         `cada dirección dibuja n − 1 = 9 casillas anidadas (dibuja ${anidadasDibujadas})`
       );
+      // La matriz con claves dentro: es donde el ancho variable se notaba, con
+      // las filas ocupadas más anchas que las vacías.
+      afirmarCasillasParejas('matriz de n × n');
+      afirmarColumnasAlineadas('matriz de n × n');
 
       // La clave nunca se aleja de su dirección: es lo que separa este
       // tratamiento de la reasignación.
@@ -907,6 +953,9 @@
         new Set(anchos).size === 1,
         `todas las filas dibujan las mismas columnas (anchos: ${[...new Set(anchos)].join(', ')})`
       );
+      // Y las dibujan en la misma x: con el arreglo elidido, el tramo se
+      // dimensiona por su conteo y las casillas por el ancho fijo.
+      afirmarColumnasAlineadas('matriz elidida con n = 100');
 
       document.querySelector('.pantalla-tema__volver').click();
     }
