@@ -100,6 +100,34 @@
       .concat(clavesDelSubarbol(estructura, derecho(indice)));
   }
 
+  // ── Forma del árbol ─────────────────────────────────────────────────────
+  //
+  // Lo que la vista necesita para dibujarlo, y lo único que cambia entre un
+  // árbol binario y uno de residuos múltiples (`dominio/arbol-multiple.js`):
+  // cuántas ramas abre un nodo, con qué se rotulan y qué posiciones se pintan.
+  // La pantalla habla con esta interfaz y no con las funciones de aquí, así
+  // que un árbol con otra forma no la obliga a cambiar.
+  const hijos = (indice) => [izquierdo(indice), derecho(indice)];
+  const rotuloDeArista = (indice) => (indice % 2 === 0 ? '0' : '1');
+
+  // Qué posiciones se dibujan: las ocupadas, sus ancestros —para que un hueco
+  // a medio eliminar se vea como lo que es, y no deje huérfanos flotando— y la
+  // posición vacía que el paso esté señalando. Aquí no se dibuja el esqueleto
+  // completo: en un árbol digital la posición 31 existe siempre y pintarla
+  // vacía no diría nada.
+  function posicionesDibujadas(estructura, paso) {
+    const dibujadas = new Set(nodos(estructura).map((nodo) => nodo.indice));
+    if (paso && paso.casilla) dibujadas.add(paso.casilla);
+    for (const indice of [...dibujadas]) {
+      let ancestro = padre(indice);
+      while (ancestro >= RAIZ && !dibujadas.has(ancestro)) {
+        dibujadas.add(ancestro);
+        ancestro = padre(ancestro);
+      }
+    }
+    return dibujadas;
+  }
+
   const esHoja = (estructura, indice) => (
     !ocupada(estructura, izquierdo(indice)) && !ocupada(estructura, derecho(indice))
   );
@@ -126,6 +154,9 @@
     RAIZ,
     izquierdo,
     derecho,
+    hijos,
+    rotuloDeArista,
+    posicionesDibujadas,
     padre,
     nivelDe,
     posiciones,

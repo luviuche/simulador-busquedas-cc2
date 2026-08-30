@@ -41,11 +41,13 @@
   <script src="../js/dominio/clave.js"></script>
   <script src="../js/dominio/estructura.js"></script>
   <script src="../js/dominio/arbol.js"></script>
+  <script src="../js/dominio/arbol-multiple.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
   <script src="../js/algoritmos/arbol-digital.js"></script>
   <script src="../js/algoritmos/residuos.js"></script>
+  <script src="../js/algoritmos/residuos-multiples.js"></script>
   <script src="../js/algoritmos/eliminacion.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
   <script src="../js/algoritmos/colisiones/anidados.js"></script>
@@ -236,6 +238,21 @@
       avanzar(pasosAAvanzar(20));
     }
 
+    // Residuos múltiples: el esqueleto completo, como el tablero. Cada nodo
+    // abre sus ramas lleven a una clave o no, y por eso se ve extenso.
+    function prepararResiduosMultiples() {
+      const formularios = entrarATema('Residuos múltiples');
+      const panel = formularios[0];
+      panel.querySelector('[name="palabra"]').value = parametros.get('palabra') || 'prueba';
+      panel.querySelector('[data-accion="insertar-palabra"]').click();
+      avanzar(80);
+
+      const operacion = parametros.get('operacion');
+      if (!operacion) return;
+      operar(formularios, operacion, parametros.get('clave') || 'a');
+      avanzar(pasosAAvanzar(20));
+    }
+
     // La eliminación que hay que ver en una tabla hash es la que obliga a
     // redispersar: se borra la clave del medio de un sondeo y las de atrás
     // vuelven a pasar por la función.
@@ -269,6 +286,7 @@
       if (vista === 'encadenamiento') return prepararEncadenamiento();
       if (vista === 'arbol-digital') return prepararArbolDigital();
       if (vista === 'residuos') return prepararResiduos();
+      if (vista === 'residuos-multiples') return prepararResiduosMultiples();
       if (vista === 'eliminar-hash') return prepararEliminacionHash();
       if (vista === 'eliminar-binaria') return prepararEliminacion('Búsqueda binaria');
       if (vista === 'eliminar-secuencial') return prepararEliminacion('Búsqueda secuencial');

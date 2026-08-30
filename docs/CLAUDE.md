@@ -534,6 +534,39 @@ Todo lo demás lo comparte con el árbol digital y no hubo que tocarlo: la letra
 - **Se puede insertar una palabra entera**, y sus letras viajan en **una sola traza**: se avanza y se retrocede letra por letra como en cualquier otra operación. No es un llenado —que prepara el escenario sin reproducir nada—: aquí el recorrido de cada letra *es* la lección.
 - **Eliminación** (§5.6): si el nodo es una hoja, se va y ya. Si tiene descendientes, dejar el hueco partiría el árbol —lo que cuelga de él dejaría de ser alcanzable—, así que **sube una hoja de su propio subárbol** a ocupar el sitio. Sirve cualquiera: esa hoja llegó hasta ahí bajando por la posición que queda libre, de modo que sus primeros bits son justo los que esa posición exige y ninguna búsqueda cambia de camino. Se elige la más profunda porque es la que más baja la altura.
 
+#### Residuos múltiples (2026-08-30)
+
+**Residuos leyendo un bloque de bits por nivel en vez de un bit**, y una diferencia de fondo que no es solo de escala: **toda clave gasta el código entero y queda en el último nivel**, se hubiera podido distinguir antes o no. El camino de una clave *es* su código leído por bloques (así lo dibuja el docente; confirmado sobre su tablero, 2026-08-30).
+
+**Los bloques son 2, 2 y 1.** Cinco bits no se parten entre dos, así que **el último va corto**: los dos primeros niveles ramifican en cuatro —`00 01 10 11`— y el tercero solo en dos —`0 1`—. El código de la letra no cambia: sigue siendo el mismo de cinco bits que muestran el árbol digital y residuos.
+
+```
+  p = 10000 → 10 | 00 | 0                         ·
+  r = 10010 → 10 | 01 | 0            00 /                  \ 10
+  u = 10101 → 10 | 10 | 1              ·                     ·
+  e = 00101 → 00 | 10 | 1       00/  01|  \10          00/  01|  \10
+  b = 00010 → 00 | 01 | 0        ·     ·     ·          ·     ·     ·
+  a = 00001 → 00 | 00 | 1       1|    0|    1|         0|    0|    1|
+                               [a]   [b]   [e]        [p]   [r]   [u]
+```
+
+De la profundidad fija salen dos cosas que **residuos sí necesita y aquí no existen**, y no es un atajo: es lo que significa gastar el código entero.
+
+- **No puede haber choques.** Dos letras distintas tienen códigos distintos, así que sus caminos completos no coinciden nunca y ninguna clave le disputa el sitio a otra. Insertar es bajar el código y dejar la clave al final; si la posición está ocupada solo puede ser la misma clave, y se rechaza por duplicada. La prueba `no puede haber choques` inserta el alfabeto entero y comprueba que no aparece un solo paso de colisión ni de movimiento.
+- **Al eliminar no sube nada.** Una clave que subiera dejaría de estar donde su código dice, y la búsqueda —que baja el código entero sin mirar— no la encontraría. El hueco se queda a la vista, que es lo que hay que ver al eliminar.
+
+Y una tercera, más sutil: **nunca se llega a una hoja que guarde otra clave.** Cada letra tiene su propia posición final, así que una búsqueda fallida no compara nada — o el camino se corta antes, o la posición del final está vacía. En residuos sí existe el caso de tropezar con una hoja ajena.
+
+**Lo que sigue igual:** una sola comparación por búsqueda, la de la posición a la que se llega. Y el precio del método se lee en las dos métricas juntas — buscar `a` cuesta **4 accesos contra los 5 de residuos**, con la misma única comparación: menos niveles a cambio de más ramas por nodo.
+
+**El esqueleto se dibuja completo hasta el penúltimo nivel**, como en el tablero (decisión del usuario sobre maqueta, 2026-08-30): cada nodo abre todas sus ramas, lleven a una clave o no. Se ve de un golpe cuánto espacio de direcciones queda sin usar, que es la otra mitad de lo que el método cuesta. **Del último nivel se dibujan solo las posiciones con clave** —los enlaces `0 | 1` van donde hay algo al final, como los pone el docente—: completo serían 32 puntos más para no decir nada, y no cabrían. Con `prueba` son 1 + 4 + 16 + 6 = 27 posiciones.
+
+**Sin claves no se dibuja nada**, como en los otros dos temas de árbol. Se probó abrir el tema con la raíz y sus cuatro ramas ya pintadas y al usuario le pareció un dibujo suelto sin relación con nada (2026-08-30): el esqueleto solo se entiende cuando hay claves que lo justifiquen.
+
+**La forma del árbol dejó de estar cableada en la pantalla.** `config.arbol` trae qué ramas abre un nodo (`hijos`), con qué se rotulan (`rotuloDeArista`), en qué nivel está una posición y qué se dibuja (`posicionesDibujadas`); por omisión es `dominio/arbol.js`, el binario. Vive en `dominio/arbol-multiple.js`, que **reutiliza de `arbol.js` todo lo que no depende de la forma** —guardar, sacar, mover y listar claves sobre el mismo arreglo— y redefine lo que sí.
+
+La indexación es **de grado fijo, el mayor de los bloques**, aunque el último nivel use solo dos de sus cuatro huecos: con un grado distinto por nivel el índice dejaría de ser una cuenta y haría falta una tabla de desplazamientos para ir de padre a hijo. Sobran unos huecos que nadie dibuja a cambio de que la posición se siga calculando; por eso `n = (4^4 − 1) / 3 = 85`. La posición se nombra por su **camino de bloques** (`10·00·0`).
+
 ### 5.6 Eliminación
 
 **La aplicación elimina claves, y cada tema elimina con su propio método** (pedido del usuario, 2026-08-29). No existe un algoritmo de borrado: eliminar es **localizar la clave con el algoritmo del tema y solo entonces sacarla**. Borrar en secuencial recorre desde la casilla 1; borrar en binaria divide; borrar en una tabla hash calcula la dirección. Por eso una traza de eliminación empieza siendo, literalmente, una traza de búsqueda: los pasos de borrado se le agregan detrás.
@@ -684,6 +717,11 @@ Dos cosas que ese punto arrastró:
 
 - **El nodo por el que se está bajando sigue siendo un punto, solo que resaltado.** Hincharlo a casilla en cada paso recolocaría el árbol entero debajo del reproductor. La excepción es la posición vacía en la que **termina** un paso —donde se corta el camino de una búsqueda—: esa sí se dibuja como casilla, porque es donde la clave tendría que estar.
 - **Cada posición ocupa lo que ocupa su dibujo**, no una columna fija: un punto pide menos aire que una casilla. Con columnas de ancho único el árbol de `prueba` no cabía a lo ancho del lienzo y se ponía a scrollear. Y cuando aun así el árbol y el cálculo no caben juntos, **el que cede es el cálculo**: el árbol no elide y no tiene manera de encogerse. Antes los dos se encogían a la par y el que desbordaba era el árbol, que es justo lo que la pantalla anclada al viewport existe para evitar.
+
+**Cuando un nodo abre más de dos ramas, los rótulos se bajan hasta cerca del hijo y se escalonan a dos alturas.** A mitad de la arista los cuatro caen casi en el mismo punto —de ahí es de donde salen— y se montan unos sobre otros; bajando, se abren tanto como se abran los hijos. El escalonado hace falta además porque **no hay ancho que repartir**: el esqueleto de `prueba` y el panel del cálculo ocupan el escenario exacto, sin un píxel de sobra. Lo vigila la comprobación `ningún rótulo se monta sobre otro` de la prueba de humo.
+
+**Que el árbol quepa no basta: hay que mirar también el cálculo.** Como el árbol no se encoge, al crecer empuja al panel y el escenario lo recorta por la derecha sin avisar —el panel sigue midiendo lo suyo, solo que la mitad queda fuera—. Pasó al bajar el esqueleto de residuos múltiples a su cuarto nivel, y lo destapó una captura, no las pruebas. Ahora lo vigilan dos comprobaciones de humo: que el borde derecho del cálculo caiga dentro del escenario, y que su contenido no quede recortado. El margen es tan estrecho que el tamaño del punto de bifurcación es lo que decide si cabe: por eso mide 10 px y lleva 4 de hueco, y no los 12 y 8 con que empezó.
+
 
 
 ### 6.8 La reproducción arranca sola (2026-08-30)
@@ -887,7 +925,7 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 
-**De «otras búsquedas internas» están construidos dos: árboles de búsqueda digital y búsqueda por residuos** (§5.5). El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima sin tocar nada de eso, aportando una sola regla —las claves solo en las hojas— y las dos piezas que le hicieron falta: `clavesDelSubarbol` en el dominio y `config.clavesSoloEnHojas` en la vista. Sigue **residuos múltiples**, que comparte con los dos la letra y su código y ramifica por bloques de bits en vez de bit a bit.
+**De «otras búsquedas internas» están construidos tres: árboles de búsqueda digital, búsqueda por residuos y residuos múltiples** (§5.5). El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima aportando una sola regla —las claves solo en las hojas—; y residuos múltiples entró sobre residuos cambiando solo la forma del árbol, que dejó de estar cableada en la pantalla y ahora viaja en `config.arbol`. Los tres comparten la letra y su código de cinco bits. Quedan **tablas de índices**, **rejilla** y **árboles 2D**.
 
 **Los cuatro tratamientos de colisión están construidos: `ninguno`, `reasignación` (prueba lineal), `arreglos anidados` y `encadenamiento secuencial` (§5.4).** Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el encadenamiento entró sobre él: comparte almacenamiento, aplicadores y rama de eliminación, y lo único propio suyo es que su estructura secundaria no tiene tope.
 

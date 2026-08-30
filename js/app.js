@@ -38,7 +38,7 @@
           temas: [
             { id: 'residuos', titulo: 'Búsqueda por residuos', descripcion: 'Claves solo en las hojas', disponible: true },
             { id: 'arbol-digital', titulo: 'Árboles de búsqueda digital', descripcion: 'Inserción bit a bit', disponible: true },
-            { id: 'residuos-multiples', titulo: 'Residuos múltiples', descripcion: 'Ramificación por bloques de bits', disponible: false },
+            { id: 'residuos-multiples', titulo: 'Residuos múltiples', descripcion: 'Ramificación por bloques de bits', disponible: true },
             { id: 'tablas-indices', titulo: 'Tablas de índices', descripcion: 'Acceso mediante tabla auxiliar', disponible: false },
             { id: 'rejilla', titulo: 'Método de la rejilla', descripcion: 'Partición del espacio en celdas', disponible: false },
             { id: 'arbol-2d', titulo: 'Árboles 2D', descripcion: 'Búsqueda en dos dimensiones', disponible: false }
@@ -322,6 +322,73 @@
     // Árboles de búsqueda digital (CLAUDE.md 5.5). El primero de los temas que
     // trabajan con letras y bits: la clave es una letra, su código son las
     // cinco cifras que la distinguen, y el árbol se recorre un bit por nivel.
+    // Residuos múltiples (CLAUDE.md 5.5). Es residuos mirando un **bloque de
+    // bits** por nivel en vez de un bit, así que solo cambian dos cosas: la
+    // forma del árbol —que la pantalla toma de `config.arbol`— y el algoritmo.
+    // Las claves siguen viviendo solo en las hojas, con todo lo que eso trae.
+    'residuos-multiples': (() => {
+      const BITS = dominio.clave.BITS_LETRA;
+      const arbol = dominio.arbolMultiple;
+      const operar = (operacion) => ({ estructura, clave, objetivo, letras }) => operacion({
+        claves: estructura.claves,
+        n: estructura.n,
+        bits: BITS,
+        clave,
+        objetivo,
+        letras
+      });
+
+      return {
+        titulo: 'RESIDUOS MÚLTIPLES',
+        descripcion: `Un bloque de ${arbol.BLOQUES.join(', ')} bits por nivel, y las claves solo en las hojas`,
+        orientacion: 'arbol',
+        modo: dominio.estructura.MODOS.ARBOL,
+        // La forma del árbol: cuatro ramas en los dos primeros niveles y dos en
+        // el tercero, porque al último bloque solo le queda un bit.
+        arbol,
+        calculo: true,
+        tituloCalculo: 'Código de la clave',
+        claveEsLetra: true,
+        palabra: true,
+        sinTamano: true,
+        sinConfiguracion: true,
+        clavesSoloEnHojas: true,
+        tamano: () => ({ n: arbol.posiciones(), l: 1 }),
+        nombreEstructura: 'árbol',
+        mensajeReinicio: 'Árbol reiniciado: sin claves.',
+        mensajeCreacion: () => `Árbol creado: código de ${BITS} bits por letra, en bloques de ${arbol.BLOQUES.join(', ')}.`,
+        detalleReciente: () => `bloques de ${arbol.BLOQUES.join(', ')} bits`,
+        insertar: operar(algoritmos.residuosMultiples.insertar),
+        buscar: operar(algoritmos.residuosMultiples.buscar),
+        eliminar: operar(algoritmos.residuosMultiples.eliminar),
+        insertarPalabra: operar(algoritmos.residuosMultiples.insertarPalabra),
+        casillasRelevantes: (paso) => (paso.casilla ? [paso.casilla] : []),
+        describirCasilla: ({ paso, indice, ocupada }) => {
+          const base = ocupada ? 'ocupada' : 'vacia';
+          if (!paso || paso.casilla !== indice) return { estado: base };
+          if (paso.tipo === 'encontrada') return { estado: 'encontrada' };
+          if (paso.tipo === 'insercion') return { estado: 'insertada' };
+          if (paso.tipo === 'eliminacion') return { estado: 'eliminada' };
+          if (paso.tipo === 'rechazada') return { estado: 'colision' };
+          if (paso.tipo === 'colision') return { estado: 'colision' };
+          if (paso.tipo === 'no-encontrada') return { estado: base, modificadores: ['direccion'] };
+          if (paso.tipo === 'ramificacion') return { estado: 'en-evaluacion' };
+          return { estado: base };
+        },
+        metricas: [
+          METRICA_COMPARACIONES,
+          METRICA_ACCESOS,
+          {
+            id: 'altura',
+            etiqueta: 'Altura',
+            // La métrica que compara los dos temas: con bloques de dos bits el
+            // mismo ejercicio baja de cinco niveles a tres.
+            valor: ({ estructura }) => (estructura ? String(arbol.altura(estructura)) : '0')
+          }
+        ]
+      };
+    })(),
+
     // Búsqueda por residuos (CLAUDE.md 5.5). Comparte con el árbol digital
     // casi todo —la letra como clave, el código de bits, el modo `arbol`, el
     // dibujo por niveles, la palabra entera como operación— y se aparta en una

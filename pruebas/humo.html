@@ -26,11 +26,13 @@
   <script src="../js/dominio/clave.js"></script>
   <script src="../js/dominio/estructura.js"></script>
   <script src="../js/dominio/arbol.js"></script>
+  <script src="../js/dominio/arbol-multiple.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
   <script src="../js/algoritmos/arbol-digital.js"></script>
   <script src="../js/algoritmos/residuos.js"></script>
+  <script src="../js/algoritmos/residuos-multiples.js"></script>
   <script src="../js/algoritmos/eliminacion.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
   <script src="../js/algoritmos/colisiones/anidados.js"></script>
@@ -371,6 +373,7 @@
       encadenamiento();
       arbolDigital();
       residuos();
+      residuosMultiples();
       controlDeVelocidad();
     }
 
@@ -1506,6 +1509,149 @@
 
       control('reiniciar').click();
       afirmar(letras() === '' && puntos() === 0, 'reiniciar deja el árbol sin claves ni bifurcaciones');
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Residuos múltiples: un bloque de bits por nivel en vez de un bit, y el
+    // esqueleto dibujado completo como en el tablero. Lo que hay que ver es que
+    // cada nodo abre todas sus ramas lleven a una clave o no, que los rótulos de
+    // esas cuatro ramas se puedan leer, y que el mismo ejercicio baje de cinco
+    // niveles a tres — que es lo que el método compra.
+    function residuosMultiples() {
+      registro.push('', '── Residuos múltiples ──');
+
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes('Residuos múltiples'))
+        .click();
+      const formularios = [...document.querySelectorAll('form.panel')];
+      const operaciones = formularios[0];
+
+      afirmar(formularios.length === 1, `el tema no dibuja panel de configuración (${formularios.length} formulario(s))`);
+
+      afirmar(
+        document.querySelectorAll('.arbol__bifurcacion').length === 0,
+        `el tema abre con el lienzo vacío (${document.querySelectorAll('.arbol__bifurcacion').length} bifurcación(es))`
+      );
+
+      operaciones.querySelector('[name="palabra"]').value = 'prueba';
+      operaciones.querySelector('[data-accion="insertar-palabra"]').click();
+      agotarTraza(140);
+
+      const casillas = () => [...document.querySelectorAll('.arbol .casilla')];
+      const letras = () => casillas()
+        .map((el) => el.textContent.replace(/[^a-z]/g, ''))
+        .filter(Boolean)
+        .sort()
+        .join('');
+      const puntos = () => document.querySelectorAll('.arbol__bifurcacion').length;
+      const metricas = () => [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+
+      registro.push(`  árbol de «prueba»: ${letras()} · ${puntos()} bifurcaciones · altura ${metricas()[2]}`);
+      afirmar(letras() === 'abepru', `las seis letras quedan dibujadas (${letras()})`);
+      afirmar(metricas()[2] === '4', `toda clave baja sus tres bloques y queda en el nivel 4 (altura ${metricas()[2]})`);
+
+      // Las seis claves a la misma altura: es lo que separa este tema de
+      // residuos, donde cada clave para en cuanto queda sola. Se lee el `top`
+      // en línea y no el rectángulo: una casilla recién recolocada lleva encima
+      // el `transform` del FLIP, que la deja en su sitio anterior hasta que la
+      // animación corra, y aquí se estaría midiendo eso y no la retícula.
+      const alturas = [...new Set(casillas().map((el) => el.style.top))];
+      afirmar(alturas.length === 1, `las seis claves quedan a la misma altura (${alturas.join(', ')})`);
+
+      // Esqueleto completo hasta el penúltimo nivel —1 + 4 + 16— más las seis
+      // posiciones con clave del último.
+      const dibujadas = casillas().length + puntos();
+      afirmar(dibujadas === 27, `el esqueleto va completo hasta el nivel 3 (${dibujadas} posiciones, se esperan 27)`);
+      afirmar(puntos() === 21, `del último nivel no se dibuja ni un punto vacío (${puntos()} puntos, se esperan 21)`);
+      afirmar(
+        document.querySelectorAll('.arbol__arista').length === 26,
+        `cada posición que no es la raíz entra por una arista (${document.querySelectorAll('.arbol__arista').length})`
+      );
+
+      // Las claves siguen viviendo solo en las hojas: de ninguna casilla sale
+      // una arista hacia abajo.
+      const aristas = [...document.querySelectorAll('.arbol__arista')];
+      const svg = document.querySelector('.arbol__aristas').getBoundingClientRect();
+      const conHijos = casillas().filter((casilla) => {
+        const caja = casilla.getBoundingClientRect();
+        const centroX = caja.left - svg.left + caja.width / 2;
+        const pie = caja.top - svg.top + caja.height;
+        return aristas.some((arista) => (
+          Math.abs(Number(arista.getAttribute('x1')) - centroX) < 2
+          && Math.abs(Number(arista.getAttribute('y1')) - pie) < 2
+        ));
+      });
+      afirmar(conHijos.length === 0, `ninguna clave tiene ramas colgando (${conHijos.length} con hijos)`);
+
+      // Los rótulos son lo que dice por qué la clave tomó ese camino: cuatro
+      // saliendo del mismo nodo se amontonan si no se separan a propósito.
+      const rotulos = [...document.querySelectorAll('.arbol__bit')]
+        .map((el) => ({ x: Number(el.getAttribute('x')), y: Number(el.getAttribute('y')), t: el.textContent }));
+      const deLaRaiz = rotulos.slice().sort((a, b) => a.y - b.y).slice(0, 4)
+        .map((r) => r.t).sort().join(' ');
+      afirmar(deLaRaiz === '00 01 10 11', `la raíz abre sus cuatro ramas rotuladas (${deLaRaiz})`);
+      const encimados = rotulos.filter((a, i) => rotulos.some((b, j) => (
+        j !== i && Math.abs(a.x - b.x) < 12 && Math.abs(a.y - b.y) < 8
+      )));
+      afirmar(encimados.length === 0, `ningún rótulo se monta sobre otro (${encimados.length} encimado(s))`);
+
+      const lienzo = document.querySelector('.estructura-arbol');
+      afirmar(
+        lienzo.scrollWidth <= lienzo.clientWidth + 1,
+        `el esqueleto cabe a lo ancho de su lienzo (${lienzo.scrollWidth} en ${lienzo.clientWidth})`
+      );
+      afirmar(
+        lienzo.scrollHeight <= lienzo.clientHeight + 1,
+        `el esqueleto cabe a lo alto de su lienzo (${lienzo.scrollHeight} en ${lienzo.clientHeight})`
+      );
+
+      // Que el árbol quepa no basta: el árbol no se encoge, así que al crecer
+      // empuja al panel del cálculo, y el escenario lo recorta sin avisar. Hay
+      // que mirar los dos.
+      const escenario = document.querySelector('.lienzo__escenario').getBoundingClientRect();
+      const panelCalculo = document.querySelector('.calculo');
+      afirmar(
+        Math.round(panelCalculo.getBoundingClientRect().right) <= Math.round(escenario.right) + 1,
+        'el cálculo no se sale del lienzo empujado por el árbol'
+      );
+      afirmar(
+        panelCalculo.scrollWidth <= panelCalculo.clientWidth + 1,
+        `el cálculo no queda recortado (${panelCalculo.scrollWidth} en ${panelCalculo.clientWidth})`
+      );
+      afirmarCasillasParejas('residuos múltiples');
+
+      // La lección: leer dos bits de un golpe llega a la clave en menos accesos
+      // que leerlos de uno en uno, y se sigue comparando una sola vez.
+      operar(formularios, 'buscar', 'a');
+      agotarTraza(20);
+      registro.push(`  buscar a: ${metricas()[0]} comparación(es), ${metricas()[1]} accesos (en residuos eran 1 y 5)`);
+      afirmar(metricas()[0] === '1', `buscar compara una sola vez (reporta ${metricas()[0]})`);
+      afirmar(metricas()[1] === '4', `llegar a la clave cuesta 4 accesos y no 5 (reporta ${metricas()[1]})`);
+
+      // h = 01000 se va por la rama 01 de la raíz, que está dibujada y vacía.
+      operar(formularios, 'buscar', 'h');
+      agotarTraza(20);
+      afirmar(metricas()[0] === '0', `por una rama vacía no se compara nada (reporta ${metricas()[0]})`);
+
+      // Al eliminar no sube nada: e se queda al final de su código aunque
+      // quede sola en su rama.
+      operar(formularios, 'eliminar', 'a');
+      agotarTraza(20);
+      operar(formularios, 'eliminar', 'b');
+      agotarTraza(20);
+      registro.push(`  tras eliminar a y b: ${letras()} · altura ${metricas()[2]}`);
+      afirmar(letras() === 'epru', `las dos claves salen del árbol (${letras()})`);
+      afirmar(metricas()[2] === '4', `las que quedan siguen al final de su código (altura ${metricas()[2]})`);
+      // Aquí no sube ninguna clave a tapar el hueco, así que la posición que se
+      // vació se queda marcada: es lo que hay que ver al eliminar.
+      afirmar(
+        !!document.querySelector('.arbol .casilla--eliminada'),
+        'la posición que se vació queda marcada donde estaba la clave'
+      );
+
+      control('reiniciar').click();
+      afirmar(letras() === '', 'reiniciar deja el árbol sin claves');
 
       document.querySelector('.pantalla-tema__volver').click();
     }

@@ -131,6 +131,13 @@
     }
 
     // Cómo se aplica cada efecto que un paso puede declarar (ver traza.js).
+    // La **forma** del árbol —cuántas ramas abre un nodo, con qué se rotulan,
+    // qué posiciones se pintan— entra por `config` y no está cableada aquí: el
+    // árbol digital y residuos son binarios, y residuos múltiples ramifica por
+    // bloques de bits (CLAUDE.md 5.5). Todo lo que la pantalla hace con un
+    // árbol pasa por esta interfaz.
+    const formaArbol = config.arbol || dominio.arbol;
+
     const APLICADORES = {
       colocar: (efecto) => dominio.estructura.colocarEn(estado.estructura, efecto.casilla, efecto.clave),
       retirar: (efecto) => dominio.estructura.retirarDe(estado.estructura, efecto.casilla),
@@ -150,9 +157,9 @@
       // posiciones del árbol implícito, así que se colocan, se retiran y se
       // mueven de una posición a otra —eso último al subir una hoja al sitio
       // de la clave eliminada—.
-      'colocar-nodo': (efecto) => dominio.arbol.colocarNodo(estado.estructura, efecto.nodo, efecto.clave),
-      'retirar-nodo': (efecto) => dominio.arbol.retirarNodo(estado.estructura, efecto.nodo),
-      'mover-nodo': (efecto) => dominio.arbol.moverNodo(estado.estructura, efecto.desde, efecto.hasta)
+      'colocar-nodo': (efecto) => formaArbol.colocarNodo(estado.estructura, efecto.nodo, efecto.clave),
+      'retirar-nodo': (efecto) => formaArbol.retirarNodo(estado.estructura, efecto.nodo),
+      'mover-nodo': (efecto) => formaArbol.moverNodo(estado.estructura, efecto.desde, efecto.hasta)
     };
 
     // La estructura visible siempre corresponde al paso en pantalla: se parte
@@ -652,12 +659,14 @@
     const SEPARACION_NIVEL = 68;
     const SEPARACION_HERMANOS = 24;
     const ALTO_CASILLA = 40;
-    const DIAMETRO_BIFURCACION = 12;
+    const DIAMETRO_BIFURCACION = 10;
     // El punto de bifurcación no pide el mismo aire que una casilla: con el
     // hueco de casilla el árbol de «prueba» no cabía a lo ancho del lienzo y
     // se ponía a scrollear, que es justo lo que la pantalla anclada al
-    // viewport existe para evitar (CLAUDE.md 6.1).
-    const SEPARACION_BIFURCACION = 8;
+    // viewport existe para evitar (CLAUDE.md 6.1). En residuos múltiples son
+    // 21 puntos para 6 claves, así que lo que se ahorre aquí es lo que decide
+    // si el panel del cálculo cabe al lado o se sale del lienzo.
+    const SEPARACION_BIFURCACION = 4;
 
     // En residuos las claves solo viven en las hojas y los nodos de en medio
     // no guardan nada ni podrán guardarlo nunca (CLAUDE.md 5.5): se dibujan
@@ -682,25 +691,15 @@
       return el;
     }
 
-    // Qué posiciones se dibujan: las ocupadas, sus ancestros —para que un
-    // hueco a medio eliminar se vea como lo que es, y no deje huérfanos
-    // flotando— y la posición vacía que el paso esté señalando.
-    function posicionesDibujadas(paso) {
-      const dibujadas = new Set(dominio.arbol.nodos(estado.estructura).map((nodo) => nodo.indice));
-      if (paso && paso.casilla) dibujadas.add(paso.casilla);
-      for (const indice of [...dibujadas]) {
-        let ancestro = dominio.arbol.padre(indice);
-        while (ancestro >= dominio.arbol.RAIZ && !dibujadas.has(ancestro)) {
-          dibujadas.add(ancestro);
-          ancestro = dominio.arbol.padre(ancestro);
-        }
-      }
-      return dibujadas;
-    }
-
-    // Coordenadas de cada posición: la columna sale del recorrido en orden
-    // —izquierda, nodo, derecha—, que es lo que evita que dos ramas se pisen,
-    // y la fila es el nivel, que es el número de bit que se miró para llegar.
+    // Coordenadas de cada posición: la columna sale de un recorrido en orden y
+    // la fila es el nivel, que es el bit —o el bloque de bits— que se miró para
+    // llegar hasta ahí.
+    //
+    // El nodo se coloca a la **mitad de sus huecos**, dibujados o no: con dos
+    // hijos eso es exactamente «izquierda, nodo, derecha», que es lo que hacían
+    // el árbol digital y residuos, y con cuatro deja al padre centrado entre
+    // las ramas 01 y 10. Contar los huecos y no los hijos dibujados es lo que
+    // mantiene idéntica la retícula de los dos temas binarios.
     //
     // Cada posición ocupa lo que ocupa su dibujo y no una columna fija: en
     // residuos los puntos de bifurcación son la mayoría del árbol, y darles el
@@ -712,12 +711,14 @@
       let x = 0;
       (function enOrden(indice) {
         if (!dibujadas.has(indice)) return;
-        enOrden(dominio.arbol.izquierdo(indice));
+        const huecos = formaArbol.hijos(indice);
+        const mitad = Math.floor(huecos.length / 2);
+        for (let k = 0; k < mitad; k++) enOrden(huecos[k]);
         const ancho = anchoDe(indice);
         posiciones.set(indice, { izquierda: x, centro: x + ancho / 2 });
         x += ancho;
-        enOrden(dominio.arbol.derecho(indice));
-      })(dominio.arbol.RAIZ);
+        for (let k = mitad; k < huecos.length; k++) enOrden(huecos[k]);
+      })(formaArbol.RAIZ);
       return { posiciones, ancho: x };
     }
 
@@ -730,12 +731,12 @@
 
       const centro = (indice) => ({
         x: posiciones.get(indice).centro,
-        y: (dominio.arbol.nivelDe(indice) - 1) * SEPARACION_NIVEL
+        y: (formaArbol.nivelDe(indice) - 1) * SEPARACION_NIVEL
       });
 
       for (const indice of posiciones.keys()) {
-        if (indice === dominio.arbol.RAIZ) continue;
-        const padre = dominio.arbol.padre(indice);
+        if (indice === formaArbol.RAIZ) continue;
+        const padre = formaArbol.padre(indice);
         const desde = centro(padre);
         const hasta = centro(indice);
         // La arista sale del pie del nodo padre, que mide distinto según sea
@@ -750,14 +751,30 @@
         linea.setAttribute('y2', hasta.y);
         svg.appendChild(linea);
 
-        // El rótulo va sobre la arista, del lado del hijo: es el bit que hubo
-        // que leer para bajar por ahí, y sin él el dibujo no dice por qué la
-        // clave tomó ese camino.
+        // El rótulo va sobre la arista, del lado del hijo: es el bit —o el
+        // bloque— que hubo que leer para bajar por ahí, y sin él el dibujo no
+        // dice por qué la clave tomó ese camino.
+        //
+        // Cuánto se baja por la arista antes de escribirlo depende de cuántas
+        // ramas abra el padre: con dos, a mitad de camino quedan bien separados;
+        // con cuatro se amontonan todos en el mismo punto, porque de ahí es de
+        // donde salen. Bajando hasta cerca del hijo se abren tanto como se
+        // abran los hijos, que es lo que los separa.
+        //
+        // Y con cuatro ramas se escalonan además a dos alturas, alternando: dos
+        // rótulos vecinos que llevan a posiciones vacías caen a menos de un
+        // carácter uno de otro, y no hay ancho que repartir —el árbol y el
+        // cálculo ya ocupan el escenario entero—.
+        const hermanos = formaArbol.hijos(padre);
+        const ramas = hermanos.length;
+        const avance = ramas > 2
+          ? (hermanos.indexOf(indice) % 2 === 0 ? 0.72 : 0.9)
+          : 0.45;
         const rotulo = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         rotulo.setAttribute('class', 'arbol__bit');
-        rotulo.setAttribute('x', desde.x + (hasta.x - desde.x) * 0.45 + (hasta.x < desde.x ? -8 : 8));
-        rotulo.setAttribute('y', pie + (hasta.y - pie) * 0.45);
-        rotulo.textContent = indice % 2 === 0 ? '0' : '1';
+        rotulo.setAttribute('x', desde.x + (hasta.x - desde.x) * avance + (hasta.x < desde.x ? -8 : 8));
+        rotulo.setAttribute('y', pie + (hasta.y - pie) * avance);
+        rotulo.textContent = formaArbol.rotuloDeArista(indice);
         svg.appendChild(rotulo);
       }
       return svg;
@@ -765,7 +782,7 @@
 
     function renderizarArbol(paso) {
       const claves = estado.estructura.claves;
-      const dibujadas = posicionesDibujadas(paso);
+      const dibujadas = formaArbol.posicionesDibujadas(estado.estructura, paso);
       const anchoCasilla = vista.componentes.casilla.anchoParaCifras(estado.estructura.l);
       const anchoDe = (indice) => (esBifurcacion(indice, paso)
         ? DIAMETRO_BIFURCACION + SEPARACION_BIFURCACION
@@ -776,7 +793,7 @@
 
       const reparto = distribuir(dibujadas, anchoDe);
       const posiciones = reparto.posiciones;
-      const niveles = [...posiciones.keys()].reduce((mayor, i) => Math.max(mayor, dominio.arbol.nivelDe(i)), 1);
+      const niveles = [...posiciones.keys()].reduce((mayor, i) => Math.max(mayor, formaArbol.nivelDe(i)), 1);
       const ancho = Math.max(reparto.ancho, 1);
       const alto = (niveles - 1) * SEPARACION_NIVEL + ALTO_CASILLA;
 
@@ -808,7 +825,7 @@
           }
           const hueco = esBifurcacion(indice, paso) ? SEPARACION_BIFURCACION : SEPARACION_HERMANOS;
           nodoEl.style.left = `${sitio.izquierda + hueco / 2}px`;
-          nodoEl.style.top = `${(dominio.arbol.nivelDe(indice) - 1) * SEPARACION_NIVEL}px`;
+          nodoEl.style.top = `${(formaArbol.nivelDe(indice) - 1) * SEPARACION_NIVEL}px`;
           lienzoArbol.appendChild(nodoEl);
           if (paso && paso.casilla === indice) seguido = nodoEl;
         }
