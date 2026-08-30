@@ -651,6 +651,36 @@
     // lado, como en las funciones hash (decisión del usuario, 2026-08-29).
     const SEPARACION_NIVEL = 68;
     const SEPARACION_HERMANOS = 24;
+    const ALTO_CASILLA = 40;
+    const DIAMETRO_BIFURCACION = 12;
+    // El punto de bifurcación no pide el mismo aire que una casilla: con el
+    // hueco de casilla el árbol de «prueba» no cabía a lo ancho del lienzo y
+    // se ponía a scrollear, que es justo lo que la pantalla anclada al
+    // viewport existe para evitar (CLAUDE.md 6.1).
+    const SEPARACION_BIFURCACION = 8;
+
+    // En residuos las claves solo viven en las hojas y los nodos de en medio
+    // no guardan nada ni podrán guardarlo nunca (CLAUDE.md 5.5): se dibujan
+    // como un punto y no como una casilla, porque en todos los demás temas una
+    // casilla vacía significa «aquí cabe una clave» y aquí sería mentira
+    // (decisión del usuario sobre maqueta, 2026-08-30).
+    //
+    // La excepción es la posición vacía en la que **termina** un paso: una
+    // búsqueda que corta camino acaba justo ahí, y hay que verla como el sitio
+    // donde la clave tendría que estar. El nodo por el que se está *bajando*
+    // no: hincharlo a casilla en cada paso recolocaría el árbol entero debajo
+    // del reproductor, así que se queda como punto y solo se resalta.
+    function esBifurcacion(indice, paso) {
+      if (!config.clavesSoloEnHojas) return false;
+      if (estado.estructura.claves[indice - 1] !== undefined) return false;
+      return !(paso && paso.casilla === indice && paso.tipo !== 'ramificacion');
+    }
+
+    function crearBifurcacion(activa) {
+      const el = document.createElement('div');
+      el.className = 'arbol__bifurcacion' + (activa ? ' arbol__bifurcacion--activa' : '');
+      return el;
+    }
 
     // Qué posiciones se dibujan: las ocupadas, sus ancestros —para que un
     // hueco a medio eliminar se vea como lo que es, y no deje huérfanos
@@ -671,19 +701,27 @@
     // Coordenadas de cada posición: la columna sale del recorrido en orden
     // —izquierda, nodo, derecha—, que es lo que evita que dos ramas se pisen,
     // y la fila es el nivel, que es el número de bit que se miró para llegar.
-    function distribuir(dibujadas) {
-      const columnas = new Map();
-      let columna = 0;
+    //
+    // Cada posición ocupa lo que ocupa su dibujo y no una columna fija: en
+    // residuos los puntos de bifurcación son la mayoría del árbol, y darles el
+    // ancho de una casilla lo estiraría al doble sin necesidad. Con un solo
+    // ancho —el de los temas que dibujan casillas en todos los nodos— sale la
+    // misma retícula de antes.
+    function distribuir(dibujadas, anchoDe) {
+      const posiciones = new Map();
+      let x = 0;
       (function enOrden(indice) {
         if (!dibujadas.has(indice)) return;
         enOrden(dominio.arbol.izquierdo(indice));
-        columnas.set(indice, columna++);
+        const ancho = anchoDe(indice);
+        posiciones.set(indice, { izquierda: x, centro: x + ancho / 2 });
+        x += ancho;
         enOrden(dominio.arbol.derecho(indice));
       })(dominio.arbol.RAIZ);
-      return columnas;
+      return { posiciones, ancho: x };
     }
 
-    function crearAristas(columnas, ancho, alto, pasoColumna) {
+    function crearAristas(posiciones, ancho, alto, altoDe) {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('class', 'arbol__aristas');
       svg.setAttribute('width', ancho);
@@ -691,19 +729,23 @@
       svg.setAttribute('aria-hidden', 'true');
 
       const centro = (indice) => ({
-        x: columnas.get(indice) * pasoColumna + pasoColumna / 2,
+        x: posiciones.get(indice).centro,
         y: (dominio.arbol.nivelDe(indice) - 1) * SEPARACION_NIVEL
       });
 
-      for (const indice of columnas.keys()) {
+      for (const indice of posiciones.keys()) {
         if (indice === dominio.arbol.RAIZ) continue;
-        const desde = centro(dominio.arbol.padre(indice));
+        const padre = dominio.arbol.padre(indice);
+        const desde = centro(padre);
         const hasta = centro(indice);
+        // La arista sale del pie del nodo padre, que mide distinto según sea
+        // una casilla o un punto de bifurcación.
+        const pie = desde.y + altoDe(padre);
 
         const linea = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         linea.setAttribute('class', 'arbol__arista');
         linea.setAttribute('x1', desde.x);
-        linea.setAttribute('y1', desde.y + 40);
+        linea.setAttribute('y1', pie);
         linea.setAttribute('x2', hasta.x);
         linea.setAttribute('y2', hasta.y);
         svg.appendChild(linea);
@@ -714,7 +756,7 @@
         const rotulo = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         rotulo.setAttribute('class', 'arbol__bit');
         rotulo.setAttribute('x', desde.x + (hasta.x - desde.x) * 0.45 + (hasta.x < desde.x ? -8 : 8));
-        rotulo.setAttribute('y', desde.y + 40 + (hasta.y - desde.y - 40) * 0.45);
+        rotulo.setAttribute('y', pie + (hasta.y - pie) * 0.45);
         rotulo.textContent = indice % 2 === 0 ? '0' : '1';
         svg.appendChild(rotulo);
       }
@@ -724,12 +766,19 @@
     function renderizarArbol(paso) {
       const claves = estado.estructura.claves;
       const dibujadas = posicionesDibujadas(paso);
-      const columnas = distribuir(dibujadas);
       const anchoCasilla = vista.componentes.casilla.anchoParaCifras(estado.estructura.l);
-      const pasoColumna = anchoCasilla + SEPARACION_HERMANOS;
-      const niveles = [...columnas.keys()].reduce((mayor, i) => Math.max(mayor, dominio.arbol.nivelDe(i)), 1);
-      const ancho = Math.max(columnas.size, 1) * pasoColumna;
-      const alto = (niveles - 1) * SEPARACION_NIVEL + 40;
+      const anchoDe = (indice) => (esBifurcacion(indice, paso)
+        ? DIAMETRO_BIFURCACION + SEPARACION_BIFURCACION
+        : anchoCasilla + SEPARACION_HERMANOS);
+      const altoDe = (indice) => (
+        esBifurcacion(indice, paso) ? DIAMETRO_BIFURCACION : ALTO_CASILLA
+      );
+
+      const reparto = distribuir(dibujadas, anchoDe);
+      const posiciones = reparto.posiciones;
+      const niveles = [...posiciones.keys()].reduce((mayor, i) => Math.max(mayor, dominio.arbol.nivelDe(i)), 1);
+      const ancho = Math.max(reparto.ancho, 1);
+      const alto = (niveles - 1) * SEPARACION_NIVEL + ALTO_CASILLA;
 
       let seguido = null;
       vista.animacion.animarFlip(dom.estructuraEl, () => {
@@ -741,21 +790,27 @@
         lienzoArbol.className = 'arbol';
         lienzoArbol.style.width = `${ancho}px`;
         lienzoArbol.style.height = `${alto}px`;
-        lienzoArbol.appendChild(crearAristas(columnas, ancho, alto, pasoColumna));
+        lienzoArbol.appendChild(crearAristas(posiciones, ancho, alto, altoDe));
 
-        for (const [indice, columna] of columnas) {
+        for (const [indice, sitio] of posiciones) {
           const clave = claves[indice - 1];
-          const descripcion = config.describirCasilla({ paso, indice, ocupada: clave !== undefined });
-          const casillaEl = vista.componentes.casilla.crearCasilla({
-            clave,
-            indice,
-            estado: descripcion.estado,
-            modificadores: descripcion.modificadores
-          });
-          casillaEl.style.left = `${columna * pasoColumna + SEPARACION_HERMANOS / 2}px`;
-          casillaEl.style.top = `${(dominio.arbol.nivelDe(indice) - 1) * SEPARACION_NIVEL}px`;
-          lienzoArbol.appendChild(casillaEl);
-          if (paso && paso.casilla === indice) seguido = casillaEl;
+          let nodoEl;
+          if (esBifurcacion(indice, paso)) {
+            nodoEl = crearBifurcacion(!!paso && paso.casilla === indice);
+          } else {
+            const descripcion = config.describirCasilla({ paso, indice, ocupada: clave !== undefined });
+            nodoEl = vista.componentes.casilla.crearCasilla({
+              clave,
+              indice,
+              estado: descripcion.estado,
+              modificadores: descripcion.modificadores
+            });
+          }
+          const hueco = esBifurcacion(indice, paso) ? SEPARACION_BIFURCACION : SEPARACION_HERMANOS;
+          nodoEl.style.left = `${sitio.izquierda + hueco / 2}px`;
+          nodoEl.style.top = `${(dominio.arbol.nivelDe(indice) - 1) * SEPARACION_NIVEL}px`;
+          lienzoArbol.appendChild(nodoEl);
+          if (paso && paso.casilla === indice) seguido = nodoEl;
         }
 
         dom.estructuraEl.appendChild(lienzoArbol);

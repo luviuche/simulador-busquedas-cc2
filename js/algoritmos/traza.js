@@ -10,6 +10,11 @@
     INSERCION: 'insercion',
     COLISION: 'colision',
     SONDEO: 'sondeo',
+    // Búsqueda por residuos (CLAUDE.md 5.5): bajar por un nodo que solo
+    // bifurca. No es una comparación —ahí no hay clave que comparar, solo un
+    // bit que leer— y por eso no puede llamarse igual: la lección del tema es
+    // justamente que se baja mucho y se compara una sola vez.
+    RAMIFICACION: 'ramificacion',
     RECHAZADA: 'rechazada',
     SATURADA: 'saturada',
     // Eliminación (CLAUDE.md 5.6). No tiene algoritmo propio: localiza la

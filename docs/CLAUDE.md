@@ -486,6 +486,33 @@ Con el byte entero las tres primeras cifras (`011`) son iguales en todas las let
 
 Vive en `dominio/clave.js` (`BITS_LETRA`, `codigoDeLetra`, `validarLetra`, `validarPalabra`) y lo comparten los tres temas.
 
+#### Búsqueda por residuos (2026-08-30)
+
+**Un bit por nivel, igual que el árbol digital, y una sola diferencia de la que cuelga todo lo demás: las claves viven solo en las hojas.** Los nodos de en medio no guardan nada y nunca podrán: son bifurcaciones. El árbol de `prueba` —el mismo ejercicio de clase— queda más hondo y más simétrico que el digital:
+
+```
+                   ·                  p = 10000   e = 00101
+        0 /                 \ 1        r = 10010   b = 00010
+        ·                    ·         u = 10101   a = 00001
+      0 /                  0 /
+      ·                    ·
+   0 /  \ 1             0 /  \ 1
+   ·     [e]            ·     [u]
+ 0/ \1                0/ \1
+[a] [b]              [p] [r]
+```
+
+De la regla salen las cuatro consecuencias que hay que respetar:
+
+- **Buscar hace una sola comparación de clave**, la de la hoja a la que se llega. Bajar cuesta accesos, no comparaciones, y esa es la lección del tema: por eso las dos métricas van juntas, y por eso bajar por una bifurcación es un paso de tipo propio (`ramificacion`) y no una comparación. Llamarlo comparación sería mentirle a la métrica.
+- **Insertar sobre una hoja ocupada es el caso normal, no un error.** Ninguna de las dos claves puede quedarse ahí: la posición pasa a bifurcar y las dos bajan juntas mientras sus códigos coincidan bit a bit, separándose en el primero en que difieren. Por eso una inserción puede mover dos claves —la que entra y la que ya estaba— y la traza lo declara con dos efectos.
+- **Hay dos formas de probar que una clave no está**, y las dos son concluyentes: el camino se corta en una posición que no existe, o se llega a una hoja que guarda otra clave. En el segundo caso sí hubo una comparación; en el primero, ninguna.
+- **Al eliminar, la rama se recoge** (decisión del usuario sobre maqueta, 2026-08-30): mientras un ancestro quede colgando de una sola clave, esa clave sube. Los bits que hacían falta para distinguirla de la que se fue ya no distinguen nada. Así el dibujo depende solo de **qué** claves hay y no del orden en que se borraron: el árbol queda idéntico al que saldría de insertar las que quedan desde cero, y eso es lo que fija la prueba `eliminar deja el mismo árbol que insertar las claves que quedan`. Sin recoger, la misma palabra daría árboles distintos y la altura mentiría.
+
+**Un nivel más que el árbol digital.** Dos códigos que solo se separan en el último bit dejan sus hojas por debajo del último nivel que se mira, así que `n = 2^(bits + 1) − 1 = 63` y no 31. La posición se nombra por su **camino de bits** —el binario del índice sin el bit de la raíz— y no por su parentesco: el padre casi siempre es una bifurcación sin clave, y «hijo izquierdo de b» no tendría de qué colgar.
+
+Todo lo demás lo comparte con el árbol digital y no hubo que tocarlo: la letra y su código, el modo `arbol`, el dibujo por niveles, la palabra entera como una sola operación reproducible, y que el tema no pida `n` ni `l` ni panel de configuración. Vive en `algoritmos/residuos.js`, con `dominio/arbol.js` aportando `clavesDelSubarbol` —el recorrido que **atraviesa** las posiciones vacías, que `subarbol` no hace—.
+
 #### Árboles de búsqueda digital (2026-08-29)
 
 **Un bit por nivel**: en el nivel `d` se mira el bit `d` del código, `0` baja a la izquierda y `1` a la derecha. La primera clave queda en la raíz. El árbol de `prueba`:
@@ -650,6 +677,14 @@ Dos consecuencias:
 
 - **El árbol no elide** y su control desaparece del lienzo: su tamaño lo acota el alfabeto, no un `n` que el estudiante elige.
 - **Se dibujan también las posiciones vacías que son ancestro de una ocupada.** Es lo que hace visible el hueco a medio eliminar —el paso que saca la clave antes de que suba la hoja— en vez de dejar descendientes flotando sin padre.
+
+**En residuos el nodo interno se dibuja como un punto y no como una casilla** (decisión del usuario sobre maqueta, 2026-08-30). En todos los demás temas una casilla vacía significa «aquí cabe una clave», y en residuos eso sería mentira: ese nodo bifurca y nunca podrá guardar nada. Dibujado como punto, lo único con caja en el árbol son las claves, que es lo que hay que leer. Lo enciende `config.clavesSoloEnHojas`.
+
+Dos cosas que ese punto arrastró:
+
+- **El nodo por el que se está bajando sigue siendo un punto, solo que resaltado.** Hincharlo a casilla en cada paso recolocaría el árbol entero debajo del reproductor. La excepción es la posición vacía en la que **termina** un paso —donde se corta el camino de una búsqueda—: esa sí se dibuja como casilla, porque es donde la clave tendría que estar.
+- **Cada posición ocupa lo que ocupa su dibujo**, no una columna fija: un punto pide menos aire que una casilla. Con columnas de ancho único el árbol de `prueba` no cabía a lo ancho del lienzo y se ponía a scrollear. Y cuando aun así el árbol y el cálculo no caben juntos, **el que cede es el cálculo**: el árbol no elide y no tiene manera de encogerse. Antes los dos se encogían a la par y el que desbordaba era el árbol, que es justo lo que la pantalla anclada al viewport existe para evitar.
+
 
 ### 6.8 La reproducción arranca sola (2026-08-30)
 
@@ -852,7 +887,7 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 
-**De «otras búsquedas internas» está construido el primero: árboles de búsqueda digital** (§5.5), que estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles. Siguen **por residuos** y **residuos múltiples**, que comparten con él la letra y su código y se diferencian en dónde viven las claves.
+**De «otras búsquedas internas» están construidos dos: árboles de búsqueda digital y búsqueda por residuos** (§5.5). El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima sin tocar nada de eso, aportando una sola regla —las claves solo en las hojas— y las dos piezas que le hicieron falta: `clavesDelSubarbol` en el dominio y `config.clavesSoloEnHojas` en la vista. Sigue **residuos múltiples**, que comparte con los dos la letra y su código y ramifica por bloques de bits en vez de bit a bit.
 
 **Los cuatro tratamientos de colisión están construidos: `ninguno`, `reasignación` (prueba lineal), `arreglos anidados` y `encadenamiento secuencial` (§5.4).** Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el encadenamiento entró sobre él: comparte almacenamiento, aplicadores y rama de eliminación, y lo único propio suyo es que su estructura secundaria no tiene tope.
 

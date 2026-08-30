@@ -30,6 +30,7 @@
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
   <script src="../js/algoritmos/arbol-digital.js"></script>
+  <script src="../js/algoritmos/residuos.js"></script>
   <script src="../js/algoritmos/eliminacion.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
   <script src="../js/algoritmos/colisiones/anidados.js"></script>
@@ -369,6 +370,7 @@
       anidados();
       encadenamiento();
       arbolDigital();
+      residuos();
       controlDeVelocidad();
     }
 
@@ -1395,6 +1397,115 @@
         !document.querySelector('.estructura-apilada').textContent.includes('undefined'),
         'ninguna fila dibuja undefined'
       );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Búsqueda por residuos: mismo dibujo por niveles que el árbol digital,
+    // pero con las claves solo en las hojas. Lo que hay que ver aquí es que
+    // ninguna clave quede en un nodo con hijos, que los nodos de en medio sean
+    // puntos y no casillas, y que el árbol —que es más hondo y más ancho que
+    // el digital— quepa en su lienzo sin desplazarse.
+    function residuos() {
+      registro.push('', '── Búsqueda por residuos ──');
+
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes('Búsqueda por residuos'))
+        .click();
+      const formularios = [...document.querySelectorAll('form.panel')];
+      const operaciones = formularios[0];
+
+      afirmar(formularios.length === 1, `el tema no dibuja panel de configuración (${formularios.length} formulario(s))`);
+      afirmar(!!document.querySelector('.estructura-arbol'), 'el árbol existe desde que se entra al tema');
+
+      operaciones.querySelector('[name="palabra"]').value = 'prueba';
+      operaciones.querySelector('[data-accion="insertar-palabra"]').click();
+      agotarTraza(120);
+
+      const casillas = () => [...document.querySelectorAll('.arbol .casilla')];
+      const letras = () => casillas()
+        .map((el) => el.textContent.replace(/[^a-z]/g, ''))
+        .filter(Boolean)
+        .sort()
+        .join('');
+      const puntos = () => document.querySelectorAll('.arbol__bifurcacion').length;
+
+      registro.push(`  árbol de «prueba»: ${letras()} · ${puntos()} bifurcaciones`);
+      afirmar(letras() === 'abepru', `las seis letras quedan dibujadas (${letras()})`);
+      afirmar(puntos() === 7, `los nodos de en medio se dibujan como punto (${puntos()})`);
+      afirmar(
+        casillas().length === 6,
+        `solo las claves llevan casilla (${casillas().length} casilla(s) para 6 claves)`
+      );
+
+      // Que las claves vivan **solo en las hojas** no se ve contando: se ve en
+      // que de ninguna casilla salga una arista hacia abajo. Es la diferencia
+      // con el árbol digital, y la única forma de comprobarla sobre el dibujo.
+      const aristas = [...document.querySelectorAll('.arbol__arista')];
+      const conHijos = casillas().filter((casilla) => {
+        const caja = casilla.getBoundingClientRect();
+        const svg = document.querySelector('.arbol__aristas').getBoundingClientRect();
+        const centroX = caja.left - svg.left + caja.width / 2;
+        const pie = caja.top - svg.top + caja.height;
+        return aristas.some((arista) => (
+          Math.abs(Number(arista.getAttribute('x1')) - centroX) < 2
+          && Math.abs(Number(arista.getAttribute('y1')) - pie) < 2
+        ));
+      });
+      afirmar(conHijos.length === 0, `ninguna clave tiene ramas colgando (${conHijos.length} con hijos)`);
+      afirmar(aristas.length === 12, `cada nodo que no es la raíz entra por una arista (${aristas.length})`);
+      afirmarCasillasParejas('residuos');
+
+      // El lienzo del árbol scrollea (`overflow: auto`), así que su rectángulo
+      // siempre cae dentro del viewport aunque por dentro sobresalga: hay que
+      // medir el contenido y no la caja.
+      const lienzo = document.querySelector('.estructura-arbol');
+      afirmar(
+        lienzo.scrollWidth <= lienzo.clientWidth + 1,
+        `el árbol cabe a lo ancho de su lienzo (${lienzo.scrollWidth} en ${lienzo.clientWidth})`
+      );
+      afirmar(
+        lienzo.scrollHeight <= lienzo.clientHeight + 1,
+        `el árbol cabe a lo alto de su lienzo (${lienzo.scrollHeight} en ${lienzo.clientHeight})`
+      );
+
+      const metricas = () => [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+      afirmar(metricas()[2] === '5', `la altura cuenta niveles (reporta ${metricas()[2]})`);
+
+      // La lección del tema: se baja tanto como diga el código y se compara una
+      // sola vez, al llegar a la hoja.
+      operar(formularios, 'buscar', 'a');
+      agotarTraza(20);
+      registro.push(`  buscar a: ${metricas()[0]} comparación(es), ${metricas()[1]} accesos`);
+      afirmar(metricas()[0] === '1', `buscar compara una sola vez (reporta ${metricas()[0]})`);
+      afirmar(metricas()[1] === '5', `bajar hasta la hoja cuesta 5 accesos (reporta ${metricas()[1]})`);
+
+      // Camino cortado: h = 01000 se sale del árbol en el bit 2, y esa posición
+      // vacía sí se dibuja como casilla, porque es donde la clave iría.
+      operar(formularios, 'buscar', 'h');
+      agotarTraza(20);
+      afirmar(
+        !!aviso() && aviso().textContent.includes('no existe'),
+        'el camino cortado prueba que la clave no está'
+      );
+      afirmar(metricas()[0] === '0', `sin hoja a la que llegar no se compara nada (reporta ${metricas()[0]})`);
+
+      // Al eliminar, la rama se recoge: b sube y el árbol pierde un nivel.
+      operar(formularios, 'eliminar', 'a');
+      agotarTraza(20);
+      registro.push(`  tras eliminar a: ${letras()} · ${puntos()} bifurcaciones · altura ${metricas()[2]}`);
+      afirmar(letras() === 'bepru', `la clave sale del árbol (${letras()})`);
+      // La altura no baja —p y r siguen en el nivel 5—, pero la rama de a y b
+      // sí se recoge: b sube al sitio de su bifurcación, que desaparece.
+      afirmar(puntos() === 6, `la rama se recoge y su bifurcación desaparece (${puntos()} bifurcaciones)`);
+      afirmar(metricas()[2] === '5', `p y r mantienen la altura en 5 (reporta ${metricas()[2]})`);
+      afirmar(
+        casillas().every((el) => el.textContent.trim() !== ''),
+        'no queda ningún hueco dibujado tras cerrar la eliminación'
+      );
+
+      control('reiniciar').click();
+      afirmar(letras() === '' && puntos() === 0, 'reiniciar deja el árbol sin claves ni bifurcaciones');
 
       document.querySelector('.pantalla-tema__volver').click();
     }

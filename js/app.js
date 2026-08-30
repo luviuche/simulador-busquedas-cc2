@@ -36,7 +36,7 @@
         {
           titulo: 'Otras búsquedas internas',
           temas: [
-            { id: 'residuos', titulo: 'Búsqueda por residuos', descripcion: 'Ramificación por dígitos binarios', disponible: false },
+            { id: 'residuos', titulo: 'Búsqueda por residuos', descripcion: 'Claves solo en las hojas', disponible: true },
             { id: 'arbol-digital', titulo: 'Árboles de búsqueda digital', descripcion: 'Inserción bit a bit', disponible: true },
             { id: 'residuos-multiples', titulo: 'Residuos múltiples', descripcion: 'Ramificación por bloques de bits', disponible: false },
             { id: 'tablas-indices', titulo: 'Tablas de índices', descripcion: 'Acceso mediante tabla auxiliar', disponible: false },
@@ -322,6 +322,80 @@
     // Árboles de búsqueda digital (CLAUDE.md 5.5). El primero de los temas que
     // trabajan con letras y bits: la clave es una letra, su código son las
     // cinco cifras que la distinguen, y el árbol se recorre un bit por nivel.
+    // Búsqueda por residuos (CLAUDE.md 5.5). Comparte con el árbol digital
+    // casi todo —la letra como clave, el código de bits, el modo `arbol`, el
+    // dibujo por niveles, la palabra entera como operación— y se aparta en una
+    // sola cosa, de la que cuelga el resto: **las claves solo viven en las
+    // hojas**. De ahí salen `clavesSoloEnHojas` para la vista y un nivel más
+    // de profundidad para la estructura.
+    residuos: (() => {
+      const BITS = dominio.clave.BITS_LETRA;
+      // Un nivel más que el árbol digital: dos códigos que solo se separan en
+      // el último bit dejan sus hojas por debajo del último nivel que se mira.
+      const NIVELES = BITS + 1;
+      const operar = (operacion) => ({ estructura, clave, objetivo, letras }) => operacion({
+        claves: estructura.claves,
+        n: estructura.n,
+        bits: BITS,
+        clave,
+        objetivo,
+        letras
+      });
+
+      return {
+        titulo: 'BÚSQUEDA POR RESIDUOS',
+        descripcion: 'Un bit por nivel, y las claves solo en las hojas',
+        orientacion: 'arbol',
+        modo: dominio.estructura.MODOS.ARBOL,
+        calculo: true,
+        tituloCalculo: 'Código de la clave',
+        claveEsLetra: true,
+        palabra: true,
+        sinTamano: true,
+        sinConfiguracion: true,
+        // Los nodos de en medio no guardan clave ni podrán guardarla: se
+        // dibujan como punto y no como casilla vacía (CLAUDE.md 6.7).
+        clavesSoloEnHojas: true,
+        tamano: () => ({ n: dominio.arbol.posiciones(NIVELES), l: 1 }),
+        nombreEstructura: 'árbol',
+        mensajeReinicio: 'Árbol reiniciado: sin claves.',
+        mensajeCreacion: () => `Árbol creado: código de ${BITS} bits por letra, claves solo en las hojas.`,
+        detalleReciente: () => `código de ${BITS} bits por letra`,
+        insertar: operar(algoritmos.residuos.insertar),
+        buscar: operar(algoritmos.residuos.buscar),
+        eliminar: operar(algoritmos.residuos.eliminar),
+        insertarPalabra: operar(algoritmos.residuos.insertarPalabra),
+        casillasRelevantes: (paso) => (paso.casilla ? [paso.casilla] : []),
+        describirCasilla: ({ paso, indice, ocupada }) => {
+          const base = ocupada ? 'ocupada' : 'vacia';
+          if (!paso || paso.casilla !== indice) return { estado: base };
+          if (paso.tipo === 'encontrada') return { estado: 'encontrada' };
+          if (paso.tipo === 'insercion') return { estado: 'insertada' };
+          if (paso.tipo === 'eliminacion') return { estado: 'eliminada' };
+          if (paso.tipo === 'rechazada') return { estado: 'colision' };
+          // El choque de dos claves en la misma hoja no es un error sino el
+          // caso normal, pero es el momento que hay que mirar: las dos bajan.
+          if (paso.tipo === 'colision') return { estado: 'colision' };
+          // La posición vacía donde se cortó el camino se dibuja como casilla
+          // —no como punto— para que se vea que ahí es donde la clave iría.
+          if (paso.tipo === 'no-encontrada') return { estado: base, modificadores: ['direccion'] };
+          if (paso.tipo === 'ramificacion') return { estado: 'en-evaluacion' };
+          return { estado: base };
+        },
+        metricas: [
+          // Comparaciones y accesos juntos son la lección del tema: se baja
+          // tanto como diga el código y se compara una sola vez, al final.
+          METRICA_COMPARACIONES,
+          METRICA_ACCESOS,
+          {
+            id: 'altura',
+            etiqueta: 'Altura',
+            valor: ({ estructura }) => (estructura ? String(dominio.arbol.altura(estructura)) : '0')
+          }
+        ]
+      };
+    })(),
+
     'arbol-digital': (() => {
       const BITS = dominio.clave.BITS_LETRA;
       const operar = (operacion) => ({ estructura, clave, objetivo, letras }) => operacion({

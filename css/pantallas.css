@@ -445,12 +445,39 @@
   padding: var(--espacio-4);
 }
 
+/* Ver el comentario de .calculo: el árbol se queda con el ancho que necesita
+   —hasta el 100% del escenario, que su max-width ya acota— y el cálculo se
+   acomoda en lo que sobre. */
+.lienzo__escenario .estructura-arbol {
+  flex-shrink: 0;
+}
+
 .arbol {
   position: relative;
 }
 
 .arbol .casilla {
   position: absolute;
+}
+
+/* Nodo interno de un árbol de residuos (CLAUDE.md 5.5): bifurca y nada más.
+   No lleva casilla porque en todos los demás temas una casilla vacía significa
+   «aquí cabe una clave», y aquí nunca podrá caber. Dibujado como punto, lo
+   único con caja en el árbol son las claves, que es lo que hay que leer. */
+.arbol__bifurcacion {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--borde-fuerte);
+}
+
+/* El nodo por el que se está bajando ahora mismo. Toma el color de evaluación
+   —el mismo que la casilla en evaluación— sin cambiar de tamaño: si creciera,
+   cada paso del reproductor recolocaría el árbol entero. */
+.arbol__bifurcacion--activa {
+  background: var(--estado-evaluacion-borde);
+  box-shadow: 0 0 0 3px var(--estado-evaluacion-relleno);
 }
 
 /* Las aristas van detrás de las casillas y no interceptan el ratón: son
@@ -513,6 +540,12 @@
    última línea revelada queda destacada. */
 .calculo {
   min-width: 260px;
+  /* El árbol no elide (CLAUDE.md 6.7): no tiene manera de encogerse, así que
+     cuando él y el cálculo no caben juntos el que cede es el cálculo. Antes
+     los dos se encogían a la par y el árbol de residuos —el dibujo más ancho
+     de la aplicación— acababa scrolleando dentro de su propio lienzo, que es
+     lo que la pantalla anclada al viewport existe para evitar. */
+  overflow-x: auto;
   align-self: center;
   padding: var(--espacio-4);
   background: var(--superficie);

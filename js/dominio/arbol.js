@@ -83,6 +83,23 @@
       .concat(subarbol(estructura, derecho(indice)));
   }
 
+  // Las posiciones ocupadas que cuelgan de `indice`, la suya incluida. A
+  // diferencia de `subarbol`, **atraviesa las posiciones vacías**: en un árbol
+  // de residuos los nodos de en medio no guardan clave y son la mayoría del
+  // árbol (CLAUDE.md 5.5), así que cortar en el primer hueco dejaría fuera
+  // todo lo que cuelga de él.
+  //
+  // Sirve para dos preguntas que ese tema hace todo el tiempo: si una posición
+  // vacía es una bifurcación —tiene claves debajo— o el final del camino, y si
+  // una rama quedó colgando de una sola clave al eliminar.
+  function clavesDelSubarbol(estructura, indice) {
+    if (indice > estructura.n) return [];
+    const propias = ocupada(estructura, indice) ? [indice] : [];
+    return propias
+      .concat(clavesDelSubarbol(estructura, izquierdo(indice)))
+      .concat(clavesDelSubarbol(estructura, derecho(indice)));
+  }
+
   const esHoja = (estructura, indice) => (
     !ocupada(estructura, izquierdo(indice)) && !ocupada(estructura, derecho(indice))
   );
@@ -120,6 +137,7 @@
     nodos,
     altura,
     subarbol,
+    clavesDelSubarbol,
     esHoja,
     hojaMasProfunda
   };

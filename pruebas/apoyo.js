@@ -11,6 +11,7 @@ require('../js/algoritmos/traza.js');
 require('../js/algoritmos/secuencial.js');
 require('../js/algoritmos/binaria.js');
 require('../js/algoritmos/arbol-digital.js');
+require('../js/algoritmos/residuos.js');
 require('../js/algoritmos/eliminacion.js');
 require('../js/algoritmos/colisiones/reasignacion.js');
 require('../js/algoritmos/colisiones/anidados.js');

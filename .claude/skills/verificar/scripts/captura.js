@@ -33,6 +33,7 @@ const consulta = sueltos[0];
 if (!consulta) {
   console.error('Falta la consulta. Ejemplo: "vista=anidados&n=10&l=4&paso=fin"');
   console.error('Vistas: menu, secuencial, binaria, hash, hash-libre, anidados, encadenamiento,');
+  console.error('        arbol-digital, residuos,');
   console.error('        eliminar-secuencial, eliminar-binaria, eliminar-hash.');
   process.exit(2);
 }
