@@ -1,7 +1,7 @@
 (function () {
   // Reproduce una traza ya calculada: es solo un índice sobre un arreglo
   // (CLAUDE.md 4), por eso paso a paso, continuo y retroceder son triviales.
-  function crearReproductor({ pasos, alCambiarPaso, velocidadMs = 800 }) {
+  function crearReproductor({ pasos, alCambiarPaso, velocidadMs = 1600 }) {
     let indiceActual = -1;
     let temporizador = null;
 

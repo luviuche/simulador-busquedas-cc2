@@ -651,6 +651,16 @@ Dos consecuencias:
 - **El árbol no elide** y su control desaparece del lienzo: su tamaño lo acota el alfabeto, no un `n` que el estudiante elige.
 - **Se dibujan también las posiciones vacías que son ancestro de una ocupada.** Es lo que hace visible el hueco a medio eliminar —el paso que saca la clave antes de que suba la hoja— en vez de dejar descendientes flotando sin padre.
 
+### 6.8 La reproducción arranca sola (2026-08-30)
+
+**Toda operación con traza —buscar, insertar, eliminar, en cualquier tema— empieza a reproducirse sola.** Antes se quedaba en el primer paso esperando que alguien pidiera el siguiente, y eso estorba: lo normal es querer ver la operación entera, y pedir cada paso a mano convierte en trabajo lo que debería mirarse (pedido del usuario, 2026-08-30).
+
+Los controles no se van: paso anterior, paso siguiente, reproducir y detener siguen ahí y siguen valiendo. **Cualquiera de ellos corta la reproducción en curso**, sin que haya que detenerla primero, porque los cuatro pasan por `irAPaso` y `irAPaso` cancela el temporizador antes de moverse (§4, interrumpibilidad). De ahí que la prueba de humo y las capturas, que hacen clic en «paso siguiente» de forma síncrona, sigan controlando la traza igual que antes: el primer clic apaga el automático.
+
+**El paso dura 1,6 s por omisión y el deslizador va de 4 s a 0,2 s** (eran 800 ms y un tope de 2 s). Ahora que la traza corre sola en vez de esperar un clic, el ritmo por omisión es el que se ve casi siempre, y a 800 ms los pasos se atropellaban; el extremo lento tampoco daba para seguir una comparación en voz alta. El ritmo no toca las animaciones, que siguen fijas en 400 ms (§7): lo que se alarga es la pausa para leer el paso, no el movimiento.
+
+**El deslizador crece hacia la derecha y lleva su lectura en segundos al lado** (pedido del usuario, 2026-08-30). Se llama «Velocidad», así que a la derecha tiene que ir más rápido; pero lo que el reproductor consume es el tiempo *entre* pasos, que crece al revés. La conversión es un espejo —`min + max − valor`, en `espejarVelocidad`— y por eso sirve para los dos sentidos con una sola función. Al tocar esto hay que acordarse de que **el valor del `<input type="range">` ya no es milisegundos**: quien lo lea directo pondrá la traza al revés sin que nada más falle. Lo vigila la comprobación `controlDeVelocidad` de la prueba de humo, que mide los dos extremos y el centro.
+
 ---
 
 ## 7. Animación

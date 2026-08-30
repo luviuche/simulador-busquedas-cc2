@@ -369,6 +369,7 @@
       anidados();
       encadenamiento();
       arbolDigital();
+      controlDeVelocidad();
     }
 
     // La tabla grande es donde se ve la regla del docente: en una estructura
@@ -1394,6 +1395,48 @@
         !document.querySelector('.estructura-apilada').textContent.includes('undefined'),
         'ninguna fila dibuja undefined'
       );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // El deslizador crece hacia la derecha porque se llama «Velocidad»: a la
+    // derecha va más rápido (pedido del usuario, 2026-08-30). Lo que el
+    // reproductor consume es lo contrario —el tiempo entre pasos—, así que la
+    // conversión se comprueba por los dos extremos: si alguien la olvidara, el
+    // deslizador seguiría moviéndose y la traza iría al revés de lo que dice.
+    function controlDeVelocidad() {
+      registro.push('', '── Control de velocidad ──');
+
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes('Búsqueda secuencial'))
+        .click();
+
+      const formularios = [...document.querySelectorAll('form.panel')];
+      enviar(formularios[0], { n: 16, l: 2 });
+      for (const clave of [10, 20, 30]) operar(formularios, 'insertar', clave);
+      operar(formularios, 'buscar', 30);
+
+      const deslizador = document.querySelector('[data-control="velocidad"]');
+      const lectura = document.querySelector('[data-salida="velocidad"]');
+      afirmar(!!deslizador && !!lectura, 'el deslizador viene con su lectura en segundos al lado');
+
+      const leerEn = (valor) => {
+        deslizador.value = String(valor);
+        deslizador.dispatchEvent(new Event('input', { bubbles: true }));
+        return lectura.textContent.trim();
+      };
+
+      const izquierda = leerEn(deslizador.min);
+      const derecha = leerEn(deslizador.max);
+      registro.push(`  izquierda: ${izquierda} · derecha: ${derecha}`);
+      afirmar(izquierda === '4,0 s', `el extremo izquierdo es el más lento (dice ${izquierda})`);
+      afirmar(derecha === '0,2 s', `el extremo derecho es el más rápido (dice ${derecha})`);
+
+      // El punto medio del recorrido tiene que caer en el medio del tiempo:
+      // si la conversión dejara de ser un espejo, los extremos podrían seguir
+      // bien y el centro no.
+      const medio = leerEn((Number(deslizador.min) + Number(deslizador.max)) / 2);
+      afirmar(medio === '2,1 s', `la mitad del recorrido es la mitad del tiempo (dice ${medio})`);
 
       document.querySelector('.pantalla-tema__volver').click();
     }

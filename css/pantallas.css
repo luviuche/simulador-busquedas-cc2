@@ -259,6 +259,31 @@
   flex-wrap: wrap;
 }
 
+/* El deslizador y su lectura en segundos van en la misma línea, con el rótulo
+   encima de los dos: la lectura sin el deslizador al lado no dice de qué es. */
+.pantalla-tema__controles .pantalla-tema__velocidad {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--espacio-1) var(--espacio-2);
+  width: 100%;
+}
+
+.pantalla-tema__controles .pantalla-tema__velocidad-rotulo {
+  grid-column: 1 / -1;
+}
+
+/* Cifras de ancho fijo y un mínimo para el texto: al arrastrar, el número
+   cambia de `0,2 s` a `4,0 s` y sin esto el deslizador se encogería y se
+   estiraría bajo el pulgar. */
+.pantalla-tema__controles .pantalla-tema__velocidad-lectura {
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-suave);
+  min-width: 4ch;
+  text-align: right;
+}
+
 .pantalla-tema__metricas {
   display: flex;
   gap: var(--espacio-5);

@@ -3,6 +3,20 @@
   const vista = window.CC2.vista;
   const persistencia = window.CC2.persistencia;
 
+  // El deslizador se rotula «Velocidad», así que tiene que crecer hacia la
+  // derecha: más a la derecha, más rápido (pedido del usuario, 2026-08-30).
+  // El reproductor, en cambio, quiere el tiempo *entre* pasos, que crece al
+  // revés. La suma de los extremos hace de espejo, y por eso la conversión es
+  // su propia inversa: sirve para los dos sentidos.
+  const PASO_MS_MINIMO = 200;
+  const PASO_MS_MAXIMO = 4000;
+  const PASO_MS_POR_OMISION = 1600;
+  const espejarVelocidad = (valor) => PASO_MS_MINIMO + PASO_MS_MAXIMO - Number(valor);
+
+  // Con la traza corriendo sola, el ritmo hay que poder leerlo y no solo
+  // adivinarlo por dónde quedó el pulgar del deslizador.
+  const segundosPorPaso = (ms) => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
+
   // Pantalla de trabajo común a los temas de búsqueda interna. Secuencial la
   // estrenó; binaria y la transformación de claves la reutilizan (CLAUDE.md 12).
   // Lo único que cambia entre temas entra por `config`; todo lo demás
@@ -786,6 +800,11 @@
       }
     }
 
+    // Lo que el deslizador pide, ya en tiempo entre pasos.
+    function msPorPaso() {
+      return espejarVelocidad(dom.controlVelocidad.value);
+    }
+
     // Reproduce cualquier operación con traza —buscar o insertar—, que es lo
     // único que las diferencia desde aquí: el reproductor solo recorre pasos.
     function reproducirOperacion(pasos, mensajeInicial) {
@@ -800,7 +819,7 @@
 
       estado.reproductor = vista.reproductor.crearReproductor({
         pasos,
-        velocidadMs: Number(dom.controlVelocidad.value),
+        velocidadMs: msPorPaso(),
         alCambiarPaso: (paso, indice) => {
           estado.pasoActual = paso;
           estado.indicePaso = indice;
@@ -812,7 +831,12 @@
           if (paso) registrarBitacora(paso.mensaje);
         }
       });
-      estado.reproductor.siguientePaso();
+      // Toda operación arranca reproduciéndose sola (pedido del usuario,
+      // 2026-08-30): tener que pedir cada paso a mano estorba en el salón,
+      // donde lo normal es querer ver la operación entera. Los controles
+      // siguen ahí y cualquiera de ellos —avanzar, retroceder, detener—
+      // corta la reproducción, porque todos pasan por `irAPaso`.
+      estado.reproductor.reproducirContinuo();
     }
 
     // La clave que se digita no siempre es un número: los temas de búsqueda
@@ -1275,8 +1299,11 @@
           <button type="button" class="boton" data-accion="siguiente">Paso siguiente ▶</button>
           <button type="button" class="boton" data-accion="reproducir">Reproducir</button>
           <button type="button" class="boton" data-accion="detener">Detener</button>
-          <label class="texto-nivel-5">Velocidad
-            <input type="range" min="200" max="2000" step="100" value="800" data-control="velocidad">
+          <label class="pantalla-tema__velocidad texto-nivel-5">
+            <span class="pantalla-tema__velocidad-rotulo">Velocidad</span>
+            <input type="range" min="${PASO_MS_MINIMO}" max="${PASO_MS_MAXIMO}" step="100"
+                   value="${espejarVelocidad(PASO_MS_POR_OMISION)}" data-control="velocidad">
+            <output class="pantalla-tema__velocidad-lectura" data-salida="velocidad">${segundosPorPaso(PASO_MS_POR_OMISION)}</output>
           </label>
         </div>
       `;
@@ -1296,8 +1323,11 @@
 
       dom.seccionReproduccion = contenido.querySelector('[data-seccion="reproduccion"]');
       dom.controlVelocidad = contenido.querySelector('[data-control="velocidad"]');
-      dom.controlVelocidad.addEventListener('input', (evento) => {
-        if (estado.reproductor) estado.reproductor.establecerVelocidad(Number(evento.target.value));
+      dom.lecturaVelocidad = contenido.querySelector('[data-salida="velocidad"]');
+      dom.controlVelocidad.addEventListener('input', () => {
+        const ms = msPorPaso();
+        dom.lecturaVelocidad.textContent = segundosPorPaso(ms);
+        if (estado.reproductor) estado.reproductor.establecerVelocidad(ms);
       });
 
       return vista.componentes.panel.crearPanel({ titulo: 'Reproducción', contenido });
