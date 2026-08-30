@@ -282,6 +282,16 @@ El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada
 
 ### Cómo se prueba
 
+**El ritual entero vive en la skill de proyecto `.claude/skills/verificar/`** (2026-08-29), con los comandos ya escritos y las trampas del entorno resueltas:
+
+```
+npm test
+node .claude/skills/verificar/scripts/humo.js                       # 700, 800 y 950 px de alto
+node .claude/skills/verificar/scripts/captura.js "vista=anidados&paso=fin"
+```
+
+Lo que sigue explica qué cubre cada cosa; los detalles de operación están en la skill.
+
 `npm test` (`node --test`, sin dependencias) cubre dominio, algoritmos y elisión: todo lo que es cálculo puro. `pruebas/apoyo.js` simula `window` para poder requerir esos archivos tal como los carga el navegador.
 
 La vista no entra ahí —necesita DOM— y se cubre con `pruebas/humo.html`, que recorre la aplicación real por el DOM: entra al tema desde el menú, crea la estructura, inserta claves, avanza la traza y verifica estados, métricas y bitácora. Se abre con doble clic o sin ventana:
@@ -300,7 +310,7 @@ msedge --headless --disable-gpu --hide-scrollbars --window-size=1500,950 \
        "file:///…/pruebas/captura.html?vista=binaria"
 ```
 
-Vistas disponibles: `menu`, `secuencial`, `binaria`, `hash` (inserción que colisiona) y `hash-libre` (inserción en casilla libre); con `&paso=fin` se recorre la traza completa, con `&tratamiento=ninguno|reasignacion` se cambia el tratamiento, y con `&tema=`, `&base=` y `&posiciones=` se fotografía cualquiera de las cinco funciones hash con sus parámetros. La captura de `hash` es la que ya destapó un defecto real: la elisión escondía las claves ya colocadas, que en una tabla dispersa son el resultado mismo del algoritmo (§6.2).
+Vistas disponibles: `menu`, `secuencial`, `binaria`, `hash` (inserción que colisiona), `hash-libre` (inserción en casilla libre), `anidados`, `encadenamiento` y las tres de eliminación (`eliminar-secuencial`, `eliminar-binaria`, `eliminar-hash`); con `&paso=fin` se recorre la traza completa, con `&tratamiento=ninguno|reasignacion` se cambia el tratamiento, y con `&tema=`, `&base=` y `&posiciones=` se fotografía cualquiera de las cinco funciones hash con sus parámetros. La captura de `hash` es la que ya destapó un defecto real: la elisión escondía las claves ya colocadas, que en una tabla dispersa son el resultado mismo del algoritmo (§6.2).
 
 `dominio/` y `algoritmos/` no importan nada de `vista/`. Esa regla es la que permite probar los algoritmos sin abrir el navegador.
 

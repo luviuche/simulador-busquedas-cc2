@@ -1,0 +1,64 @@
+---
+name: verificar
+description: Corre y fotografía el simulador CC2 para comprobar un cambio - pruebas de dominio con node --test, prueba de humo por el DOM real en Edge headless a varios altos de ventana, y capturas de la aplicación en un estado concreto. Usar al terminar cualquier cambio en el simulador, y siempre que haga falta ver la aplicación funcionando, levantarla, fotografiarla o comprobar que algo se dibuja bien.
+---
+
+# Verificar el simulador
+
+Cómo se comprueba un cambio en este repositorio. **Al tocar la vista se corren las dos**: las pruebas de dominio no ven el dibujo, y la prueba de humo ha destapado defectos reales que `node --test` no podía ver.
+
+La aplicación se abre por `file://` (ver `docs/CLAUDE.md` §4): no hay servidor que levantar ni nada que apagar después.
+
+## 1. Pruebas de dominio y algoritmos
+
+```
+npm test
+```
+
+`node --test pruebas/*.test.js`. Cubre dominio, algoritmos, elisión — todo lo que es cálculo puro. Los archivos se cargan con el shim `pruebas/apoyo.js`, que simula `window` para poder requerir los scripts clásicos tal cual.
+
+**Un archivo nuevo en `js/` hay que registrarlo en cuatro sitios**: `index.html`, `pruebas/captura.html`, `pruebas/humo.html` y `pruebas/apoyo.js`. Si una prueba nueva falla con "no es una función", es esto.
+
+## 2. Prueba de humo por el DOM real
+
+```
+node .claude/skills/verificar/scripts/humo.js
+```
+
+Abre `pruebas/humo.html` en Edge headless **a 700, 800 y 950 px de alto** y reporta el informe. Sale con código 1 si algo falla. Un solo alto: `humo.js 700`. El informe entero, paso a paso: `humo.js --informe`.
+
+Cubre catálogo, traza, métricas, bitácora, **layout** y **apilado**, entrando por el DOM como lo haría el estudiante. Los tres altos no son un capricho: la pantalla se ancla al viewport y lo que cabe a 950 px puede no caber a 700 — así se detectaron las regresiones de layout.
+
+**Al comprobar layout, medir el contenido y no la caja.** `.estructura-vertical` lleva `max-height: 100%`, así que su rectángulo siempre cae dentro del viewport aunque por dentro sobresalgan filas: hay que comparar `scrollHeight` con `clientHeight`, o mirar dónde queda la casilla marcada. Una comprobación que medía la caja escondió durante semanas que la tabla desbordaba.
+
+Dos ayudas ya escritas en `humo.html` para las regresiones de dibujo: `afirmarCasillasParejas` (todas las casillas miden lo mismo y nada se sale de la suya) y `afirmarColumnasAlineadas` (las filas de la vista vertical alinean sus columnas).
+
+**Si una prueba nueva de humo deja una inserción a medias**, la culpa suele ser de `agotarTraza()`: sus doce clics no bastan cuando la traza es larga —el cálculo de la dirección, más una posición recorrida por paso—. Se le pasa el número de clics: `agotarTraza(30)`.
+
+## 3. Capturas de la aplicación
+
+```
+node .claude/skills/verificar/scripts/captura.js "vista=anidados&n=10&l=4&paso=fin"
+```
+
+Imprime la ruta del PNG (por defecto, en el directorio temporal del sistema; las capturas son material de trabajo, no del proyecto). Un segundo argumento suelto fija el destino, y `--alto` / `--ancho` el tamaño de ventana.
+
+Vistas de `pruebas/captura.html`: `menu`, `secuencial`, `binaria`, `hash`, `hash-libre`, `anidados`, `encadenamiento`, `eliminar-secuencial`, `eliminar-binaria`, `eliminar-hash`.
+
+Parámetros útiles: `paso=fin` recorre la traza entera (`paso=<n>` se detiene en un paso concreto, que es como se fotografía la casilla marcada antes de que se mueva nada), y en los temas de transformación de claves `tema=`, `tratamiento=`, `n=`, `l=`, `clave=`, `base=`, `posiciones=`, `operacion=`.
+
+Si el estado que hace falta no existe, **se agrega una función `preparar…` a `pruebas/captura.html`** en vez de improvisar clics: así queda repetible para la próxima vez.
+
+## Trampas de este entorno
+
+Las tres viven resueltas en `scripts/navegador.js`; están aquí por si hay que llamar a Edge a mano.
+
+- **`--screenshot` necesita ruta absoluta de Windows.** Con una relativa falla con "Access is denied" y no explica por qué.
+- **El `#salida` del volcado se extrae con una expresión regular sobre el HTML, no con `sed`.** El `<pre>` lleva atributo `style` y su texto es multilínea; grepear el volcado entero cuenta las palabras del propio script y da falsos positivos.
+- **Sin `--virtual-time-budget` suficiente el volcado sale a medias**, con pruebas que ni llegaron a correr. La prueba de humo usa 30 s de tiempo virtual, que no es tiempo de reloj.
+
+Edge se busca en las rutas habituales de Windows; si está en otro sitio, indicarlo con la variable de entorno `CC2_EDGE`.
+
+## Qué se reporta al terminar
+
+El resultado con evidencia: el conteo de `npm test`, el resultado del humo en los tres altos, y la captura cuando el cambio es visual. Los commits se hacen **solo cuando el usuario lo pide**.
