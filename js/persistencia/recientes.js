@@ -2,16 +2,17 @@
   const CLAVE_ALMACENAMIENTO = 'cc2:recientes';
   const MAXIMO = 5;
 
-  // Entradas guardadas antes de que los temas dejaran de llamarse módulos y de
-  // que L pasara a l. Se normalizan al leer para no mostrar "undefined" a quien
-  // ya tenía recientes; guardar cualquiera de ellas la reescribe al formato nuevo.
+  // Entradas guardadas antes de que los temas dejaran de llamarse módulos, de
+  // que L pasara a l y de que las estructuras dejaran de tener nombre propio.
+  // Se normalizan al leer para no mostrar "undefined" a quien ya tenía
+  // recientes; guardar cualquiera de ellas la reescribe al formato nuevo.
   function normalizar(item) {
+    const l = item.l !== undefined ? item.l : item.L;
     return {
-      nombre: item.nombre,
       fecha: item.fecha,
       temaTitulo: item.temaTitulo !== undefined ? item.temaTitulo : item.moduloTitulo,
-      n: item.n,
-      l: item.l !== undefined ? item.l : item.L
+      // Una entrada vieja traía n y l sueltos, y el detalle se arma con ellos.
+      detalle: item.detalle !== undefined ? item.detalle : `n = ${item.n} · l = ${l}`
     };
   }
 
@@ -27,7 +28,11 @@
   }
 
   function registrar(entrada) {
-    const lista = obtener().filter((item) => item.nombre !== entrada.nombre);
+    // Se reconoce por tema y datos: crear dos veces la misma estructura no
+    // llena la lista con la misma línea repetida.
+    const lista = obtener().filter(
+      (item) => item.temaTitulo !== entrada.temaTitulo || item.detalle !== entrada.detalle
+    );
     lista.unshift(Object.assign({ fecha: new Date().toISOString() }, entrada));
     const recortada = lista.slice(0, MAXIMO);
     try {

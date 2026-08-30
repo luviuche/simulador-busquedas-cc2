@@ -101,7 +101,7 @@
 
     const nombre = document.createElement('span');
     nombre.className = 'reciente-item__nombre texto-nivel-3 texto-mono';
-    nombre.textContent = item.nombre;
+    nombre.textContent = item.temaTitulo;
 
     const fecha = document.createElement('span');
     fecha.className = 'reciente-item__fecha texto-nivel-5';
@@ -111,14 +111,16 @@
 
     const detalle = document.createElement('span');
     detalle.className = 'reciente-item__detalle texto-nivel-5';
-    detalle.textContent = `${item.temaTitulo} · n = ${item.n} · l = ${item.l}`;
+    detalle.textContent = item.detalle;
 
     li.append(fila, detalle);
     return li;
   }
 
-  // Muestra el nombre propio de la estructura, no el del archivo (CLAUDE.md 10.3):
-  // el mockup de referencia en docs/img.png usa el nombre de archivo; se corrige aquí.
+  // Las estructuras ya no llevan nombre propio: era el nombre por defecto del
+  // archivo .cc2 y guardar quedó para el final del proyecto (CLAUDE.md 10.3),
+  // así que una reciente se reconoce por su tema y por los datos con que se
+  // creó, que es lo que el estudiante recuerda de ella.
   function crearPanelRecientes(recientes) {
     const aside = document.createElement('aside');
     aside.className = 'panel pantalla-menu__recientes';

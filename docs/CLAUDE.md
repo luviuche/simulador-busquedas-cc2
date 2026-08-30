@@ -210,7 +210,7 @@ Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o act
 
 ```js
 {
-  titulo, descripcion, orientacion, modo,
+  titulo, descripcion, orientacion, modo,        // orientacion: horizontal | vertical | arbol
   buscar({ estructura, objetivo }) -> pasos,     // el algoritmo
   eliminar({ estructura, clave }) -> pasos,      // buscar y además sacar (§5.6)
   insertar({ estructura, clave }) -> pasos,      // opcional: inserción con traza
@@ -220,6 +220,11 @@ Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o act
     rangoDePaso(paso),
     aplicaA(paso)                                // opcional: pasos sin fila
   },
+  claveEsLetra: bool,                            // opcional: la clave es una letra (§5.5)
+  insertarPalabra({ estructura, letras }),       // opcional: una palabra, en una traza
+  sinTamano: bool, tamano() -> { n, l },         // opcional: n y l los da el tema
+  sinConfiguracion: bool,                        // opcional: sin panel; se crea al entrar
+  nombreEstructura, mensajeReinicio,             // opcional: cómo se nombra al reiniciar
   casillasRelevantes(paso) -> [índices base 1],  // qué no puede elidirse
   describirCasilla({ paso, indice, ocupada })    // -> { estado, modificadores }
     -> cómo se pinta cada casilla en el paso actual,
@@ -228,6 +233,10 @@ Quien cambia el estado es la capa de vista, que vuelve a pedir el elemento o act
 ```
 
 Es decir: **lo único que distingue un tema de otro es cómo se lee su traza.** Los campos opcionales son las tres formas en que un tema puede apartarse de la búsqueda por comparación: acumular una estructura por paso (binaria, §6.3), colocar por dirección en vez de por orden (`modo: 'dispersa'`, §3.2), y convertir la inserción en una operación reproducible con su cálculo a la vista (§6.5). Un tema que no declara ninguno se comporta como secuencial.
+
+**Crear una estructura y reiniciarla son la misma operación** (`establecerEstructura`): la nueva nace vacía y la pantalla vuelve a su estado inicial. El formulario la llama con lo que el estudiante digitó; el botón **Reiniciar** del encabezado, con lo que la estructura ya tenía —mismo `n`, mismo `l`, mismo tratamiento— y además vacía la bitácora y el aviso (pedido del usuario, 2026-08-29: antes había que salir al menú y volver a entrar). Vive en el encabezado y no en un panel porque no es una operación sobre las claves sino sobre la pantalla entera, y ahí no depende de cuánto haya que desplazar el panel lateral. Sin estructura todavía, el botón no aparece: no hay nada que reiniciar.
+
+**Un tema puede no tener nada que configurar.** El árbol digital no elige tamaño, ni longitud de clave, ni tratamiento: su panel de configuración se quedaría en un título y un botón que no decide nada, así que declara `sinConfiguracion` y **la estructura se crea al entrar al tema**. El panel lateral le queda en cuatro paneles en vez de cinco.
 
 El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada pantalla, no en variables del módulo `app.js`: dos temas abiertos en sucesión no comparten nada, y volver al menú no deja temporizadores corriendo.
 
@@ -461,6 +470,43 @@ Por eso la cadena ocupa **una sola columna del grid de la fila** y se ordena por
 
 Por residuos, árboles de búsqueda digital, residuos múltiples, tablas de índices, método de la rejilla, árboles 2D. Mismo contrato: producen traza.
 
+**Los tres primeros trabajan con letras, no con números** (pedido del usuario, 2026-08-29): el ejercicio de clase es la palabra `prueba`, cuyas letras se insertan en orden.
+
+#### La letra y su código (2026-08-29)
+
+**La letra viaja como su byte, pero se ramifica con las cinco últimas cifras de ese byte**, que son su posición en el alfabeto:
+
+```
+  p = 112 = 011 10000 → 10000 (16)      a =  97 = 011 00001 → 00001 (1)
+  r = 114 = 011 10010 → 10010 (18)      b =  98 = 011 00010 → 00010 (2)
+  u = 117 = 011 10101 → 10101 (21)      e = 101 = 011 00101 → 00101 (5)
+```
+
+Con el byte entero las tres primeras cifras (`011`) son iguales en todas las letras y nada se bifurca hasta el bit 4: las seis letras de `prueba` quedarían en una sola rama. Con cinco, el árbol se abre a lado y lado, que es como lo dibuja el docente. Mayúscula y minúscula dan las mismas cinco cifras, así que da igual cómo se digite; se guarda en minúscula.
+
+Vive en `dominio/clave.js` (`BITS_LETRA`, `codigoDeLetra`, `validarLetra`, `validarPalabra`) y lo comparten los tres temas.
+
+#### Árboles de búsqueda digital (2026-08-29)
+
+**Un bit por nivel**: en el nivel `d` se mira el bit `d` del código, `0` baja a la izquierda y `1` a la derecha. La primera clave queda en la raíz. El árbol de `prueba`:
+
+```
+            p                p en la raíz
+         0/   \1             e y r por el bit 1
+        e       r            b y u por el bit 2
+      0/      0/             a por el bit 3
+      b       u
+    0/
+    a
+```
+
+- **Las claves viven en todos los nodos, no solo en las hojas.** Es lo que lo separa de los temas de residuos: en cada nodo se compara la clave entera antes de mirar el bit siguiente, así que una búsqueda puede terminar en cualquier nivel.
+- **El árbol se guarda en el mismo `claves` de la estructura, indexado como árbol binario implícito** (`modo: 'arbol'`, raíz en la posición 1, hijos de `i` en `2i` y `2i + 1`). No es un atajo: en un árbol digital **la posición es el camino de bits que llevó hasta ella**, así que el índice ya dice lo que el tema enseña, y dibujar o contar sigue leyendo `claves` como en los demás temas. Las operaciones viven en `dominio/arbol.js`.
+- **El tema no pide `n` ni `l`.** Cuántas posiciones caben sale de los bits del código —con cinco, 31—, y la clave es siempre una letra. `n` deja de ser una capacidad elegida y por eso el tema no lleva factor de carga: su métrica propia es la **altura**, que es lo que cuesta la peor búsqueda y tiene por tope el número de bits.
+- **Una posición vacía prueba la ausencia**: si la clave existiera, sus bits la habrían puesto justo ahí.
+- **Se puede insertar una palabra entera**, y sus letras viajan en **una sola traza**: se avanza y se retrocede letra por letra como en cualquier otra operación. No es un llenado —que prepara el escenario sin reproducir nada—: aquí el recorrido de cada letra *es* la lección.
+- **Eliminación** (§5.6): si el nodo es una hoja, se va y ya. Si tiene descendientes, dejar el hueco partiría el árbol —lo que cuelga de él dejaría de ser alcanzable—, así que **sube una hoja de su propio subárbol** a ocupar el sitio. Sirve cualquiera: esa hoja llegó hasta ahí bajando por la posición que queda libre, de modo que sus primeros bits son justo los que esa posición exige y ninguna búsqueda cambia de camino. Se elige la más profunda porque es la que más baja la altura.
+
 ### 5.6 Eliminación
 
 **La aplicación elimina claves, y cada tema elimina con su propio método** (pedido del usuario, 2026-08-29). No existe un algoritmo de borrado: eliminar es **localizar la clave con el algoritmo del tema y solo entonces sacarla**. Borrar en secuencial recorre desde la casilla 1; borrar en binaria divide; borrar en una tabla hash calcula la dirección. Por eso una traza de eliminación empieza siendo, literalmente, una traza de búsqueda: los pasos de borrado se le agregan detrás.
@@ -593,6 +639,17 @@ Dos detalles que sostienen la regla:
 - **Las pistas del grid son fijas, salvo el tramo elidido.** Con `auto`, cada fila era un grid independiente que repartía el sobrante a su manera. El tramo sí se dimensiona por su contenido: lleva un conteo dentro, no una clave. La primera columna del arreglo anidado suma además el canal que la separa de la tabla (§5.4).
 
 La prueba de humo lo vigila con `afirmarCasillasParejas` y `afirmarColumnasAlineadas`: es un defecto de layout, invisible para `node --test`.
+
+### 6.7 El árbol (2026-08-29)
+
+Tercera orientación de la pantalla, además de horizontal y vertical: ni fila ni tabla, sino **niveles**. Cada nodo se posiciona a mano dentro de un lienzo propio —columna por recorrido en orden, fila por nivel— porque el nivel *es* el número de bit que se miró para llegar hasta él, y eso no lo puede decidir el flujo del documento.
+
+**Las aristas se rotulan con el bit** que lleva a cada hijo (`0` izquierda, `1` derecha), dibujadas en un SVG detrás de las casillas. Sin ese rótulo el dibujo no dice por qué la clave tomó ese camino, que es justo lo que el tema enseña. El desarrollo completo —código de la letra y bajada bit a bit— se lee en el panel del cálculo, al lado, igual que la dirección en las funciones hash (§6.5); el nodo solo muestra la letra (decisión del usuario sobre maqueta, 2026-08-29).
+
+Dos consecuencias:
+
+- **El árbol no elide** y su control desaparece del lienzo: su tamaño lo acota el alfabeto, no un `n` que el estudiante elige.
+- **Se dibujan también las posiciones vacías que son ancestro de una ocupada.** Es lo que hace visible el hueco a medio eliminar —el paso que saca la clave antes de que suba la hoja— en vez de dejar descendientes flotando sin padre.
 
 ---
 
@@ -741,9 +798,13 @@ Sombras cortas y definidas, nunca difusas. Sin gradientes ni glassmorphism. Tema
 
 Probar el nivel 2 temprano: abriendo con `file://` puede comportarse distinto. Si falla, el nivel 1 cubre el caso sin cambiar el diseño.
 
-### Nombre de la estructura
+### Nombre de la estructura — retirado hasta que exista el guardado (2026-08-29)
 
-La estructura tiene un **nombre propio dentro de la aplicación**, editable en el panel de configuración, que sirve como nombre por defecto del archivo. La lista de recientes muestra ese nombre, no el del archivo.
+El diseño original le daba a la estructura un **nombre propio dentro de la aplicación**, editable en el panel de configuración, que servía como nombre por defecto del archivo `.cc2`.
+
+**El campo se retiró de la interfaz** (decisión del usuario): su única razón de ser es el guardado, que quedó para el final del proyecto, y mientras tanto obligaba a escribir un dato en cada estructura que se crea sin que ese dato sirviera para nada. **Vuelve cuando vuelva el guardado**, no antes.
+
+Consecuencia: **una estructura reciente se identifica por su tema y por los datos con que se creó** —«Función módulo · n = 12 · l = 4»— que es lo que el estudiante recuerda de ella. Las entradas viejas que sí traían nombre se siguen leyendo: `persistencia/recientes.js` las normaliza al formato nuevo.
 
 ### Estructuras recientes
 
@@ -781,13 +842,16 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 
+**De «otras búsquedas internas» está construido el primero: árboles de búsqueda digital** (§5.5), que estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles. Siguen **por residuos** y **residuos múltiples**, que comparten con él la letra y su código y se diferencian en dónde viven las claves.
+
 **Los cuatro tratamientos de colisión están construidos: `ninguno`, `reasignación` (prueba lineal), `arreglos anidados` y `encadenamiento secuencial` (§5.4).** Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el encadenamiento entró sobre él: comparte almacenamiento, aplicadores y rama de eliminación, y lo único propio suyo es que su estructura secundaria no tiene tope.
 
 Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al stack de respaldo), y ni `css/impresion.css` ni `persistencia/archivo.js` (.cc2) están construidos.
 
 ### Diferido dentro de Fase 1
 
-- Claves alfabéticas: mantener en el modelo y en la interfaz, deshabilitadas.
+- **El guardado en archivo `.cc2` va al final del proyecto** (decisión del usuario, 2026-08-29), y con él el **nombre de la estructura**, que solo existía para nombrar ese archivo (§10.3). Primero los temas, que son lo que se evalúa.
+- Claves alfabéticas: **habilitadas en los temas de búsqueda por bits**, donde la clave *es* una letra (§5.5). En los demás temas siguen diferidas: se mantienen en el modelo y en la interfaz, deshabilitadas.
 - Llenado automático con palabras: requiere diccionario en español. El llenado numérico sí se implementa.
 
 ### Fase 2 — solo visible en el menú, sin implementar

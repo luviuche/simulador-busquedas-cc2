@@ -1,5 +1,5 @@
 (function () {
-  // Dos modos de estructura, porque los temas colocan las claves de forma
+  // Tres modos de estructura, porque los temas colocan las claves de forma
   // distinta (CLAUDE.md 3.2):
   //
   //   'ordenada' — secuencial y binaria. Arreglo denso, siempre ascendente.
@@ -8,12 +8,24 @@
   //                que le da la función hash, así que quedan huecos en el medio
   //                y el orden ascendente deja de aplicar.
   //
-  // En ambos modos `claves` es el arreglo que la vista lee por casilla, para
-  // que dibujar la estructura no dependa del modo.
-  const MODOS = Object.freeze({ ORDENADA: 'ordenada', DISPERSA: 'dispersa' });
+  //   'arbol'    — árboles de búsqueda por bits (CLAUDE.md 5.5). También usa
+  //                `claves`, pero indexado como árbol binario implícito: la
+  //                raíz es la posición 1, y los hijos de i son 2i y 2i + 1.
+  //                Sin arreglo de nodos ni punteros: la posición dice el
+  //                camino de bits que llevó hasta ella, que es lo que el tema
+  //                enseña, y dibujar o contar sigue leyendo `claves`.
+  //
+  // En los tres modos `claves` es el arreglo que la vista lee por posición,
+  // para que dibujar la estructura no dependa del modo.
+  const MODOS = Object.freeze({ ORDENADA: 'ordenada', DISPERSA: 'dispersa', ARBOL: 'arbol' });
 
   function crearEstructura({ n, l, tipoClave, modo = MODOS.ORDENADA, tratamiento = null }) {
-    const validacion = window.CC2.dominio.limites.validarTamano(n, l);
+    // El árbol no tiene tamaño que validar: `n` no es una capacidad elegida
+    // sino cuántas posiciones caben en la profundidad que dan los bits, y `l`
+    // es siempre una letra.
+    const validacion = modo === MODOS.ARBOL
+      ? { valido: true, advertencia: null }
+      : window.CC2.dominio.limites.validarTamano(n, l);
     if (!validacion.valido) {
       return { exito: false, mensaje: validacion.mensaje };
     }
@@ -28,7 +40,7 @@
         tratamiento,
         // La dispersa nace con las n casillas vacías: su longitud no crece con
         // las inserciones, cambia solo qué posiciones están definidas.
-        claves: modo === MODOS.DISPERSA ? new Array(n) : [],
+        claves: (modo === MODOS.DISPERSA || modo === MODOS.ARBOL) ? new Array(n) : [],
         // Estructuras secundarias por dirección (CLAUDE.md 5.4): una por
         // casilla, y las llenan los dos tratamientos que dejan la clave en su
         // dirección —arreglos anidados y encadenamiento secuencial—. Se
@@ -62,11 +74,12 @@
     return inicio;
   }
 
-  // Único contador válido para los dos modos: en la dispersa `claves.length`
-  // es siempre n, ocupada o no, así que hay que contar las definidas. Las de
-  // los arreglos anidados cuentan igual: están en la estructura.
+  // Único contador válido para los tres modos: en la dispersa y en el árbol
+  // `claves.length` es siempre n, ocupada o no, así que hay que contar las
+  // definidas. Las de los arreglos anidados cuentan igual: están en la
+  // estructura.
   function cantidadClaves(estructura) {
-    if (estructura.modo !== MODOS.DISPERSA) return estructura.claves.length;
+    if (estructura.modo === MODOS.ORDENADA) return estructura.claves.length;
     let total = 0;
     for (let i = 0; i < estructura.claves.length; i++) {
       if (estructura.claves[i] !== undefined) total++;
@@ -84,6 +97,10 @@
   // Con encadenamiento la cadena no tiene tope (`tamanoAnidado` vale
   // `Infinity`) y la capacidad deja de ser un número: la estructura no se
   // satura nunca, que es lo que define al tratamiento.
+  //
+  // En el árbol `n` no es una capacidad elegida sino cuántas posiciones caben
+  // en la profundidad que dan los bits; su límite real es el alfabeto, y por
+  // eso el tema no lleva factor de carga entre sus métricas.
   function capacidad(estructura) {
     if (estructura.modo !== MODOS.DISPERSA) return estructura.n;
     return estructura.n * (1 + (estructura.tamanoAnidado || 0));

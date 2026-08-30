@@ -22,8 +22,14 @@
     bitacoraEl.scrollTop = bitacoraEl.scrollHeight;
   }
 
+  // Reiniciar la estructura vacía también su historia: lo que la bitácora
+  // cuenta es lo que se le hizo a la estructura que hay en pantalla.
+  function vaciar(bitacoraEl) {
+    bitacoraEl.innerHTML = '';
+  }
+
   window.CC2 = window.CC2 || {};
   window.CC2.vista = window.CC2.vista || {};
   window.CC2.vista.componentes = window.CC2.vista.componentes || {};
-  window.CC2.vista.componentes.bitacora = { crearBitacora, crearFilaBitacora, agregarEntrada };
+  window.CC2.vista.componentes.bitacora = { crearBitacora, crearFilaBitacora, agregarEntrada, vaciar };
 })();

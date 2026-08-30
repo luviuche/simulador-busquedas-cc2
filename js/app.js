@@ -37,7 +37,7 @@
           titulo: 'Otras búsquedas internas',
           temas: [
             { id: 'residuos', titulo: 'Búsqueda por residuos', descripcion: 'Ramificación por dígitos binarios', disponible: false },
-            { id: 'arbol-digital', titulo: 'Árboles de búsqueda digital', descripcion: 'Inserción bit a bit', disponible: false },
+            { id: 'arbol-digital', titulo: 'Árboles de búsqueda digital', descripcion: 'Inserción bit a bit', disponible: true },
             { id: 'residuos-multiples', titulo: 'Residuos múltiples', descripcion: 'Ramificación por bloques de bits', disponible: false },
             { id: 'tablas-indices', titulo: 'Tablas de índices', descripcion: 'Acceso mediante tabla auxiliar', disponible: false },
             { id: 'rejilla', titulo: 'Método de la rejilla', descripcion: 'Partición del espacio en celdas', disponible: false },
@@ -318,6 +318,76 @@
         }
       ]
     },
+
+    // Árboles de búsqueda digital (CLAUDE.md 5.5). El primero de los temas que
+    // trabajan con letras y bits: la clave es una letra, su código son las
+    // cinco cifras que la distinguen, y el árbol se recorre un bit por nivel.
+    'arbol-digital': (() => {
+      const BITS = dominio.clave.BITS_LETRA;
+      const operar = (operacion) => ({ estructura, clave, objetivo, letras }) => operacion({
+        claves: estructura.claves,
+        n: estructura.n,
+        bits: BITS,
+        clave,
+        objetivo,
+        letras
+      });
+
+      return {
+        titulo: 'ÁRBOLES DE BÚSQUEDA DIGITAL',
+        descripcion: 'Un bit por nivel, 0 a la izquierda y 1 a la derecha',
+        orientacion: 'arbol',
+        modo: dominio.estructura.MODOS.ARBOL,
+        calculo: true,
+        // Lo que se desarrolla aquí no es una dirección sino el código de la
+        // letra y el camino que ese código abre.
+        tituloCalculo: 'Código de la clave',
+        // La clave es una letra y además se puede insertar una palabra entera,
+        // que es como se arma el ejercicio de clase.
+        claveEsLetra: true,
+        palabra: true,
+        // El árbol no tiene tamaño que elegir: las posiciones salen de la
+        // profundidad que dan los bits, y la clave es siempre una letra.
+        sinTamano: true,
+        // Y como no hay nada más que elegir —ni tratamiento ni parámetros—, el
+        // panel de configuración entero sobra: el árbol se crea al entrar.
+        sinConfiguracion: true,
+        tamano: () => ({ n: dominio.arbol.posiciones(BITS), l: 1 }),
+        nombreEstructura: 'árbol',
+        mensajeReinicio: 'Árbol reiniciado: sin claves.',
+        mensajeCreacion: () => `Árbol creado: código de ${BITS} bits por letra.`,
+        detalleReciente: () => `código de ${BITS} bits por letra`,
+        insertar: operar(algoritmos.arbolDigital.insertar),
+        buscar: operar(algoritmos.arbolDigital.buscar),
+        eliminar: operar(algoritmos.arbolDigital.eliminar),
+        insertarPalabra: operar(algoritmos.arbolDigital.insertarPalabra),
+        casillasRelevantes: (paso) => (paso.casilla ? [paso.casilla] : []),
+        describirCasilla: ({ paso, indice, ocupada }) => {
+          const base = ocupada ? 'ocupada' : 'vacia';
+          if (!paso || paso.casilla !== indice) return { estado: base };
+          if (paso.tipo === 'encontrada') return { estado: 'encontrada' };
+          if (paso.tipo === 'insercion') return { estado: 'insertada' };
+          // La clave que sale y la hoja que sube dejan la misma posición
+          // vacía: lo que las distingue es la bitácora.
+          if (paso.tipo === 'eliminacion') return { estado: 'eliminada' };
+          if (paso.tipo === 'rechazada') return { estado: 'colision' };
+          if (paso.tipo === 'no-encontrada') return { estado: base, modificadores: ['direccion'] };
+          if (paso.tipo === 'comparacion') return { estado: 'en-evaluacion' };
+          return { estado: base };
+        },
+        metricas: [
+          METRICA_COMPARACIONES,
+          METRICA_ACCESOS,
+          {
+            id: 'altura',
+            etiqueta: 'Altura',
+            // Lo que cuesta la peor búsqueda de este árbol, y la razón de que
+            // el método se enseñe: el tope es el número de bits del código.
+            valor: ({ estructura }) => (estructura ? String(dominio.arbol.altura(estructura)) : '0')
+          }
+        ]
+      };
+    })(),
 
     'hash-modulo': temaHash({
       titulo: 'FUNCIÓN MÓDULO',

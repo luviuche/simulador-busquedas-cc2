@@ -407,6 +407,50 @@
   border-bottom: 1px dashed var(--borde-fuerte);
 }
 
+/* Árbol de búsqueda por bits (CLAUDE.md 5.5 y 6.7). Tercera orientación de la
+   pantalla: ni fila ni tabla, sino niveles. Cada nodo se posiciona a mano
+   —columna por recorrido en orden, fila por nivel— porque el nivel *es* el
+   número de bit que se miró para llegar hasta él, y eso no lo puede decidir
+   el flujo del documento. */
+.estructura-arbol {
+  place-self: center;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--espacio-4);
+}
+
+.arbol {
+  position: relative;
+}
+
+.arbol .casilla {
+  position: absolute;
+}
+
+/* Las aristas van detrás de las casillas y no interceptan el ratón: son
+   dibujo, no control. */
+.arbol__aristas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.arbol__arista {
+  stroke: var(--borde-fuerte);
+  stroke-width: 1;
+}
+
+/* El bit que hubo que leer para bajar por esa arista. Sin él el dibujo no
+   dice por qué la clave tomó ese camino, que es justo lo que el tema enseña. */
+.arbol__bit {
+  fill: var(--tinta-suave);
+  font-family: var(--fuente-mono);
+  font-size: 11px;
+  text-anchor: middle;
+}
+
 /* Cadena de una dirección (CLAUDE.md 5.4). Va en una sola columna del grid de
    la fila y se ordena por dentro, porque no tiene largo fijo: cada dirección
    crece lo que crezcan sus colisiones, y no hay columnas que alinear entre
@@ -504,4 +548,12 @@
   display: block;
   margin-top: var(--espacio-1);
   color: var(--tinta-suave);
+}
+
+/* Reiniciar vive en el encabezado, empujado al extremo: no es una operación
+   sobre las claves sino sobre la pantalla entera, y ahí no depende de cuánto
+   haya que desplazar el panel lateral para alcanzarlo. */
+.pantalla-tema__reiniciar {
+  margin-left: auto;
+  align-self: center;
 }

@@ -10,7 +10,11 @@
   // sola vez.
   //
   // config = {
-  //   titulo, descripcion, orientacion, modo,
+  //   titulo, descripcion, orientacion, modo,     // orientacion: horizontal | vertical | arbol
+  //   claveEsLetra: bool,                         // opcional: la clave es una letra, no un número
+  //   sinTamano: bool, tamano() -> { n, l },      // opcional: n y l no se piden, los da el tema
+  //   mensajeCreacion(estructura) -> string,      // opcional: qué registra la bitácora al crear
+  //   insertarPalabra({ estructura, letras }),    // opcional: inserta las letras de una palabra
   //   buscar({ estructura, objetivo }) -> pasos,
   //   eliminar({ estructura, clave }) -> pasos,   // buscar y además sacar
   //   insertar({ estructura, clave }) -> pasos,   // opcional: inserción con traza
@@ -127,7 +131,14 @@
       'retirar-anidado': (efecto) => dominio.estructura.retirarDeAnidado(
         estado.estructura, efecto.casilla, efecto.posicion
       ),
-      'compactar-anidado': (efecto) => dominio.estructura.compactarAnidado(estado.estructura, efecto.casilla)
+      'compactar-anidado': (efecto) => dominio.estructura.compactarAnidado(estado.estructura, efecto.casilla),
+      // Árboles de búsqueda por bits (CLAUDE.md 5.5): las claves viven en las
+      // posiciones del árbol implícito, así que se colocan, se retiran y se
+      // mueven de una posición a otra —eso último al subir una hoja al sitio
+      // de la clave eliminada—.
+      'colocar-nodo': (efecto) => dominio.arbol.colocarNodo(estado.estructura, efecto.nodo, efecto.clave),
+      'retirar-nodo': (efecto) => dominio.arbol.retirarNodo(estado.estructura, efecto.nodo),
+      'mover-nodo': (efecto) => dominio.arbol.moverNodo(estado.estructura, efecto.desde, efecto.hasta)
     };
 
     // La estructura visible siempre corresponde al paso en pantalla: se parte
@@ -194,6 +205,12 @@
 
     function esVertical() {
       return config.orientacion === 'vertical';
+    }
+
+    // El árbol se dibuja por niveles y no como una fila de casillas: es la
+    // tercera orientación de la pantalla (CLAUDE.md 6.7).
+    function esArbol() {
+      return config.orientacion === 'arbol';
     }
 
     // Todas las casillas de la pantalla miden lo mismo, y lo que miden sale de
@@ -382,23 +399,33 @@
     function llevarALaVista(grupo) {
       if (!grupo) return;
       const caja = dom.estructuraEl;
-      const vertical = esVertical();
-      const sobrante = vertical
-        ? caja.scrollHeight - caja.clientHeight
-        : caja.scrollWidth - caja.clientWidth;
-      if (sobrante <= 0) return;
-
       // Con getBoundingClientRect y no offsetTop: el lienzo no está posicionado,
       // así que offsetTop se mediría contra un ancestro cualquiera.
       const cajaRect = caja.getBoundingClientRect();
       const grupoRect = grupo.getBoundingClientRect();
-      const centrado = vertical
-        ? grupoRect.top - cajaRect.top + caja.scrollTop - (caja.clientHeight - grupoRect.height) / 2
-        : grupoRect.left - cajaRect.left + caja.scrollLeft - (caja.clientWidth - grupoRect.width) / 2;
-      const destino = Math.max(0, Math.min(centrado, sobrante));
 
-      if (vertical) caja.scrollTop = destino;
-      else caja.scrollLeft = destino;
+      const centrar = (eje) => {
+        const vertical = eje === 'vertical';
+        const sobrante = vertical
+          ? caja.scrollHeight - caja.clientHeight
+          : caja.scrollWidth - caja.clientWidth;
+        if (sobrante <= 0) return;
+        const centrado = vertical
+          ? grupoRect.top - cajaRect.top + caja.scrollTop - (caja.clientHeight - grupoRect.height) / 2
+          : grupoRect.left - cajaRect.left + caja.scrollLeft - (caja.clientWidth - grupoRect.width) / 2;
+        const destino = Math.max(0, Math.min(centrado, sobrante));
+        if (vertical) caja.scrollTop = destino;
+        else caja.scrollLeft = destino;
+      };
+
+      // El árbol crece en las dos direcciones —niveles hacia abajo, hermanos a
+      // lo ancho—, así que puede tener que desplazarse por las dos.
+      if (esArbol()) {
+        centrar('vertical');
+        centrar('horizontal');
+        return;
+      }
+      centrar(esVertical() ? 'vertical' : 'horizontal');
     }
 
     // Vista de una sola estructura: la que usan los temas que no acumulan
@@ -602,12 +629,136 @@
       dom.estructuraEl.scrollTop = dom.estructuraEl.scrollHeight;
     }
 
+    // ── Árbol (CLAUDE.md 5.5 y 6.7) ─────────────────────────────────────────
+    //
+    // El árbol no cabe en la vista de casillas en fila: se dibuja por niveles,
+    // con las aristas rotuladas con el bit que lleva a cada hijo —0 izquierda,
+    // 1 derecha—. El porqué de cada bajada se lee en el panel del cálculo, al
+    // lado, como en las funciones hash (decisión del usuario, 2026-08-29).
+    const SEPARACION_NIVEL = 68;
+    const SEPARACION_HERMANOS = 24;
+
+    // Qué posiciones se dibujan: las ocupadas, sus ancestros —para que un
+    // hueco a medio eliminar se vea como lo que es, y no deje huérfanos
+    // flotando— y la posición vacía que el paso esté señalando.
+    function posicionesDibujadas(paso) {
+      const dibujadas = new Set(dominio.arbol.nodos(estado.estructura).map((nodo) => nodo.indice));
+      if (paso && paso.casilla) dibujadas.add(paso.casilla);
+      for (const indice of [...dibujadas]) {
+        let ancestro = dominio.arbol.padre(indice);
+        while (ancestro >= dominio.arbol.RAIZ && !dibujadas.has(ancestro)) {
+          dibujadas.add(ancestro);
+          ancestro = dominio.arbol.padre(ancestro);
+        }
+      }
+      return dibujadas;
+    }
+
+    // Coordenadas de cada posición: la columna sale del recorrido en orden
+    // —izquierda, nodo, derecha—, que es lo que evita que dos ramas se pisen,
+    // y la fila es el nivel, que es el número de bit que se miró para llegar.
+    function distribuir(dibujadas) {
+      const columnas = new Map();
+      let columna = 0;
+      (function enOrden(indice) {
+        if (!dibujadas.has(indice)) return;
+        enOrden(dominio.arbol.izquierdo(indice));
+        columnas.set(indice, columna++);
+        enOrden(dominio.arbol.derecho(indice));
+      })(dominio.arbol.RAIZ);
+      return columnas;
+    }
+
+    function crearAristas(columnas, ancho, alto, pasoColumna) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'arbol__aristas');
+      svg.setAttribute('width', ancho);
+      svg.setAttribute('height', alto);
+      svg.setAttribute('aria-hidden', 'true');
+
+      const centro = (indice) => ({
+        x: columnas.get(indice) * pasoColumna + pasoColumna / 2,
+        y: (dominio.arbol.nivelDe(indice) - 1) * SEPARACION_NIVEL
+      });
+
+      for (const indice of columnas.keys()) {
+        if (indice === dominio.arbol.RAIZ) continue;
+        const desde = centro(dominio.arbol.padre(indice));
+        const hasta = centro(indice);
+
+        const linea = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        linea.setAttribute('class', 'arbol__arista');
+        linea.setAttribute('x1', desde.x);
+        linea.setAttribute('y1', desde.y + 40);
+        linea.setAttribute('x2', hasta.x);
+        linea.setAttribute('y2', hasta.y);
+        svg.appendChild(linea);
+
+        // El rótulo va sobre la arista, del lado del hijo: es el bit que hubo
+        // que leer para bajar por ahí, y sin él el dibujo no dice por qué la
+        // clave tomó ese camino.
+        const rotulo = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        rotulo.setAttribute('class', 'arbol__bit');
+        rotulo.setAttribute('x', desde.x + (hasta.x - desde.x) * 0.45 + (hasta.x < desde.x ? -8 : 8));
+        rotulo.setAttribute('y', desde.y + 40 + (hasta.y - desde.y - 40) * 0.45);
+        rotulo.textContent = indice % 2 === 0 ? '0' : '1';
+        svg.appendChild(rotulo);
+      }
+      return svg;
+    }
+
+    function renderizarArbol(paso) {
+      const claves = estado.estructura.claves;
+      const dibujadas = posicionesDibujadas(paso);
+      const columnas = distribuir(dibujadas);
+      const anchoCasilla = vista.componentes.casilla.anchoParaCifras(estado.estructura.l);
+      const pasoColumna = anchoCasilla + SEPARACION_HERMANOS;
+      const niveles = [...columnas.keys()].reduce((mayor, i) => Math.max(mayor, dominio.arbol.nivelDe(i)), 1);
+      const ancho = Math.max(columnas.size, 1) * pasoColumna;
+      const alto = (niveles - 1) * SEPARACION_NIVEL + 40;
+
+      let seguido = null;
+      vista.animacion.animarFlip(dom.estructuraEl, () => {
+        dom.estructuraEl.className = 'estructura-arbol';
+        dom.estructuraEl.removeAttribute('style');
+        dom.estructuraEl.innerHTML = '';
+
+        const lienzoArbol = document.createElement('div');
+        lienzoArbol.className = 'arbol';
+        lienzoArbol.style.width = `${ancho}px`;
+        lienzoArbol.style.height = `${alto}px`;
+        lienzoArbol.appendChild(crearAristas(columnas, ancho, alto, pasoColumna));
+
+        for (const [indice, columna] of columnas) {
+          const clave = claves[indice - 1];
+          const descripcion = config.describirCasilla({ paso, indice, ocupada: clave !== undefined });
+          const casillaEl = vista.componentes.casilla.crearCasilla({
+            clave,
+            indice,
+            estado: descripcion.estado,
+            modificadores: descripcion.modificadores
+          });
+          casillaEl.style.left = `${columna * pasoColumna + SEPARACION_HERMANOS / 2}px`;
+          casillaEl.style.top = `${(dominio.arbol.nivelDe(indice) - 1) * SEPARACION_NIVEL}px`;
+          lienzoArbol.appendChild(casillaEl);
+          if (paso && paso.casilla === indice) seguido = casillaEl;
+        }
+
+        dom.estructuraEl.appendChild(lienzoArbol);
+        llevarALaVista(seguido);
+      });
+    }
+
     // El apilado es el dispositivo de la búsqueda: una fila por descarte. Los
     // pasos que sacan una clave no descartan nada y además cambian la
     // estructura bajo las filas ya dibujadas —que se leen del mismo arreglo—,
     // así que el tema puede declarar que no le aplican y esos pasos se dibujan
     // sobre la estructura completa, que es donde se ve el desplazamiento.
     function renderizarEstructura(paso, indicePaso) {
+      if (esArbol()) {
+        renderizarArbol(paso);
+        return;
+      }
       const aplicaApilado = !config.apilada || !config.apilada.aplicaA || !paso
         || config.apilada.aplicaA(paso);
       if (config.apilada && estado.pasos && indicePaso >= 0 && aplicaApilado) {
@@ -664,8 +815,17 @@
       estado.reproductor.siguientePaso();
     }
 
+    // La clave que se digita no siempre es un número: los temas de búsqueda
+    // por bits trabajan con letras (CLAUDE.md 5.5). Una sola puerta de entrada
+    // para las tres operaciones, que validan igual.
+    function validarClaveDigitada(texto) {
+      return config.claveEsLetra
+        ? dominio.clave.validarLetra(texto)
+        : dominio.clave.validarClaveNumerica(texto, estado.estructura.l);
+    }
+
     function insertarClave(texto) {
-      const validacion = dominio.clave.validarClaveNumerica(texto, estado.estructura.l);
+      const validacion = validarClaveDigitada(texto);
       if (!validacion.valido) {
         mostrarAlerta('error', validacion.mensaje);
         return;
@@ -703,6 +863,28 @@
       reproducirOperacion(
         config.insertar({ estructura: estado.estructura, clave: validacion.valor }),
         `Inserción iniciada: clave ${validacion.valor}.`
+      );
+    }
+
+    // Insertar una palabra es insertar sus letras en orden (CLAUDE.md 5.5), y
+    // llega como **una sola traza**: avanzar y retroceder van letra por letra,
+    // igual que en cualquier otra operación. No es un llenado —que prepara el
+    // escenario sin reproducir nada—: aquí el recorrido de cada letra por el
+    // árbol es justamente la lección.
+    //
+    // Una letra repetida no se comprueba antes: la traza la descubre y levanta
+    // su aviso, como la inserción de un duplicado en los demás temas.
+    function insertarPalabra(texto) {
+      const validacion = dominio.clave.validarPalabra(texto);
+      if (!validacion.valido) {
+        mostrarAlerta('error', validacion.mensaje);
+        return;
+      }
+      limpiarAlerta();
+      invalidarReproduccion();
+      reproducirOperacion(
+        config.insertarPalabra({ estructura: estado.estructura, letras: validacion.letras }),
+        `Inserción iniciada: palabra ${validacion.valor}.`
       );
     }
 
@@ -757,7 +939,7 @@
     }
 
     function iniciarBusqueda(texto) {
-      const validacion = dominio.clave.validarClaveNumerica(texto, estado.estructura.l);
+      const validacion = validarClaveDigitada(texto);
       if (!validacion.valido) {
         mostrarAlerta('error', validacion.mensaje);
         return;
@@ -781,7 +963,7 @@
     // recorrer hasta concluirlo. Es la diferencia con la inserción, donde el
     // duplicado sí es un estado de la estructura y se avisa de una vez.
     function eliminarClave(texto) {
-      const validacion = dominio.clave.validarClaveNumerica(texto, estado.estructura.l);
+      const validacion = validarClaveDigitada(texto);
       if (!validacion.valido) {
         mostrarAlerta('error', validacion.mensaje);
         return;
@@ -842,17 +1024,20 @@
         </label>
       `;
       }).join('');
-      contenedor.innerHTML = `
-        <h2 class="panel__titulo texto-nivel-2">Configuración de la estructura</h2>
-        <label class="texto-nivel-3">Nombre de la estructura
-          <input type="text" name="nombre" required>
-        </label>
+      // Un árbol de bits no tiene tamaño que elegir: cuántas posiciones caben
+      // sale de la profundidad que dan los bits del código, y la clave es
+      // siempre una letra. Pedir n y l ahí sería pedir un dato que el tema no
+      // usa (CLAUDE.md 5.5).
+      const camposTamano = config.sinTamano ? '' : `
         <label class="texto-nivel-3">Tamaño de la estructura (n)
           <input type="number" name="n" min="1" required>
         </label>
         <label class="texto-nivel-3">Longitud de clave (l)
           <input type="number" name="l" min="1" required>
-        </label>
+        </label>`;
+      contenedor.innerHTML = `
+        <h2 class="panel__titulo texto-nivel-2">Configuración de la estructura</h2>
+        ${camposTamano}
         ${camposParametros}
         ${selectorTratamiento}
         <div class="pantalla-tema__controles">
@@ -875,9 +1060,7 @@
       contenedor.addEventListener('submit', (evento) => {
         evento.preventDefault();
         const datos = new FormData(contenedor);
-        const nombre = String(datos.get('nombre')).trim();
-        const n = Number(datos.get('n'));
-        const l = Number(datos.get('l'));
+        const tamano = config.sinTamano ? config.tamano() : { n: Number(datos.get('n')), l: Number(datos.get('l')) };
         const tratamiento = config.tratamientos ? String(datos.get('tratamiento')) : null;
 
         // Los parámetros se validan contra n y l, así que no pueden validarse
@@ -885,7 +1068,7 @@
         const parametros = {};
         const advertenciasParametros = [];
         for (const parametro of config.parametros || []) {
-          const validacion = parametro.validar(String(datos.get(parametro.nombre) || ''), { n, l });
+          const validacion = parametro.validar(String(datos.get(parametro.nombre) || ''), { n: tamano.n, l: tamano.l });
           if (!validacion.valido) {
             mostrarAlerta('error', validacion.mensaje);
             return;
@@ -894,52 +1077,112 @@
           if (validacion.advertencia) advertenciasParametros.push(validacion.advertencia);
         }
 
-        const resultado = dominio.estructura.crearEstructura({
-          n,
-          l,
-          tipoClave: 'numerica',
-          modo: config.modo || dominio.estructura.MODOS.ORDENADA,
-          tratamiento
+        crearYRegistrar({
+          n: tamano.n,
+          l: tamano.l,
+          tratamiento,
+          parametros,
+          advertencia: advertenciasParametros[0]
         });
-        if (!resultado.exito) {
-          mostrarAlerta('error', resultado.mensaje);
-          return;
-        }
-        // Invalidar antes de cambiar la estructura, no después: si quedaba una
-        // inserción a medio reproducir, consumarla sobre la estructura nueva
-        // colocaría en ella una clave que nunca se le insertó.
-        invalidarReproduccion();
-        resultado.estructura.nombre = nombre;
-        resultado.estructura.parametros = parametros;
-        // El tamaño de la estructura secundaria no se pide: es forma de la
-        // estructura y sale de `n` —o no tiene tope, con encadenamiento—. El
-        // dominio lo necesita para saber cuánto cabe, y la vista para saber
-        // cuántas columnas tiene la matriz.
-        resultado.estructura.tamanoAnidado = config.anidados
-          ? config.anidados.tamano(resultado.estructura)
-          : 0;
-        estado.estructura = resultado.estructura;
-        ajustarAnchoDeCasilla(l);
-        limpiarAlerta();
-        // Las advertencias del tema pesan más que la del tamaño: hablan de una
-        // decisión que el estudiante acaba de tomar y puede rehacer.
-        const advertencia = advertenciasParametros[0] || resultado.advertencia;
-        if (advertencia) mostrarAlerta('advertencia', advertencia);
-        const detalleTratamiento = tratamiento
-          ? `, tratamiento de colisiones por ${etiquetaTratamiento(tratamiento)}`
-          : '';
-        const detalleParametros = (config.parametros || [])
-          // Un parámetro de otro tratamiento no se registra: la bitácora diría
-          // que se creó con un dato que la estructura no usa.
-          .filter((parametro) => !parametro.soloConTratamiento || parametro.soloConTratamiento === tratamiento)
-          .map((parametro) => `, ${parametro.etiqueta.toLowerCase()} ${parametros[parametro.nombre]}`)
-          .join('');
-        registrarBitacora(`Estructura creada: n = ${n}, l = ${l}${detalleParametros}${detalleTratamiento}.`);
-        persistencia.recientes.registrar({ nombre, temaTitulo: config.titulo, n, l });
-        renderizarEstructura(null);
-        actualizarMetricas(null);
       });
       return contenedor;
+    }
+
+    // Crear una estructura y reiniciarla son lo mismo: la nueva nace vacía y
+    // la pantalla vuelve a su estado inicial. Por eso hay una sola función,
+    // que el formulario llama con lo que el estudiante digitó y el botón de
+    // reiniciar con lo que la estructura ya tenía.
+    function establecerEstructura({ n, l, tratamiento, parametros, advertencia }) {
+      const resultado = dominio.estructura.crearEstructura({
+        n,
+        l,
+        tipoClave: config.claveEsLetra ? 'alfabetica' : 'numerica',
+        modo: config.modo || dominio.estructura.MODOS.ORDENADA,
+        tratamiento
+      });
+      if (!resultado.exito) {
+        mostrarAlerta('error', resultado.mensaje);
+        return null;
+      }
+      // Invalidar antes de cambiar la estructura, no después: si quedaba una
+      // inserción a medio reproducir, consumarla sobre la estructura nueva
+      // colocaría en ella una clave que nunca se le insertó.
+      invalidarReproduccion();
+      resultado.estructura.parametros = parametros;
+      // El tamaño de la estructura secundaria no se pide: es forma de la
+      // estructura y sale de `n` —o no tiene tope, con encadenamiento—. El
+      // dominio lo necesita para saber cuánto cabe, y la vista para saber
+      // cuántas columnas tiene la matriz.
+      resultado.estructura.tamanoAnidado = config.anidados
+        ? config.anidados.tamano(resultado.estructura)
+        : 0;
+      estado.estructura = resultado.estructura;
+      ajustarAnchoDeCasilla(l);
+      limpiarAlerta();
+      // Las advertencias del tema pesan más que la del tamaño: hablan de una
+      // decisión que el estudiante acaba de tomar y puede rehacer.
+      const aviso = advertencia || resultado.advertencia;
+      if (aviso) mostrarAlerta('advertencia', aviso);
+      if (dom.reiniciar) dom.reiniciar.hidden = false;
+      renderizarEstructura(null);
+      actualizarMetricas(null);
+      return resultado.estructura;
+    }
+
+    // Crear: además de establecerla, la registra en la bitácora y en las
+    // recientes. Reiniciar no hace ni lo uno ni lo otro —la bitácora se vacía
+    // y la reciente ya está anotada—, y por eso son dos entradas distintas a
+    // la misma función.
+    function crearYRegistrar({ n, l, tratamiento, parametros, advertencia }) {
+      const estructura = establecerEstructura({ n, l, tratamiento, parametros, advertencia });
+      if (!estructura) return null;
+
+      const detalleTratamiento = tratamiento
+        ? `, tratamiento de colisiones por ${etiquetaTratamiento(tratamiento)}`
+        : '';
+      const detalleParametros = (config.parametros || [])
+        // Un parámetro de otro tratamiento no se registra: la bitácora diría
+        // que se creó con un dato que la estructura no usa.
+        .filter((parametro) => !parametro.soloConTratamiento || parametro.soloConTratamiento === tratamiento)
+        .map((parametro) => `, ${parametro.etiqueta.toLowerCase()} ${parametros[parametro.nombre]}`)
+        .join('');
+      registrarBitacora(config.mensajeCreacion
+        ? config.mensajeCreacion(estructura)
+        : `Estructura creada: n = ${n}, l = ${l}${detalleParametros}${detalleTratamiento}.`);
+      // La estructura ya no lleva nombre propio: era el nombre por defecto del
+      // archivo .cc2, y guardar quedó para el final del proyecto (CLAUDE.md
+      // 10.3). La reciente se identifica por su tema y por los datos con que
+      // se creó, que es lo que el estudiante reconoce.
+      persistencia.recientes.registrar({
+        temaTitulo: config.titulo,
+        detalle: config.detalleReciente ? config.detalleReciente(estructura) : `n = ${n} · l = ${l}`
+      });
+      return estructura;
+    }
+
+    // Reiniciar deja la pantalla como recién entrada al tema: la estructura
+    // vacía —con los mismos datos con que se creó— y la bitácora, el aviso y
+    // la reproducción en blanco. Antes tocaba salir al menú y volver a entrar
+    // (pedido del usuario, 2026-08-29).
+    function reiniciarEstructura() {
+      if (!requiereEstructura()) return;
+      const anterior = estado.estructura;
+      const rehecha = establecerEstructura({
+        n: anterior.n,
+        l: anterior.l,
+        tratamiento: anterior.tratamiento,
+        parametros: anterior.parametros
+      });
+      if (!rehecha) return;
+      vista.componentes.bitacora.vaciar(dom.bitacora);
+      registrarBitacora(config.mensajeReinicio || 'Estructura reiniciada: sin claves.');
+    }
+
+    // «estructura» en casi todos los temas y «árbol» en los de bits: el botón
+    // suelto nombra el objeto completo (CLAUDE.md 9).
+    function nombreEstructura(capitalizada = false) {
+      const nombre = config.nombreEstructura || 'estructura';
+      return capitalizada ? nombre[0].toUpperCase() + nombre.slice(1) : nombre;
     }
 
     function etiquetaTratamiento(valor) {
@@ -958,19 +1201,35 @@
     function crearPanelOperaciones() {
       const contenedor = document.createElement('form');
       contenedor.className = 'panel';
+      // En los temas de bits la clave es una letra, y además se puede insertar
+      // una palabra entera: es como se arma el ejercicio de clase —«prueba»
+      // son p, r, u, e, b y a—. Las seis inserciones viajan en una sola traza,
+      // así que se avanzan y se retroceden letra por letra como cualquier otra
+      // operación. Ahí el llenado al azar no aporta nada y cede su sitio.
+      const campoClave = config.claveEsLetra
+        ? '<input type="text" name="clave" maxlength="1" size="4" autocapitalize="off" spellcheck="false" required>'
+        : '<input type="text" name="clave" inputmode="numeric" required>';
+      const segundaFila = config.palabra
+        ? `<label class="texto-nivel-3">Palabra
+             <input type="text" name="palabra" autocapitalize="off" spellcheck="false">
+           </label>
+           <div class="pantalla-tema__controles">
+             <button type="button" class="boton" data-accion="insertar-palabra">Insertar palabra</button>
+           </div>`
+        : `<div class="pantalla-tema__controles">
+             <button type="button" class="boton" data-accion="llenado-automatico">Llenado automático</button>
+           </div>`;
       contenedor.innerHTML = `
         <h2 class="panel__titulo texto-nivel-2">Operaciones</h2>
         <label class="texto-nivel-3">Clave
-          <input type="text" name="clave" inputmode="numeric" required>
+          ${campoClave}
         </label>
         <div class="pantalla-tema__controles">
           <button type="submit" class="boton boton--primario" data-accion="insertar">Insertar</button>
           <button type="button" class="boton" data-accion="buscar">Buscar</button>
           <button type="button" class="boton" data-accion="eliminar">Eliminar</button>
         </div>
-        <div class="pantalla-tema__controles">
-          <button type="button" class="boton" data-accion="llenado-automatico">Llenado automático</button>
-        </div>
+        ${segundaFila}
       `;
 
       // Solo la inserción limpia el campo: es la que se repite clave tras
@@ -989,10 +1248,20 @@
       });
       contenedor.querySelector('[data-accion="buscar"]').addEventListener('click', operar(iniciarBusqueda, false));
       contenedor.querySelector('[data-accion="eliminar"]').addEventListener('click', operar(eliminarClave, false));
-      contenedor.querySelector('[data-accion="llenado-automatico"]').addEventListener('click', () => {
-        if (!requiereEstructura()) return;
-        llenarAutomaticamente();
-      });
+      const llenado = contenedor.querySelector('[data-accion="llenado-automatico"]');
+      if (llenado) {
+        llenado.addEventListener('click', () => {
+          if (!requiereEstructura()) return;
+          llenarAutomaticamente();
+        });
+      }
+      const porPalabra = contenedor.querySelector('[data-accion="insertar-palabra"]');
+      if (porPalabra) {
+        porPalabra.addEventListener('click', () => {
+          if (!requiereEstructura()) return;
+          insertarPalabra(String(new FormData(contenedor).get('palabra')));
+        });
+      }
       return contenedor;
     }
 
@@ -1085,7 +1354,20 @@
       subtituloEl.className = 'pantalla-tema__subtitulo texto-nivel-5';
       subtituloEl.textContent = config.descripcion;
 
-      encabezado.append(botonVolver, tituloEl, subtituloEl);
+      // Reiniciar vive en el encabezado y no en un panel: no es una operación
+      // sobre las claves sino sobre la pantalla entera, y ahí está siempre a
+      // la vista, sin depender de cuánto haya que desplazar el panel lateral.
+      dom.reiniciar = document.createElement('button');
+      dom.reiniciar.type = 'button';
+      dom.reiniciar.className = 'boton pantalla-tema__reiniciar';
+      dom.reiniciar.dataset.accion = 'reiniciar';
+      dom.reiniciar.textContent = `Reiniciar ${nombreEstructura()}`;
+      // Sin estructura no hay nada que reiniciar: el botón aparece cuando la
+      // hay, y en los temas que la crean solas eso es de entrada.
+      dom.reiniciar.hidden = true;
+      dom.reiniciar.addEventListener('click', reiniciarEstructura);
+
+      encabezado.append(botonVolver, tituloEl, subtituloEl, dom.reiniciar);
       return encabezado;
     }
 
@@ -1095,7 +1377,8 @@
     const lienzo = document.createElement('div');
     lienzo.className = 'pantalla-tema__lienzo';
     dom.estructuraEl = document.createElement('div');
-    dom.estructuraEl.className = esVertical() ? 'estructura-vertical' : 'estructura-horizontal';
+    dom.estructuraEl.className = esArbol() ? 'estructura-arbol'
+      : esVertical() ? 'estructura-vertical' : 'estructura-horizontal';
 
     // El cálculo se dibuja al lado de la estructura porque lo que se enseña es
     // la correspondencia entre la cuenta y la casilla que resulta de ella.
@@ -1103,10 +1386,14 @@
     escenario.className = 'lienzo__escenario';
     escenario.appendChild(dom.estructuraEl);
     if (config.calculo) {
-      dom.calculo = vista.componentes.calculo.crearPanelCalculo();
+      dom.calculo = vista.componentes.calculo.crearPanelCalculo({ titulo: config.tituloCalculo });
       escenario.appendChild(dom.calculo.el);
     }
-    lienzo.append(crearControlElision(), escenario);
+    // El árbol no elide: se dibuja entero, porque su tamaño lo acota el
+    // alfabeto y no un n que el estudiante elige. Sin elisión, el control
+    // sobra y solo ocuparía alto del lienzo.
+    if (esArbol()) lienzo.append(escenario);
+    else lienzo.append(crearControlElision(), escenario);
 
     const panelLateral = document.createElement('div');
     panelLateral.className = 'pantalla-tema__panel-lateral';
@@ -1118,9 +1405,14 @@
     dom.alertas.setAttribute('aria-live', 'polite');
     dom.bitacora = vista.componentes.bitacora.crearBitacora();
 
+    // Un árbol de bits no tiene nada que configurar —ni tamaño, ni longitud
+    // de clave, ni tratamiento— así que su panel se quedaría en un título y un
+    // botón «Crear estructura» que no elige nada. El árbol se crea al entrar
+    // al tema, y para vaciarlo está el botón de reiniciar (pedido del usuario,
+    // 2026-08-29).
     panelLateral.append(
       dom.alertas,
-      crearFormularioConfiguracion(),
+      ...(config.sinConfiguracion ? [] : [crearFormularioConfiguracion()]),
       crearPanelOperaciones(),
       crearPanelReproduccion(),
       crearPanelMetricas(),
@@ -1128,6 +1420,13 @@
     );
 
     pantalla.append(crearEncabezado(), lienzo, panelLateral);
+
+    // Los temas sin configuración entran con su estructura ya creada: no hay
+    // decisión que tomar antes de empezar a insertar.
+    if (config.sinConfiguracion) {
+      const tamano = config.tamano();
+      crearYRegistrar({ n: tamano.n, l: tamano.l, tratamiento: null, parametros: {} });
+    }
     return pantalla;
   }
 

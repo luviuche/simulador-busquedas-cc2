@@ -19,6 +19,7 @@
       hash-libre → función módulo, insertando en una casilla libre
       anidados   → arreglos anidados: la tabla y su estructura secundaria
       encadenamiento → encadenamiento secuencial: la cadena de una dirección
+      arbol-digital  → árbol de búsqueda digital con la palabra «prueba»
       eliminar-secuencial → eliminando una clave del medio, con desplazamiento
       eliminar-binaria    → lo mismo, localizando la clave por división
       eliminar-hash       → eliminando del medio de un sondeo: el grupo de
@@ -39,9 +40,11 @@
   <script src="../js/dominio/limites.js"></script>
   <script src="../js/dominio/clave.js"></script>
   <script src="../js/dominio/estructura.js"></script>
+  <script src="../js/dominio/arbol.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
+  <script src="../js/algoritmos/arbol-digital.js"></script>
   <script src="../js/algoritmos/eliminacion.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
   <script src="../js/algoritmos/colisiones/anidados.js"></script>
@@ -77,7 +80,7 @@
     // Insertar, buscar y eliminar comparten un panel: se escribe la clave una
     // vez y el botón dice qué hacer con ella.
     function operar(formularios, accion, valor) {
-      const panel = formularios[1];
+      const panel = formularios.find((formulario) => formulario.querySelector('[name="clave"]'));
       panel.querySelector('[name="clave"]').value = valor;
       panel.querySelector(`[data-accion="${accion}"]`).click();
     }
@@ -108,7 +111,7 @@
 
     function prepararBusqueda(nombreTema) {
       const formularios = entrarATema(nombreTema);
-      enviar(formularios[0], { nombre: 'Práctica de clase', n: 24, l: 2 });
+      enviar(formularios[0], { n: 24, l: 2 });
       for (const clave of [10, 18, 24, 31, 37, 42, 50, 63, 71, 84, 90, 97]) {
         operar(formularios, 'insertar', clave);
       }
@@ -126,7 +129,6 @@
       // ejercicio concreto del docente sin tocar esta página. Sin ellos, la
       // estructura de 12 casillas de siempre.
       enviar(formularios[0], {
-        nombre: 'Práctica de clase',
         n: Number(parametros.get('n')) || 12,
         l: Number(parametros.get('l')) || 4,
         posiciones: parametros.get('posiciones') || '',
@@ -149,7 +151,7 @@
     // se llega al desplazamiento, y sin él al paso que marca la casilla.
     function prepararEliminacion(nombreTema) {
       const formularios = entrarATema(nombreTema);
-      enviar(formularios[0], { nombre: 'Práctica de clase', n: 24, l: 2 });
+      enviar(formularios[0], { n: 24, l: 2 });
       for (const clave of [10, 18, 24, 31, 37, 42, 50, 63, 71, 84, 90, 97]) {
         operar(formularios, 'insertar', clave);
       }
@@ -162,7 +164,6 @@
     function prepararAnidados() {
       const formularios = entrarATema(parametros.get('tema') || 'Función módulo');
       enviar(formularios[0], {
-        nombre: 'Práctica de clase',
         n: Number(parametros.get('n')) || 12,
         l: Number(parametros.get('l')) || 4,
         tamanoAnidado: parametros.get('anidado') || '',
@@ -183,7 +184,6 @@
     function prepararEncadenamiento() {
       const formularios = entrarATema(parametros.get('tema') || 'Función módulo');
       enviar(formularios[0], {
-        nombre: 'Práctica de clase',
         n: Number(parametros.get('n')) || 10,
         l: Number(parametros.get('l')) || 4,
         tratamiento: 'encadenamiento'
@@ -198,13 +198,32 @@
       avanzar(pasosAAvanzar());
     }
 
+    // Árbol de búsqueda digital: el ejercicio de clase es la palabra «prueba»,
+    // que se inserta entera y deja el árbol con ramas a lado y lado.
+    function prepararArbolDigital() {
+      const formularios = entrarATema('Árboles de búsqueda digital');
+      // Sin panel de configuración: el árbol se crea al entrar al tema.
+      const panel = formularios[0];
+      panel.querySelector('[name="palabra"]').value = parametros.get('palabra') || 'prueba';
+      panel.querySelector('[data-accion="insertar-palabra"]').click();
+      // La palabra viaja en una sola traza: seis letras, cada una con su
+      // cálculo y su recorrido.
+      avanzar(40);
+
+      // Con ?operacion= se fotografía además una búsqueda o una eliminación
+      // sobre el árbol ya armado; ?paso= se aplica entonces a esa operación.
+      const operacion = parametros.get('operacion');
+      if (!operacion) return;
+      operar(formularios, operacion, parametros.get('clave') || 'u');
+      avanzar(pasosAAvanzar(20));
+    }
+
     // La eliminación que hay que ver en una tabla hash es la que obliga a
     // redispersar: se borra la clave del medio de un sondeo y las de atrás
     // vuelven a pasar por la función.
     function prepararEliminacionHash() {
       const formularios = entrarATema(parametros.get('tema') || 'Función módulo');
       enviar(formularios[0], {
-        nombre: 'Práctica de clase',
         n: Number(parametros.get('n')) || 12,
         l: Number(parametros.get('l')) || 4,
         posiciones: parametros.get('posiciones') || '',
@@ -230,6 +249,7 @@
       if (vista === 'hash-libre') return prepararHash({ colisiona: false });
       if (vista === 'anidados') return prepararAnidados();
       if (vista === 'encadenamiento') return prepararEncadenamiento();
+      if (vista === 'arbol-digital') return prepararArbolDigital();
       if (vista === 'eliminar-hash') return prepararEliminacionHash();
       if (vista === 'eliminar-binaria') return prepararEliminacion('Búsqueda binaria');
       if (vista === 'eliminar-secuencial') return prepararEliminacion('Búsqueda secuencial');

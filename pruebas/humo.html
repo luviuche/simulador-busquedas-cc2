@@ -25,9 +25,11 @@
   <script src="../js/dominio/limites.js"></script>
   <script src="../js/dominio/clave.js"></script>
   <script src="../js/dominio/estructura.js"></script>
+  <script src="../js/dominio/arbol.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
+  <script src="../js/algoritmos/arbol-digital.js"></script>
   <script src="../js/algoritmos/eliminacion.js"></script>
   <script src="../js/algoritmos/colisiones/reasignacion.js"></script>
   <script src="../js/algoritmos/colisiones/anidados.js"></script>
@@ -84,7 +86,7 @@
     // configuración y las operaciones—, así que la operación se nombra y no
     // se deduce de la posición del formulario.
     function operar(formularios, accion, valor) {
-      const panel = formularios[1];
+      const panel = formularios.find((formulario) => formulario.querySelector('[name="clave"]'));
       panel.querySelector('[name="clave"]').value = valor;
       panel.querySelector(`[data-accion="${accion}"]`).click();
     }
@@ -132,6 +134,15 @@
     function retratarEstructura() {
       const apilada = document.querySelector('.estructura-apilada');
       if (apilada) return retratarApilado().join(' // ');
+
+      // El árbol no tiene filas ni columnas: se retrata por lo que se ve en
+      // cada nodo y el estado en que lo dejó el paso.
+      const arbol = document.querySelector('.arbol');
+      if (arbol) {
+        return [...arbol.querySelectorAll('.casilla')]
+          .map((casilla) => (casilla.textContent.trim() || '·') + ':' + estadoDe(casilla))
+          .join(' ');
+      }
 
       // Horizontal apila casilla sobre marca; vertical las pone lado a lado.
       // El retrato es el mismo en ambas: la orientación no cambia qué se dice.
@@ -192,7 +203,9 @@
       );
 
       const formularios = [...document.querySelectorAll('form.panel')];
-      enviar(formularios[0], { nombre: 'Prueba de humo', n, l });
+      afirmar(control('reiniciar').hidden, 'sin estructura no hay nada que reiniciar: el botón no aparece');
+      enviar(formularios[0], { n, l });
+      afirmar(!control('reiniciar').hidden, 'con la estructura creada, el botón de reiniciar aparece');
       for (const clave of claves) operar(formularios, 'insertar', clave);
 
       const dibujadas = [...document.querySelectorAll('.casilla')].length;
@@ -300,6 +313,16 @@
       afirmar(ultimas[0] !== ultimas[1], 'la bitácora no repite el último mensaje al agotar la traza');
       registro.push('  bitácora final: ' + filasBitacora[filasBitacora.length - 1]);
 
+      // Reiniciar vacía la estructura sin salir del tema y conserva sus datos:
+      // n y l siguen siendo los que se digitaron.
+      control('reiniciar').click();
+      afirmar(clavesDibujadas().length === 0, `reiniciar deja la estructura sin claves (quedan ${clavesDibujadas().length})`);
+      operar(formularios, 'insertar', claves[0]);
+      afirmar(
+        clavesDibujadas().join(' ') === String(claves[0]),
+        'tras reiniciar se puede volver a insertar sobre la misma estructura'
+      );
+
       document.querySelector('.pantalla-tema__volver').click();
     }
 
@@ -345,6 +368,7 @@
       avisosDeLaTraza();
       anidados();
       encadenamiento();
+      arbolDigital();
     }
 
     // La tabla grande es donde se ve la regla del docente: en una estructura
@@ -357,8 +381,7 @@
       registro.push('', '── Tabla dispersa grande ──');
 
       const claves = [1004, 1010, 1023, 1035, 1016, 3025];
-      const formularios = entrarATemaHash('Función plegamiento', {
-        nombre: 'Tabla grande', n: 100, l: 4, tratamiento: 'reasignacion'
+      const formularios = entrarATemaHash('Función plegamiento', { n: 100, l: 4, tratamiento: 'reasignacion'
       });
       for (const clave of claves) {
         operar(formularios, 'insertar', clave);
@@ -426,8 +449,7 @@
     function hashPlegamiento() {
       registro.push('', '── Función plegamiento ──');
 
-      const formularios = entrarATemaHash('Función plegamiento', {
-        nombre: 'Plegada', n: 12, l: 4, tratamiento: 'reasignacion'
+      const formularios = entrarATemaHash('Función plegamiento', { n: 12, l: 4, tratamiento: 'reasignacion'
       });
       afirmar(
         !!formularios[0].querySelector('select[name="operacion"]')
@@ -448,8 +470,7 @@
 
       // La misma clave con la otra operación cae en otra casilla:
       // 74 × 12 = 888 → últimas dos cifras 88 → 88 + 1 = 89 → 5.
-      enviar(formularios[0], {
-        nombre: 'Plegada por producto', n: 12, l: 4, operacion: 'multiplicar', tratamiento: 'reasignacion'
+      enviar(formularios[0], { n: 12, l: 4, operacion: 'multiplicar', tratamiento: 'reasignacion'
       });
       operar(formularios, 'insertar', 7412);
       agotarTraza();
@@ -478,8 +499,7 @@
       // clave se leen como cifras en base 6 y se evalúa el polinomio:
       // 1×6³ + 8×6² + 3×6¹ + 6×6⁰ = 528; las dos últimas cifras son 28 y la
       // dirección cierra con el + 1, como las otras cuatro funciones: casilla 29.
-      const formularios = entrarATemaHash('Conversión de bases', {
-        nombre: 'Bases', n: 100, l: 4, base: '6', tratamiento: 'reasignacion'
+      const formularios = entrarATemaHash('Conversión de bases', { n: 100, l: 4, base: '6', tratamiento: 'reasignacion'
       });
       operar(formularios, 'insertar', 1836);
       agotarTraza();
@@ -499,7 +519,7 @@
 
       // Sin base indicada se usa 11: 7×11³ + 4×11² + 1×11¹ + 2×11⁰ = 9814,
       // las dos últimas cifras son 14 y con el + 1 la dirección es 15.
-      enviar(formularios[0], { nombre: 'Por defecto', n: 100, l: 4, base: '', tratamiento: 'reasignacion' });
+      enviar(formularios[0], { n: 100, l: 4, base: '', tratamiento: 'reasignacion' });
       operar(formularios, 'insertar', 7412);
       agotarTraza();
       registro.push('  base 11: ' + lineasCalculo().join(' | '));
@@ -511,14 +531,14 @@
 
       // Base 2: las cifras de la clave pesan como bits.
       // 7×2³ + 4×2² + 1×2¹ + 2×2⁰ = 56 + 16 + 2 + 2 = 76.
-      enviar(formularios[0], { nombre: 'Binaria', n: 100, l: 4, base: '2', tratamiento: 'reasignacion' });
+      enviar(formularios[0], { n: 100, l: 4, base: '2', tratamiento: 'reasignacion' });
       operar(formularios, 'insertar', 7412);
       agotarTraza();
       registro.push('  base 2: ' + lineasCalculo().join(' | '));
       afirmar(lineasCalculo()[1].includes('76'), 'con base 2 las cifras de la clave pesan como bits');
 
       // Una base imposible se rechaza al crear, no al insertar.
-      enviar(formularios[0], { nombre: 'Inválida', n: 12, l: 4, base: '99', tratamiento: 'reasignacion' });
+      enviar(formularios[0], { n: 12, l: 4, base: '99', tratamiento: 'reasignacion' });
       const alerta = document.querySelector('.alerta');
       afirmar(
         !!alerta && alerta.textContent.includes('Base inválida'),
@@ -545,7 +565,7 @@
       );
 
       // La clave tiene 4 cifras: la posición 6 no existe.
-      enviar(formularios[0], { nombre: 'Truncada', n: 12, l: 4, posiciones: '1,6', tratamiento: 'reasignacion' });
+      enviar(formularios[0], { n: 12, l: 4, posiciones: '1,6', tratamiento: 'reasignacion' });
       const alerta = document.querySelector('.alerta');
       afirmar(!!alerta && alerta.textContent.includes('Posición fuera de rango'),
         'una posición que la clave no tiene se rechaza al crear la estructura');
@@ -555,7 +575,7 @@
       );
 
       // 7412 con posiciones 1 y 3 → cifras 7 y 1 → 71 + 1 → 72 no cabe en 1..12 → 12.
-      enviar(formularios[0], { nombre: 'Truncada', n: 12, l: 4, posiciones: '1,3', tratamiento: 'reasignacion' });
+      enviar(formularios[0], { n: 12, l: 4, posiciones: '1,3', tratamiento: 'reasignacion' });
       operar(formularios, 'insertar', 7412);
       agotarTraza();
       registro.push('  cálculo: ' + lineasCalculo().join(' | '));
@@ -583,8 +603,7 @@
     function hashCuadrado() {
       registro.push('', '── Función cuadrado ──');
 
-      const formularios = entrarATemaHash('Función cuadrado', {
-        nombre: 'Cuadrado', n: 12, l: 4, tratamiento: 'reasignacion'
+      const formularios = entrarATemaHash('Función cuadrado', { n: 12, l: 4, tratamiento: 'reasignacion'
       });
 
       // 1004² = 1008016 → centrales "08" → 8 + 1 → dirección 9.
@@ -636,7 +655,7 @@
         .find((el) => el.textContent.includes('Búsqueda secuencial'))
         .click();
       const formularios = [...document.querySelectorAll('form.panel')];
-      enviar(formularios[0], { nombre: 'Eliminar', n: 12, l: 2 });
+      enviar(formularios[0], { n: 12, l: 2 });
       for (const clave of [10, 20, 30, 40, 50]) operar(formularios, 'insertar', clave);
 
       operar(formularios, 'eliminar', 30);
@@ -694,7 +713,7 @@
         .find((el) => el.textContent.includes('Búsqueda binaria'))
         .click();
       const formularios = [...document.querySelectorAll('form.panel')];
-      enviar(formularios[0], { nombre: 'Eliminar', n: 12, l: 2 });
+      enviar(formularios[0], { n: 12, l: 2 });
       for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) operar(formularios, 'insertar', clave);
 
       operar(formularios, 'eliminar', 70);
@@ -732,7 +751,7 @@
     function eliminarConReasignacion() {
       registro.push('', '── Función módulo · eliminar con reasignación ──');
 
-      const formularios = entrarAModulo({ nombre: 'Eliminar', n: 10, l: 4, tratamiento: 'reasignacion' });
+      const formularios = entrarAModulo({ n: 10, l: 4, tratamiento: 'reasignacion' });
       for (const clave of [7412, 5312, 9912]) {
         operar(formularios, 'insertar', clave);
         agotarTraza();
@@ -778,7 +797,7 @@
     function avisosDeLaTraza() {
       registro.push('', '── Avisos ──');
 
-      const formularios = entrarAModulo({ nombre: 'Avisos', n: 10, l: 4, tratamiento: 'ninguno' });
+      const formularios = entrarAModulo({ n: 10, l: 4, tratamiento: 'ninguno' });
       operar(formularios, 'insertar', 7412);
       agotarTraza();
       afirmar(
@@ -840,8 +859,7 @@
     function anidados() {
       registro.push('', '── Arreglos anidados ──');
 
-      const formularios = entrarATemaHash('Función módulo', {
-        nombre: 'Anidados', n: 10, l: 4, tratamiento: 'anidados'
+      const formularios = entrarATemaHash('Función módulo', { n: 10, l: 4, tratamiento: 'anidados'
       });
       // El tamaño del arreglo no se pide: la matriz es de n × n, así que sale
       // de n. Pedirlo era el error que el usuario corrigió.
@@ -911,7 +929,7 @@
 
       // Con el arreglo lleno la clave no entra y se dice por qué.
       // Con n = 2 una dirección sostiene 2 claves: la tabla y una del arreglo.
-      enviar(formularios[0], { nombre: 'Lleno', n: 2, l: 4, tratamiento: 'anidados' });
+      enviar(formularios[0], { n: 2, l: 4, tratamiento: 'anidados' });
       for (const clave of [7412, 5312]) {
         operar(formularios, 'insertar', clave);
         agotarTraza();
@@ -927,7 +945,7 @@
       // Con n grande el arreglo tiene n − 1 columnas y no caben: elide con la
       // misma regla que la tabla —la primera, la última, las ocupadas, y un
       // tramo diciendo cuánto se resumió—.
-      enviar(formularios[0], { nombre: 'Ancha', n: 100, l: 4, tratamiento: 'anidados' });
+      enviar(formularios[0], { n: 100, l: 4, tratamiento: 'anidados' });
       for (const clave of [1004, 1104, 1204]) {
         operar(formularios, 'insertar', clave);
         agotarTraza();
@@ -969,8 +987,7 @@
     function encadenamiento() {
       registro.push('', '── Encadenamiento secuencial ──');
 
-      const formularios = entrarATemaHash('Función módulo', {
-        nombre: 'Cadena', n: 10, l: 4, tratamiento: 'encadenamiento'
+      const formularios = entrarATemaHash('Función módulo', { n: 10, l: 4, tratamiento: 'encadenamiento'
       });
 
       // 7412, 5312 y 9912 comparten la dirección 3.
@@ -1023,7 +1040,7 @@
 
       // Lo que define al tratamiento: no hay tope, así que no hay saturación.
       // Con n = 2 y arreglos anidados, estas claves no habrían cabido.
-      enviar(formularios[0], { nombre: 'Sin tope', n: 2, l: 4, tratamiento: 'encadenamiento' });
+      enviar(formularios[0], { n: 2, l: 4, tratamiento: 'encadenamiento' });
       for (const clave of [1001, 1003, 1005, 1007, 1009]) {
         operar(formularios, 'insertar', clave);
         agotarTraza();
@@ -1054,6 +1071,111 @@
       document.querySelector('.pantalla-tema__volver').click();
     }
 
+    // Árboles de búsqueda digital (CLAUDE.md 5.5). Lo que solo se ve por el
+    // DOM: que el tema no pida n ni l, que la palabra entre como una sola
+    // traza reproducible, y que el árbol se dibuje por niveles con el bit
+    // rotulando cada arista.
+    function arbolDigital() {
+      registro.push('', '── Árboles de búsqueda digital ──');
+
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes('Árboles de búsqueda digital'))
+        .click();
+      const formularios = [...document.querySelectorAll('form.panel')];
+      const operaciones = formularios[0];
+
+      // El árbol no tiene nada que configurar —ni tamaño, ni longitud de clave,
+      // ni tratamiento—, así que no hay panel de configuración: se crea al
+      // entrar al tema.
+      afirmar(formularios.length === 1, `el tema no dibuja panel de configuración (${formularios.length} formulario(s))`);
+      afirmar(
+        document.querySelectorAll('.pantalla-tema__panel-lateral .panel').length === 4,
+        'el panel lateral queda en cuatro paneles'
+      );
+      afirmar(!!document.querySelector('.estructura-arbol'), 'el árbol existe desde que se entra al tema');
+
+      // El ejercicio de clase: «prueba», en una sola operación.
+      operaciones.querySelector('[name="palabra"]').value = 'prueba';
+      operaciones.querySelector('[data-accion="insertar-palabra"]').click();
+      const retrato = agotarTraza(60);
+      registro.push('  traza de la palabra: ' + retrato);
+      const bitacora = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
+      afirmar(
+        bitacora.some((linea) => linea.includes('Inserción iniciada: palabra prueba')),
+        'la palabra entra como una sola operación, no como seis'
+      );
+
+      // El retrato del árbol es "nivel:clave" leyendo el dibujo, no el modelo.
+      const nodos = () => [...document.querySelectorAll('.arbol .casilla')]
+        .map((el) => el.textContent.replace(/[^a-z]/g, ''))
+        .filter(Boolean)
+        .sort()
+        .join('');
+      registro.push('  árbol de «prueba»: ' + nodos());
+      afirmar(nodos() === 'abepru', 'las seis letras quedan dibujadas en el árbol');
+      afirmar(
+        document.querySelectorAll('.arbol__arista').length === 5,
+        `cada nodo que no es la raíz entra por una arista (${document.querySelectorAll('.arbol__arista').length})`
+      );
+      const bits = [...document.querySelectorAll('.arbol__bit')].map((el) => el.textContent).sort().join('');
+      afirmar(bits === '00001', `las aristas se rotulan con el bit que llevó por ellas (${bits})`);
+      afirmarCasillasParejas('árbol digital');
+
+      // Altura: p → e → b → a son cuatro niveles, y es lo que cuesta la peor
+      // búsqueda de este árbol.
+      const metricas = () => [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+      afirmar(metricas()[2] === '4', `la altura cuenta niveles (reporta ${metricas()[2]})`);
+
+      // Retroceder deshace la última inserción, como en cualquier otra traza.
+      control('anterior').click();
+      afirmar(nodos() === 'bepru', `retroceder saca del árbol la letra que el paso colocó (queda ${nodos()})`);
+      control('siguiente').click();
+
+      operar(formularios, 'buscar', 'u');
+      agotarTraza();
+      afirmar(metricas()[0] === '3', `buscar u cuesta 3 comparaciones (reporta ${metricas()[0]})`);
+      afirmar(
+        !!aviso() && aviso().textContent.includes('hijo izquierdo de r'),
+        'el aviso dice en qué nodo quedó la clave'
+      );
+
+      // Una letra repetida no entra: la traza la descubre y lo dice.
+      operar(formularios, 'insertar', 'r');
+      agotarTraza();
+      afirmar(
+        aviso().classList.contains('alerta--error') && aviso().textContent.includes('duplicada'),
+        'una letra repetida no entra y el aviso lo dice'
+      );
+
+      // Eliminar un nodo con descendientes: sube una hoja de su subárbol, o el
+      // árbol quedaría partido.
+      operar(formularios, 'eliminar', 'e');
+      agotarTraza(20);
+      registro.push('  tras eliminar e: ' + nodos());
+      afirmar(nodos() === 'abpru', 'la clave sale y una hoja de su subárbol sube a ocupar el sitio');
+      afirmar(
+        [...document.querySelectorAll('.arbol .casilla')].every((el) => el.textContent.trim() !== ''),
+        'no queda ningún hueco dibujado tras cerrar la eliminación'
+      );
+
+      // Reiniciar deja la pantalla como recién entrada: antes tocaba salir al
+      // menú y volver a entrar (pedido del usuario, 2026-08-29).
+      control('reiniciar').click();
+      registro.push('  tras reiniciar: ' + (nodos() || '(vacío)'));
+      afirmar(nodos() === '', 'reiniciar deja el árbol sin claves');
+      const bitacoraTrasReiniciar = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
+      afirmar(
+        bitacoraTrasReiniciar.length === 1 && bitacoraTrasReiniciar[0].includes('Árbol reiniciado'),
+        `reiniciar vacía la bitácora y deja constancia (${bitacoraTrasReiniciar.length} línea(s))`
+      );
+      afirmar(!aviso(), 'reiniciar limpia el aviso en curso');
+      operar(formularios, 'insertar', 'p');
+      agotarTraza();
+      afirmar(nodos() === 'p', 'tras reiniciar se puede volver a insertar');
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
     // Entra a un tema de transformación de claves y crea una estructura
     // dispersa. Devuelve los formularios para seguir operando sobre ella.
     // Los parámetros propios del tema —la base, las posiciones, la operación—
@@ -1065,7 +1187,7 @@
         .find((el) => el.textContent.includes(tema))
         .click();
       const formularios = [...document.querySelectorAll('form.panel')];
-      const campos = { nombre: opciones.nombre, n: opciones.n, l: opciones.l, tratamiento: opciones.tratamiento };
+      const campos = { n: opciones.n, l: opciones.l, tratamiento: opciones.tratamiento };
       for (const propio of ['base', 'posiciones', 'operacion', 'tamanoAnidado']) {
         if (opciones[propio] !== undefined) campos[propio] = opciones[propio];
       }
@@ -1091,7 +1213,7 @@
     function hashCalculoReproducible() {
       registro.push('', '── Función módulo · cálculo paso a paso ──');
 
-      const formularios = entrarAModulo({ nombre: 'Módulo', n: 10, l: 4, tratamiento: 'ninguno' });
+      const formularios = entrarAModulo({ n: 10, l: 4, tratamiento: 'ninguno' });
 
       afirmar(
         !!document.querySelector('.estructura-vertical'),
@@ -1164,7 +1286,7 @@
       // Crear otra estructura con una inserción a medio reproducir no puede
       // arrastrar la clave pendiente a la estructura nueva.
       operar(formularios, 'insertar', 1111);
-      enviar(formularios[0], { nombre: 'Recreada', n: 10, l: 4, tratamiento: 'ninguno' });
+      enviar(formularios[0], { n: 10, l: 4, tratamiento: 'ninguno' });
       afirmar(
         document.querySelectorAll('.fila-casilla .casilla--vacia').length === 10,
         'crear otra estructura no arrastra la clave a medio insertar'
@@ -1187,7 +1309,7 @@
     function hashColisionSinTratamiento() {
       registro.push('', '── Función módulo · colisión sin tratamiento ──');
 
-      const formularios = entrarAModulo({ nombre: 'Choque', n: 10, l: 4, tratamiento: 'ninguno' });
+      const formularios = entrarAModulo({ n: 10, l: 4, tratamiento: 'ninguno' });
       operar(formularios, 'insertar', 7412);
       agotarTraza();
       // 5312 mod 10 = 2 → dirección 3, la misma que 7412.
@@ -1217,7 +1339,7 @@
     function hashReasignacion() {
       registro.push('', '── Función módulo · reasignación ──');
 
-      const formularios = entrarAModulo({ nombre: 'Reasignada', n: 10, l: 4, tratamiento: 'reasignacion' });
+      const formularios = entrarAModulo({ n: 10, l: 4, tratamiento: 'reasignacion' });
       for (const clave of [7412, 5312, 9912]) {
         operar(formularios, 'insertar', clave);
         agotarTraza();
@@ -1258,7 +1380,7 @@
         .click();
 
       const formularios = [...document.querySelectorAll('form.panel')];
-      enviar(formularios[0], { nombre: 'Sin resultado', n: 16, l: 2 });
+      enviar(formularios[0], { n: 16, l: 2 });
       for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) operar(formularios, 'insertar', clave);
 
       operar(formularios, 'buscar', 45);

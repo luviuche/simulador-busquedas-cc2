@@ -6,18 +6,21 @@
   //
   // No recuerda nada: recibe las líneas ya reveladas por el paso actual y
   // redibuja. Retroceder un paso es, por eso, gratis.
-  function crearPanelCalculo() {
+  // El rótulo lo pone el tema: en la transformación de claves lo que se
+  // desarrolla es la dirección, y en los árboles de bits el código de la letra
+  // y el camino que abre (CLAUDE.md 5.5).
+  function crearPanelCalculo({ titulo = 'Cálculo de la dirección' } = {}) {
     const el = document.createElement('section');
     el.className = 'calculo';
 
-    const titulo = document.createElement('h3');
-    titulo.className = 'calculo__titulo texto-nivel-4';
-    titulo.textContent = 'Cálculo de la dirección';
+    const tituloEl = document.createElement('h3');
+    tituloEl.className = 'calculo__titulo texto-nivel-4';
+    tituloEl.textContent = titulo;
 
     const lista = document.createElement('ol');
     lista.className = 'calculo__lineas';
 
-    el.append(titulo, lista);
+    el.append(tituloEl, lista);
 
     function actualizar(lineas) {
       lista.innerHTML = '';
