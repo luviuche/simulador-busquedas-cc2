@@ -763,6 +763,10 @@ El profesor evalúa explícitamente que los bloques se muevan. Estas son las ani
 - Respetar `prefers-reduced-motion`: sustituir la animación por cambio de estado directo.
 - Cada casilla necesita una **identidad estable** —clave como llave, no índice— para que el reordenamiento anime el movimiento y no un redibujado.
 
+**En el llenado automático, entre clave y clave tiene que caber la animación entera.** Es la misma regla de arriba —las animaciones se reemplazan, no se encolan— vista desde el otro lado: con un intervalo más corto que la animación, cada clave cancelaba el movimiento de la anterior a media carrera y las claves parecían amontonarse en vez de acomodarse. Era el caso: **150 ms de intervalo contra 400 de animación** (pedido del usuario, 2026-08-30). Ahora el reordenamiento del llenado dura **500 ms** y las claves entran cada **700**; la diferencia es la pausa para leer dónde cayó cada una. Si se toca uno de los dos números, el otro tiene que seguirlo: son `MS_ANIMACION_LLENADO` y `MS_ENTRE_CLAVES` en `tema-busqueda.js`, juntos y comentados por eso. El costo es que llenar es lento a propósito: doce casillas tardan unos 8 s.
+
+Es el único sitio donde el reordenamiento no dura los 400 ms de siempre, y por eso `renderizarEstructura` acepta la duración como dato de quien dibuja en vez de tenerla fija.
+
 ---
 
 ## 8. Sistema visual

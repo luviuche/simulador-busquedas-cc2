@@ -3,6 +3,19 @@
   const vista = window.CC2.vista;
   const persistencia = window.CC2.persistencia;
 
+  // Ritmo del llenado automático (CLAUDE.md 7). No reproduce la traza de cada
+  // clave —llenar es preparar el escenario, no la lección— pero sí tiene que
+  // dejar ver dónde se acomoda cada una.
+  //
+  // La regla que no se puede romper: **entre clave y clave tiene que caber la
+  // animación entera**. Las animaciones se reemplazan en vez de encolarse
+  // (CLAUDE.md 7), así que con un intervalo más corto que la animación cada
+  // clave cancelaba el movimiento de la anterior a media carrera y las claves
+  // parecían amontonarse en lugar de acomodarse. Era el caso: 150 ms de
+  // intervalo contra 400 de animación (pedido del usuario, 2026-08-30).
+  const MS_ANIMACION_LLENADO = 500;
+  const MS_ENTRE_CLAVES = 700;
+
   // El deslizador se rotula «Velocidad», así que tiene que crecer hacia la
   // derecha: más a la derecha, más rápido (pedido del usuario, 2026-08-30).
   // El reproductor, en cambio, quiere el tiempo *entre* pasos, que crece al
@@ -452,7 +465,7 @@
     // Vista de una sola estructura: la que usan los temas que no acumulan
     // (secuencial, transformación de claves), y también binaria mientras no hay
     // una búsqueda en curso.
-    function renderizarFilaUnica(paso) {
+    function renderizarFilaUnica(paso, opciones) {
       const claves = estado.estructura.claves;
       const n = estado.estructura.n;
       const segmentos = segmentosDe(relevantesDelPaso(paso));
@@ -540,7 +553,7 @@
         // Dentro del cambio y no después: así el FLIP mide las posiciones
         // finales, ya desplazadas, y no anima contra coordenadas viejas.
         llevarALaVista(grupoSeguido);
-      });
+      }, opciones);
     }
 
     // Vista apilada: una estructura por paso, cada una con solo el tramo que
@@ -780,7 +793,7 @@
       return svg;
     }
 
-    function renderizarArbol(paso) {
+    function renderizarArbol(paso, opciones) {
       const claves = estado.estructura.claves;
       const dibujadas = formaArbol.posicionesDibujadas(estado.estructura, paso);
       const anchoCasilla = vista.componentes.casilla.anchoParaCifras(estado.estructura.l);
@@ -832,7 +845,7 @@
 
         dom.estructuraEl.appendChild(lienzoArbol);
         llevarALaVista(seguido);
-      });
+      }, opciones);
     }
 
     // El apilado es el dispositivo de la búsqueda: una fila por descarte. Los
@@ -840,9 +853,11 @@
     // estructura bajo las filas ya dibujadas —que se leen del mismo arreglo—,
     // así que el tema puede declarar que no le aplican y esos pasos se dibujan
     // sobre la estructura completa, que es donde se ve el desplazamiento.
-    function renderizarEstructura(paso, indicePaso) {
+    // `opciones.duracionMs` alarga el reordenamiento: lo usa el llenado
+    // automático, que va más despacio que una inserción suelta.
+    function renderizarEstructura(paso, indicePaso, opciones) {
       if (esArbol()) {
-        renderizarArbol(paso);
+        renderizarArbol(paso, opciones);
         return;
       }
       const aplicaApilado = !config.apilada || !config.apilada.aplicaA || !paso
@@ -851,7 +866,7 @@
         renderizarApilado(indicePaso);
         return;
       }
-      renderizarFilaUnica(paso);
+      renderizarFilaUnica(paso, opciones);
     }
 
     // Las columnas del apilado se fijan una vez por búsqueda, con las casillas
@@ -1023,9 +1038,9 @@
         const resultado = colocar(candidato);
         if (resultado.exito) {
           insertadas++;
-          renderizarEstructura(null);
+          renderizarEstructura(null, -1, { duracionMs: MS_ANIMACION_LLENADO });
           actualizarMetricas(null);
-          setTimeout(insertarSiguiente, 150);
+          setTimeout(insertarSiguiente, MS_ENTRE_CLAVES);
           return;
         }
         setTimeout(insertarSiguiente, 0);
