@@ -27,7 +27,13 @@
     //                    se levanta para volver a pasar por la función hash.
     ELIMINACION: 'eliminacion',
     DESPLAZAMIENTO: 'desplazamiento',
-    EXTRACCION: 'extraccion'
+    EXTRACCION: 'extraccion',
+    // Otras búsquedas dinámicas (CLAUDE.md 5.x): aquí `n` cambia con el
+    // tiempo, algo que ningún otro tema hace. Cada uno anuncia el cambio de
+    // tamaño antes de la secuencia de reubicación (pasos `calculo` +
+    // `insercion`, iguales a los de cualquier inserción).
+    EXPANSION: 'expansion',
+    REDUCCION: 'reduccion'
   });
 
   // Un paso puede declarar el `efecto` que produce sobre la estructura:

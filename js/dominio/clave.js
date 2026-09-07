@@ -18,6 +18,26 @@
     return { valido: true, valor: Number(texto) };
   }
 
+  // Claves numéricas sin longitud fija (otras búsquedas dinámicas, CLAUDE.md
+  // 5.7): ese tema no pide `l` —las claves del ejercicio mezclan libremente
+  // dos y tres cifras—, así que valida solo lo que no depende de una longitud
+  // exacta: dígitos y sin ceros a la izquierda (CLAUDE.md 3.3, salvo el "0"
+  // solo, que no es un cero *a la izquierda* de nada).
+  function validarClaveNumericaLibre(entrada) {
+    const texto = String(entrada).trim();
+    if (!/^[0-9]+$/.test(texto)) {
+      return { valido: false, mensaje: 'Carácter no admitido: solo se aceptan dígitos.' };
+    }
+    if (texto.length > 1 && texto[0] === '0') {
+      return { valido: false, mensaje: 'Carácter no admitido: no se aceptan ceros a la izquierda.' };
+    }
+    const valor = Number(texto);
+    if (!Number.isSafeInteger(valor)) {
+      return { valido: false, mensaje: 'Clave demasiado grande.' };
+    }
+    return { valido: true, valor };
+  }
+
   function normalizarLetra(letra) {
     const mayus = letra.toUpperCase();
     return TILDES[mayus] || mayus;
@@ -112,6 +132,7 @@
     ALFABETO,
     BITS_LETRA,
     validarClaveNumerica,
+    validarClaveNumericaLibre,
     validarClaveAlfabetica,
     validarLetra,
     validarPalabra,

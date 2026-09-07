@@ -5,72 +5,83 @@
   const persistencia = window.CC2.persistencia;
   const hashOperaciones = algoritmos.hash.operaciones;
 
-  // Catálogo de temas (CLAUDE.md 5 y 12). `disponible` refleja el estado real
-  // de esta compilación, no el alcance final de la asignatura.
+  // Catálogo de temas (CLAUDE.md 2 y 12), organizado por dos grandes temas —
+  // Búsquedas y Grafos— y no por unidad del curso (pedido del docente,
+  // 2026-09-06): la numeración de unidades mezclaba búsquedas externas con
+  // grafos en la misma unidad, que es justo la agrupación que el docente ya
+  // no quiere ver en el menú. Cada nodo es o bien una categoría (`hijos`,
+  // navegable) o bien un tema final (`tema`, la clave que abre `TEMAS`).
+  // `disponible` en un tema final refleja el estado real de esta compilación,
+  // no el alcance final de la asignatura; una categoría sin `estado` se
+  // asume disponible y solo lleva insignia cuando está `en desarrollo`.
   //
-  // Los temas no se numeran: se identifican por su nombre. La numeración
-  // sobrevive solo en las unidades, que sí son divisiones del programa.
+  // Los temas no se numeran: se identifican por su nombre (decisión del
+  // docente, 2026-08-18). Ninguna categoría ni tema final lleva número.
   const CATALOGO = [
     {
-      numero: '01',
-      titulo: 'ALGORITMOS DE BÚSQUEDA',
-      estado: 'disponible',
-      grupos: [
+      id: 'busquedas',
+      titulo: 'Búsquedas',
+      descripcion: 'Localizar una clave dentro de una estructura, completa en memoria o no',
+      hijos: [
         {
+          id: 'internas',
           titulo: 'Búsquedas internas',
-          temas: [
-            { id: 'secuencial', titulo: 'Búsqueda secuencial', descripcion: 'Recorrido lineal, clave por clave', disponible: true },
-            { id: 'binaria', titulo: 'Búsqueda binaria', descripcion: 'División sobre arreglo ordenado', disponible: true }
+          descripcion: 'La estructura completa cabe en memoria',
+          hijos: [
+            { id: 'lineal', titulo: 'Búsqueda secuencial', descripcion: 'Recorrido lineal, clave por clave', tema: 'secuencial', disponible: true },
+            { id: 'binaria', titulo: 'Búsqueda binaria', descripcion: 'División sobre arreglo ordenado', tema: 'binaria', disponible: true },
+            {
+              id: 'transformacion',
+              titulo: 'Búsqueda por transformación de claves',
+              descripcion: 'La dirección la calcula una función hash',
+              hijos: [
+                { id: 'hash-modulo', titulo: 'Función módulo', descripcion: 'Dirección por residuo de n', tema: 'hash-modulo', disponible: true },
+                { id: 'hash-cuadrado', titulo: 'Función cuadrado', descripcion: 'Cifras centrales del cuadrado', tema: 'hash-cuadrado', disponible: true },
+                { id: 'hash-truncamiento', titulo: 'Función truncamiento', descripcion: 'Selección de dígitos de la clave', tema: 'hash-truncamiento', disponible: true },
+                { id: 'hash-plegamiento', titulo: 'Función plegamiento', descripcion: 'Suma o producto de las particiones', tema: 'hash-plegamiento', disponible: true },
+                { id: 'hash-bases', titulo: 'Conversión de bases', descripcion: 'Las cifras de la clave leídas en otra base', tema: 'hash-bases', disponible: true }
+              ]
+            },
+            {
+              id: 'residuo',
+              titulo: 'Búsquedas por residuo',
+              descripcion: 'El camino de la clave se recorre bit a bit, o por bloques de bits',
+              hijos: [
+                { id: 'residuos', titulo: 'Búsqueda por residuos', descripcion: 'Claves solo en las hojas', tema: 'residuos', disponible: true },
+                { id: 'arbol-digital', titulo: 'Árboles de búsqueda digital', descripcion: 'Inserción bit a bit', tema: 'arbol-digital', disponible: true },
+                { id: 'residuos-multiples', titulo: 'Residuos múltiples', descripcion: 'Ramificación por bloques de bits', tema: 'residuos-multiples', disponible: true }
+              ]
+            }
           ]
         },
         {
-          titulo: 'Transformación de claves · funciones hash',
-          temas: [
-            { id: 'hash-modulo', titulo: 'Función módulo', descripcion: 'Dirección por residuo de n', disponible: true },
-            { id: 'hash-cuadrado', titulo: 'Función cuadrado', descripcion: 'Cifras centrales del cuadrado', disponible: true },
-            { id: 'hash-truncamiento', titulo: 'Función truncamiento', descripcion: 'Selección de dígitos de la clave', disponible: true },
-            { id: 'hash-plegamiento', titulo: 'Función plegamiento', descripcion: 'Suma o producto de las particiones', disponible: true },
-            { id: 'hash-bases', titulo: 'Conversión de bases', descripcion: 'Las cifras de la clave leídas en otra base', disponible: true }
-          ]
-        },
-        {
-          titulo: 'Otras búsquedas internas',
-          temas: [
-            { id: 'residuos', titulo: 'Búsqueda por residuos', descripcion: 'Claves solo en las hojas', disponible: true },
-            { id: 'arbol-digital', titulo: 'Árboles de búsqueda digital', descripcion: 'Inserción bit a bit', disponible: true },
-            { id: 'residuos-multiples', titulo: 'Residuos múltiples', descripcion: 'Ramificación por bloques de bits', disponible: true },
-            { id: 'tablas-indices', titulo: 'Tablas de índices', descripcion: 'Acceso mediante tabla auxiliar', disponible: false },
-            { id: 'rejilla', titulo: 'Método de la rejilla', descripcion: 'Partición del espacio en celdas', disponible: false },
-            { id: 'arbol-2d', titulo: 'Árboles 2D', descripcion: 'Búsqueda en dos dimensiones', disponible: false }
+          id: 'externas',
+          titulo: 'Búsquedas externas',
+          descripcion: 'La estructura no cabe completa en memoria',
+          estado: 'desarrollo',
+          hijos: [
+            { id: 'externa-sec-bin', titulo: 'Búsqueda secuencial y binaria externa', descripcion: '', tema: null, disponible: false },
+            { id: 'tablas-indices', titulo: 'Tablas de índices', descripcion: '', tema: null, disponible: false },
+            { id: 'indices', titulo: 'Índices primarios, secundarios y multinivel', descripcion: '', tema: null, disponible: false },
+            { id: 'cubetas', titulo: 'Otras búsquedas dinámicas', descripcion: 'Cubetas con expansión y reducción dinámica de n', tema: 'cubetas', disponible: true }
           ]
         }
       ]
     },
     {
-      numero: '02',
-      titulo: 'ESTRUCTURAS AVANZADAS',
+      id: 'grafos',
+      titulo: 'Grafos',
+      descripcion: 'Vértices, aristas, y los recorridos y propiedades que se derivan de ellos',
       estado: 'desarrollo',
-      grupos: [
-        {
-          titulo: 'Búsquedas externas',
-          temas: [
-            { id: 'externa-sec-bin', titulo: 'Búsqueda secuencial y binaria externa', descripcion: '', disponible: false },
-            { id: 'indices', titulo: 'Índices primarios, secundarios y multinivel', descripcion: '', disponible: false }
-          ]
-        },
-        {
-          titulo: 'Grafos',
-          temas: [
-            { id: 'grafos-def', titulo: 'Definiciones, recorridos e isomorfismo', descripcion: '', disponible: false },
-            { id: 'grafos-euler', titulo: 'Circuitos de Euler y Hamilton', descripcion: '', disponible: false },
-            { id: 'grafos-operaciones', titulo: 'Operaciones entre grafos', descripcion: '', disponible: false },
-            { id: 'grafos-expansion', titulo: 'Árboles de expansión — Prim y Kruskal', descripcion: '', disponible: false },
-            { id: 'grafos-corte', titulo: 'Conjuntos de corte y conectividad', descripcion: '', disponible: false },
-            { id: 'grafos-matricial', titulo: 'Representación matricial', descripcion: '', disponible: false },
-            { id: 'grafos-coloreado', titulo: 'Coloreado y particionamiento', descripcion: '', disponible: false },
-            { id: 'grafos-pareamientos', titulo: 'Pareamientos y envolventes', descripcion: '', disponible: false }
-          ]
-        }
+      hijos: [
+        { id: 'grafos-def', titulo: 'Definiciones, recorridos e isomorfismo', descripcion: '', tema: null, disponible: false },
+        { id: 'grafos-euler', titulo: 'Circuitos de Euler y Hamilton', descripcion: '', tema: null, disponible: false },
+        { id: 'grafos-operaciones', titulo: 'Operaciones entre grafos', descripcion: '', tema: null, disponible: false },
+        { id: 'grafos-expansion', titulo: 'Árboles de expansión — Prim y Kruskal', descripcion: '', tema: null, disponible: false },
+        { id: 'grafos-corte', titulo: 'Conjuntos de corte y conectividad', descripcion: '', tema: null, disponible: false },
+        { id: 'grafos-matricial', titulo: 'Representación matricial', descripcion: '', tema: null, disponible: false },
+        { id: 'grafos-coloreado', titulo: 'Coloreado y particionamiento', descripcion: '', tema: null, disponible: false },
+        { id: 'grafos-pareamientos', titulo: 'Pareamientos y envolventes', descripcion: '', tema: null, disponible: false }
       ]
     }
   ];
@@ -609,7 +620,115 @@
           )
         }
       ]
-    })
+    }),
+
+    // Otras búsquedas dinámicas (CLAUDE.md 5.x): la única estructura del
+    // catálogo donde `n` no lo fija el estudiante para toda la vida, sino que
+    // crece o decrece solo. Una cubeta con `r` renglones es exactamente la
+    // misma forma que ya usa el tratamiento de arreglos anidados —el primer
+    // renglón en `claves`, los `r - 1` restantes en `anidados`—, así que se
+    // reutiliza esa matriz para dibujar sin CSS nuevo; lo único propio del
+    // tema es `algoritmos.cubetas`, que sabe cuándo expandir y reducir.
+    cubetas: {
+      titulo: 'OTRAS BÚSQUEDAS DINÁMICAS',
+      descripcion: 'Cubetas con expansión y reducción dinámica de n',
+      // Horizontal y no vertical (a diferencia de los temas hash, CLAUDE.md
+      // 6.1): el docente dibuja las cubetas en columnas —n cubetas lado a
+      // lado— con los renglones bajando dentro de cada una, y no al revés.
+      orientacion: 'horizontal',
+      modo: dominio.estructura.MODOS.DISPERSA,
+      calculo: true,
+      // Las cubetas se numeran desde 0 (pedido del usuario, 2026-09-06): así
+      // las dibuja el docente y así calcula H(k) = k mod n. Es la única
+      // excepción a "toda salida numera desde 1" (CLAUDE.md 3.1) — los
+      // renglones de cada cubeta siguen numerando desde 1.
+      numerarDesdeCero: true,
+      // Las claves del ejercicio mezclan libremente cifras de distinto
+      // tamaño (CLAUDE.md 5.7): no se pide longitud de clave.
+      sinLongitud: true,
+      parametros: [
+        {
+          nombre: 'r',
+          etiqueta: 'Registros por cubeta (r)',
+          tipo: 'numero',
+          marcador: '3',
+          ayuda: 'Cuántos renglones caben en cada cubeta antes de que choque y haya que expandir.',
+          validar: (entrada) => dominio.cubetas.validarR(entrada)
+        },
+        {
+          nombre: 'modoExpansion',
+          etiqueta: 'Modo de expansión y reducción',
+          opciones: [
+            { valor: dominio.cubetas.MODOS_EXPANSION.TOTAL, etiqueta: 'Total (n se duplica o se divide entre dos)' },
+            { valor: dominio.cubetas.MODOS_EXPANSION.PARCIAL, etiqueta: 'Parcial (series intercaladas)' }
+          ],
+          ayuda: 'Cómo crece o decrece la cantidad de cubetas al expandir o reducir.',
+          validar: (entrada, contexto) => dominio.cubetas.validarModoExpansion(entrada, contexto)
+        },
+        {
+          nombre: 'umbralExpandir',
+          etiqueta: 'Densidad para expandir (%)',
+          tipo: 'numero',
+          marcador: '82',
+          ayuda: 'Al llegar o superar este porcentaje de ocupación —o al chocar una cubeta llena—, la estructura se expande.',
+          validar: (entrada) => dominio.cubetas.validarUmbral(entrada, 'Densidad para expandir')
+        },
+        {
+          nombre: 'umbralReducir',
+          etiqueta: 'Densidad para reducir (%)',
+          tipo: 'numero',
+          marcador: '125',
+          ayuda: 'Al caer por debajo de este porcentaje (claves por cubeta, sin contar los renglones), la estructura se reduce.',
+          validar: (entrada) => dominio.cubetas.validarUmbral(entrada, 'Densidad para reducir')
+        }
+      ],
+      // La matriz "casilla principal + arreglo anidado" ya existe (CLAUDE.md
+      // 5.4): una cubeta es exactamente eso, con tamaño `r - 1` en vez de
+      // `n - 1`.
+      anidados: {
+        tamano: (estructura) => estructura.parametros.r - 1,
+        columnas: (estructura) => estructura.parametros.r - 1
+      },
+      insertar: algoritmos.cubetas.insertar,
+      buscar: algoritmos.cubetas.buscar,
+      eliminar: algoritmos.cubetas.eliminar,
+      detalleReciente: (estructura) => `n = ${estructura.n} · r = ${estructura.parametros.r}`,
+      casillasRelevantes: (paso) => (paso.casilla ? [paso.casilla] : []),
+      describirCasilla: ({ paso, indice, posicion, ocupada }) => {
+        const base = ocupada ? 'ocupada' : 'vacia';
+        if (!paso) return { estado: base };
+
+        const modificadores = [];
+        if (paso.casilla === indice && paso.posicion === posicion) {
+          if (paso.tipo === 'encontrada') return { estado: 'encontrada', modificadores };
+          if (paso.tipo === 'insercion') return { estado: 'insertada', modificadores };
+          if (paso.tipo === 'eliminacion') return { estado: 'eliminada', modificadores };
+          if (paso.tipo === 'colision') return { estado: 'colision', modificadores };
+          return { estado: 'en-evaluacion', modificadores };
+        }
+        if (posicion === undefined && paso.colision === indice) return { estado: 'colision', modificadores };
+        if (posicion !== undefined && paso.casilla === indice) {
+          if (paso.recorridas && paso.recorridas.includes(posicion)) modificadores.push('sondeada');
+        }
+        return { estado: base, modificadores };
+      },
+      metricas: [
+        METRICA_COMPARACIONES,
+        METRICA_ACCESOS,
+        {
+          id: 'cubetas-n',
+          etiqueta: 'Cubetas (n)',
+          valor: ({ estructura }) => (estructura ? String(estructura.n) : '0')
+        },
+        {
+          id: 'densidad',
+          etiqueta: 'Densidad de ocupación',
+          valor: ({ estructura }) => (
+            estructura ? `${(dominio.cubetas.densidadExpandir(estructura) * 100).toFixed(1)} %` : '0.0 %'
+          )
+        }
+      ]
+    }
   };
 
   let elementosDomMenu = {};
@@ -621,7 +740,7 @@
   }
 
   function mostrarTema(tema) {
-    const config = TEMAS[tema.id];
+    const config = TEMAS[tema.tema];
     if (!tema.disponible || !config) {
       mostrarAlertaMenu('info', `Tema en construcción: "${tema.titulo}" aún no está implementado.`);
       return;

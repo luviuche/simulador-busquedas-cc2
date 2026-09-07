@@ -14,82 +14,106 @@
     return el;
   }
 
-  // Las temáticas no se numeran: el docente pidió que se identifiquen por su
-  // nombre. La numeración sobrevive solo en las unidades, que sí son divisiones
-  // del programa del curso.
-  function crearItemTema(tema, interactivo, alSeleccionarTema) {
-    const li = document.createElement('li');
+  // El catálogo es un árbol (CLAUDE.md 2 y 12): cada nodo es una categoría
+  // navegable (`hijos`) o un tema final (`tema`, la clave que abre `TEMAS`).
+  // `nodoEn` resuelve una ruta de ids hasta el nodo que le corresponde, con
+  // la raíz virtual `{ hijos: catalogo }` para que una ruta vacía tenga
+  // siempre un nodo del que leer `hijos`.
+  function nodoEn(catalogo, ruta) {
+    let nodo = { hijos: catalogo };
+    for (const id of ruta) {
+      nodo = (nodo.hijos || []).find((hijo) => hijo.id === id);
+      if (!nodo) return null;
+    }
+    return nodo;
+  }
+
+  // Una sola tarjeta sirve para categoría y para tema final: lo único que
+  // cambia es el pie. Una categoría dice cuántos subtemas trae y hacia dónde
+  // lleva; un tema final solo avisa si aún no está construido. Ninguna lleva
+  // número — el docente no quiere ver los temas numerados (CLAUDE.md 2).
+  function crearTarjeta(nodo, alSeleccionar) {
     const boton = document.createElement('button');
     boton.type = 'button';
     boton.className = 'tema-item';
 
     const titulo = document.createElement('span');
     titulo.className = 'tema-item__titulo texto-nivel-3';
-    titulo.textContent = tema.titulo;
+    titulo.textContent = nodo.titulo;
 
     const descripcion = document.createElement('span');
     descripcion.className = 'tema-item__descripcion texto-nivel-5';
-    descripcion.textContent = tema.descripcion;
+    descripcion.textContent = nodo.descripcion || '';
 
     boton.append(titulo, descripcion);
-    // Unidad 02 está en desarrollo (CLAUDE.md 12): sus temas no responden al
-    // clic. Dentro de la unidad disponible, los temas aún no construidos sí
-    // responden, para poder avisar en vez de quedarse mudos.
-    if (interactivo) {
-      boton.addEventListener('click', () => alSeleccionarTema(tema));
-    } else {
-      boton.tabIndex = -1;
+
+    const pie = document.createElement('span');
+    pie.className = 'tema-item__pie texto-nivel-5';
+
+    if (nodo.hijos) {
+      const contador = document.createElement('span');
+      contador.textContent = `${nodo.hijos.length} subtema${nodo.hijos.length === 1 ? '' : 's'}`;
+      pie.appendChild(contador);
+      if (nodo.estado === 'desarrollo') pie.appendChild(crearInsignia(nodo.estado));
+      const flecha = document.createElement('span');
+      flecha.className = 'tema-item__flecha';
+      flecha.textContent = '→';
+      pie.appendChild(flecha);
+    } else if (!nodo.disponible) {
+      pie.appendChild(crearInsignia('desarrollo'));
     }
-    li.appendChild(boton);
-    return li;
+
+    if (pie.childNodes.length > 0) boton.appendChild(pie);
+
+    boton.addEventListener('click', () => alSeleccionar(nodo));
+    return boton;
   }
 
-  function crearGrupo(grupo, interactivo, alSeleccionarTema) {
-    const contenedor = document.createElement('div');
-    contenedor.className = 'grupo-temas';
-    const titulo = document.createElement('h3');
-    titulo.className = 'texto-nivel-2';
-    titulo.textContent = grupo.titulo;
-    const lista = document.createElement('ul');
-    lista.className = 'lista-temas';
-    for (const tema of grupo.temas) {
-      lista.appendChild(crearItemTema(tema, interactivo, alSeleccionarTema));
-    }
-    contenedor.append(titulo, lista);
-    return contenedor;
+  function crearSeparadorMigas() {
+    const span = document.createElement('span');
+    span.className = 'migas__separador';
+    span.textContent = '›';
+    span.setAttribute('aria-hidden', 'true');
+    return span;
   }
 
-  function crearUnidad(unidad, alSeleccionarTema) {
-    const seccion = document.createElement('section');
-    const enDesarrollo = unidad.estado === 'desarrollo';
-    seccion.className = `unidad${enDesarrollo ? ' unidad--atenuada' : ''}`;
+  // Migas de pan: reemplazan los botones grandes de sección por sección que
+  // no convencían al docente. Cada nivel intermedio es un botón que salta
+  // directo a esa profundidad, sin repetir "atrás" una vez por nivel.
+  function crearMigas(catalogo, ruta, alNavegar) {
+    const nav = document.createElement('nav');
+    nav.className = 'migas';
 
-    const encabezado = document.createElement('div');
-    encabezado.className = 'unidad__encabezado';
+    const raiz = document.createElement('button');
+    raiz.type = 'button';
+    raiz.className = 'migas__item texto-nivel-4';
+    raiz.textContent = 'Catálogo';
+    raiz.addEventListener('click', () => alNavegar([]));
+    nav.appendChild(raiz);
 
-    const etiqueta = document.createElement('span');
-    etiqueta.className = 'texto-nivel-5';
-    etiqueta.textContent = `Unidad ${unidad.numero}`;
+    let nodo = { hijos: catalogo };
+    let acumulada = [];
+    for (const id of ruta) {
+      nodo = nodo.hijos.find((hijo) => hijo.id === id);
+      acumulada = [...acumulada, id];
+      nav.appendChild(crearSeparadorMigas());
 
-    const titulo = document.createElement('h2');
-    titulo.className = 'texto-nivel-1';
-    titulo.textContent = unidad.titulo;
-
-    const totalTemas = unidad.grupos.reduce((total, grupo) => total + grupo.temas.length, 0);
-    const metadatos = document.createElement('div');
-    metadatos.className = 'unidad__metadatos';
-    const contador = document.createElement('span');
-    contador.className = 'texto-nivel-5';
-    contador.textContent = `${totalTemas} temas`;
-    metadatos.append(crearInsignia(unidad.estado), contador);
-
-    encabezado.append(etiqueta, titulo, metadatos);
-    seccion.appendChild(encabezado);
-
-    for (const grupo of unidad.grupos) {
-      seccion.appendChild(crearGrupo(grupo, !enDesarrollo, alSeleccionarTema));
+      if (acumulada.length === ruta.length) {
+        const actual = document.createElement('span');
+        actual.className = 'migas__actual texto-nivel-4';
+        actual.textContent = nodo.titulo;
+        nav.appendChild(actual);
+      } else {
+        const rutaDestino = acumulada;
+        const boton = document.createElement('button');
+        boton.type = 'button';
+        boton.className = 'migas__item texto-nivel-4';
+        boton.textContent = nodo.titulo;
+        boton.addEventListener('click', () => alNavegar(rutaDestino));
+        nav.appendChild(boton);
+      }
     }
-    return seccion;
+    return nav;
   }
 
   function crearItemReciente(item) {
@@ -177,9 +201,57 @@
 
     const columnaCatalogo = document.createElement('div');
     columnaCatalogo.className = 'pantalla-menu__catalogo';
-    for (const unidad of catalogo) {
-      columnaCatalogo.appendChild(crearUnidad(unidad, alSeleccionarTema));
+
+    // La ruta vive en el closure de la pantalla, igual que el estado de un
+    // tema (CLAUDE.md 12): navegar entre categorías repinta solo esta
+    // columna, sin tocar la barra ni el panel de recientes.
+    let ruta = [];
+
+    function navegarA(nuevaRuta) {
+      ruta = nuevaRuta;
+      pintarNivel();
     }
+
+    function pintarNivel() {
+      const nodo = nodoEn(catalogo, ruta);
+      columnaCatalogo.innerHTML = '';
+
+      if (ruta.length > 0) {
+        columnaCatalogo.appendChild(crearMigas(catalogo, ruta, navegarA));
+      }
+
+      const encabezado = document.createElement('div');
+      encabezado.className = 'pantalla-menu__encabezado-nivel';
+
+      const titulo = document.createElement('h2');
+      titulo.className = 'texto-nivel-1';
+      titulo.textContent = ruta.length === 0 ? 'Catálogo de temas' : nodo.titulo;
+      encabezado.appendChild(titulo);
+
+      if (ruta.length > 0 && nodo.descripcion) {
+        const descripcion = document.createElement('p');
+        descripcion.className = 'texto-nivel-5';
+        descripcion.textContent = nodo.descripcion;
+        encabezado.appendChild(descripcion);
+      }
+      columnaCatalogo.appendChild(encabezado);
+
+      const grid = document.createElement('div');
+      grid.className = 'grid-tarjetas';
+      const hijos = ruta.length === 0 ? catalogo : nodo.hijos;
+      for (const hijo of hijos) {
+        grid.appendChild(crearTarjeta(hijo, (seleccionado) => {
+          if (seleccionado.hijos) {
+            navegarA([...ruta, seleccionado.id]);
+          } else {
+            alSeleccionarTema(seleccionado);
+          }
+        }));
+      }
+      columnaCatalogo.appendChild(grid);
+    }
+
+    pintarNivel();
 
     cuerpo.append(columnaCatalogo, crearPanelRecientes(recientes));
     pantalla.append(barra, cuerpo);

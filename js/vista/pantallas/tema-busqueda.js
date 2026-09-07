@@ -16,6 +16,12 @@
   const MS_ANIMACION_LLENADO = 500;
   const MS_ENTRE_CLAVES = 700;
 
+  // Ancho de casilla para los temas sin `l` (`config.sinLongitud`, CLAUDE.md
+  // 5.7): sin una longitud fija que medir, se reserva sitio para varias
+  // cifras en vez del ancho de una sola que daría `anchoParaCifras` por
+  // defecto.
+  const ANCHO_CIFRAS_SIN_LONGITUD = 6;
+
   // El deslizador se rotula «Velocidad», así que tiene que crecer hacia la
   // derecha: más a la derecha, más rápido (pedido del usuario, 2026-08-30).
   // El reproductor, en cambio, quiere el tiempo *entre* pasos, que crece al
@@ -116,7 +122,11 @@
       'no-encontrada': 'advertencia',
       encontrada: 'info',
       insercion: 'info',
-      eliminacion: 'info'
+      eliminacion: 'info',
+      // Otras búsquedas dinámicas (CLAUDE.md 5.x): que `n` acaba de cambiar es
+      // justo la noticia que el tema enseña, así que también avisa.
+      expansion: 'advertencia',
+      reduccion: 'info'
     });
 
     // El aviso se deduce del punto de la traza y no se acumula: al retroceder
@@ -166,6 +176,41 @@
         estado.estructura, efecto.casilla, efecto.posicion
       ),
       'compactar-anidado': (efecto) => dominio.estructura.compactarAnidado(estado.estructura, efecto.casilla),
+      // Otras búsquedas dinámicas (CLAUDE.md 5.x): una cubeta es una casilla
+      // principal más su arreglo anidado, así que colocar y retirar son los
+      // mismos dos verbos de arriba —esto solo agrega el registro de en qué
+      // orden llegó cada clave, que hace falta para poder reconstruir la
+      // tabla completa cuando `n` cambia—. `redimensionar` es lo que ningún
+      // otro tema necesita: vacía la tabla al nuevo tamaño, y son los pasos
+      // de `insercion` que le siguen los que la vuelven a llenar en el mismo
+      // orden en que las claves llegaron.
+      'colocar-cubeta': (efecto) => {
+        const resultado = efecto.posicion === undefined
+          ? dominio.estructura.colocarEn(estado.estructura, efecto.casilla, efecto.clave)
+          : dominio.estructura.colocarEnAnidado(estado.estructura, efecto.casilla, efecto.posicion, efecto.clave);
+        if (resultado.exito) {
+          estado.estructura.ordenLlegada = estado.estructura.ordenLlegada || [];
+          estado.estructura.ordenLlegada.push(efecto.clave);
+        }
+        return resultado;
+      },
+      'retirar-cubeta': (efecto) => {
+        const resultado = efecto.posicion === undefined
+          ? dominio.estructura.retirarDe(estado.estructura, efecto.casilla)
+          : dominio.estructura.retirarDeAnidado(estado.estructura, efecto.casilla, efecto.posicion);
+        if (resultado.exito && estado.estructura.ordenLlegada) {
+          const indice = estado.estructura.ordenLlegada.indexOf(efecto.clave);
+          if (indice !== -1) estado.estructura.ordenLlegada.splice(indice, 1);
+        }
+        return resultado;
+      },
+      redimensionar: (efecto) => {
+        estado.estructura.n = efecto.n;
+        estado.estructura.claves = new Array(efecto.n);
+        estado.estructura.anidados = new Array(efecto.n);
+        estado.estructura.ordenLlegada = [];
+        return { exito: true };
+      },
       // Árboles de búsqueda por bits (CLAUDE.md 5.5): las claves viven en las
       // posiciones del árbol implícito, así que se colocan, se retiran y se
       // mueven de una posición a otra —eso último al subir una hoja al sitio
@@ -191,6 +236,13 @@
       estado.estructura.anidados = estado.clavesBase.anidados.map(
         (anidado) => (anidado ? anidado.slice() : anidado)
       );
+      // Solo lo usan las otras búsquedas dinámicas (CLAUDE.md 5.x), donde `n`
+      // puede cambiar dentro de la misma operación: sin restaurarlo, retroceder
+      // antes de una expansión a medio reproducir dejaría el `n` ya crecido.
+      if (estado.clavesBase.n !== undefined) estado.estructura.n = estado.clavesBase.n;
+      if (estado.clavesBase.ordenLlegada) {
+        estado.estructura.ordenLlegada = estado.clavesBase.ordenLlegada.slice();
+      }
       const hasta = Math.min(indicePaso, estado.pasos.length - 1);
       for (let i = 0; i <= hasta; i++) {
         const efecto = estado.pasos[i].efecto;
@@ -217,11 +269,48 @@
       return indice === 1 || indice === n || indice % 5 === 0;
     }
 
+    // Otras búsquedas dinámicas numera sus cubetas desde 0 (pedido del
+    // usuario, 2026-09-06): es la única excepción a "toda salida visible
+    // numera desde 1" (CLAUDE.md 3.1), porque así las dibuja el docente y
+    // así calcula la dirección `H(k) = k mod n`. El índice interno sigue
+    // siendo base 1 —arreglos, cálculo, bitácora— y solo cambia el texto que
+    // se muestra en la escala.
     function crearMarca(indice, n) {
       const el = document.createElement('span');
       el.className = 'escala__marca' + (esMarcaMayor(indice, n) ? ' escala__marca--mayor' : '');
-      el.textContent = String(indice);
+      el.textContent = String(config.numerarDesdeCero ? indice - 1 : indice);
       return el;
+    }
+
+    // Los renglones de una cubeta sí numeran desde 1: la excepción de arriba
+    // es solo para las cubetas. Sin marca propia hoy —la matriz solo rotulaba
+    // la cubeta—, así que se dibuja una columna de etiquetas a la izquierda,
+    // alineada con el mismo `--espacio-1` que separa los renglones dentro de
+    // cada cubeta.
+    function crearEtiquetasRenglones(segmentosDelAnidado) {
+      const columna = document.createElement('div');
+      columna.className = 'columna-casilla columna-etiquetas';
+
+      // Ocupa el mismo lugar que la marca de la cubeta en las columnas reales,
+      // para que el primer renglón quede a la misma altura en todas.
+      const espaciador = document.createElement('span');
+      espaciador.className = 'escala__marca';
+      espaciador.setAttribute('aria-hidden', 'true');
+      columna.appendChild(espaciador);
+
+      const principal = document.createElement('span');
+      principal.className = 'renglon__marca';
+      principal.textContent = '1';
+      columna.appendChild(principal);
+
+      for (const segmento of segmentosDelAnidado) {
+        const etiqueta = document.createElement('span');
+        etiqueta.className = 'renglon__marca';
+        // Un tramo compacta varios renglones: no hay un número propio que darle.
+        etiqueta.textContent = segmento.tipo === 'tramo' ? '⋯' : String(segmento.indice + 1);
+        columna.appendChild(etiqueta);
+      }
+      return columna;
     }
 
     // El tramo dice cuántas casillas resume y no entre qué direcciones va
@@ -477,8 +566,17 @@
       const relevantesDelPasoActual = paso ? config.casillasRelevantes(paso) : [];
       const indiceSeguido = relevantesDelPasoActual[0];
       let grupoSeguido = null;
-      // Una sola vez para todas las filas: es lo que mantiene la matriz alineada.
-      const columnasDelAnidado = vertical ? segmentosAnidados(paso) : [];
+      // Una sola vez para todas las filas o columnas: es lo que mantiene la
+      // matriz alineada. No depende de la orientación —`segmentosAnidados`
+      // devuelve `[]` sin más si el tema no declara `config.anidados`—, así
+      // que calcularla siempre no cambia nada en los temas horizontales que
+      // no tienen arreglo secundario (secuencial, binaria).
+      const columnasDelAnidado = segmentosAnidados(paso);
+      // Horizontal con arreglo secundario: la única forma hoy es otras
+      // búsquedas dinámicas (CLAUDE.md 5.7), donde la cubeta es la columna y
+      // sus renglones bajan dentro. Ahí la marca de la cubeta va arriba, no
+      // al pie, y hace falta una columna aparte que numere los renglones.
+      const esMatrizHorizontal = !vertical && columnasDelAnidado.length > 0;
 
       // Casilla y marca de la escala se dibujan en la misma línea: es lo que
       // mantiene la numeración alineada con lo que rotula cuando hay elisión
@@ -489,6 +587,9 @@
         dom.estructuraEl.className = vertical ? 'estructura-vertical' : 'estructura-horizontal';
         dom.estructuraEl.removeAttribute('style');
         dom.estructuraEl.innerHTML = '';
+        // Una sola columna de etiquetas para toda la matriz, no una por
+        // cubeta: los renglones son los mismos en todas (CLAUDE.md 5.7).
+        if (esMatrizHorizontal) dom.estructuraEl.appendChild(crearEtiquetasRenglones(columnasDelAnidado));
 
         for (const segmento of segmentos) {
           const grupo = document.createElement('div');
@@ -520,7 +621,13 @@
           // no tiene un largo fijo con el que hacer pistas, y no hace falta
           // —una cadena no es una matriz y no hay columnas que alinear—.
           const cadenaEl = vertical && esEncadenada() ? casillasEncadenadas(paso, indice) : null;
-          const anidadas = vertical && !esEncadenada()
+          // No depende de `vertical`: en otras búsquedas dinámicas (CLAUDE.md
+          // 5.7) la matriz se dibuja horizontal —una cubeta por columna, sus
+          // renglones bajando dentro de ella, como lo dibuja el docente— y
+          // `casillasAnidadas` ya es agnóstica a la orientación. Basta con que
+          // haya columnas que dibujar (`columnasDelAnidado.length > 0`, que es
+          // cero en secuencial y binaria, donde no hay arreglo secundario).
+          const anidadas = !esEncadenada() && columnasDelAnidado.length > 0
             ? casillasAnidadas(paso, indice, columnasDelAnidado)
             : [];
           if (vertical && esEncadenada()) {
@@ -545,7 +652,14 @@
           }
 
           const secundarias = cadenaEl ? [cadenaEl] : anidadas;
-          grupo.append(...(vertical ? [marcaEl, casillaEl, ...secundarias] : [casillaEl, marcaEl]));
+          // Horizontal con matriz: la columna apila la marca de la cubeta
+          // arriba (pedido del usuario, 2026-09-06), el renglón principal y
+          // los secundarios debajo —`.columna-casilla` ya es un flex en
+          // columna, así que apilarlos basta, sin pistas de grid—. Horizontal
+          // sin matriz (secuencial, binaria) sigue con la marca al pie.
+          grupo.append(...(vertical || esMatrizHorizontal
+            ? [marcaEl, casillaEl, ...secundarias]
+            : [casillaEl, marcaEl]));
           dom.estructuraEl.appendChild(grupo);
           if (indice === indiceSeguido) grupoSeguido = grupo;
         }
@@ -898,7 +1012,9 @@
       estado.pasos = pasos;
       estado.clavesBase = {
         claves: estado.estructura.claves.slice(),
-        anidados: (estado.estructura.anidados || []).map((anidado) => (anidado ? anidado.slice() : anidado))
+        anidados: (estado.estructura.anidados || []).map((anidado) => (anidado ? anidado.slice() : anidado)),
+        n: estado.estructura.n,
+        ordenLlegada: (estado.estructura.ordenLlegada || []).slice()
       };
       calcularSegmentosApilado();
       dom.seccionReproduccion.hidden = false;
@@ -930,8 +1046,11 @@
     // por bits trabajan con letras (CLAUDE.md 5.5). Una sola puerta de entrada
     // para las tres operaciones, que validan igual.
     function validarClaveDigitada(texto) {
-      return config.claveEsLetra
-        ? dominio.clave.validarLetra(texto)
+      if (config.claveEsLetra) return dominio.clave.validarLetra(texto);
+      // Otras búsquedas dinámicas (CLAUDE.md 5.7) no pide l: sus claves no
+      // tienen una longitud fija que exigir.
+      return config.sinLongitud
+        ? dominio.clave.validarClaveNumericaLibre(texto)
         : dominio.clave.validarClaveNumerica(texto, estado.estructura.l);
     }
 
@@ -1004,7 +1123,11 @@
     // final. No reproduce la traza de cada clave: llenar es preparar el
     // escenario, no la lección; la lección es la clave que se inserta a mano.
     function llenarAutomaticamente() {
-      const { min, max } = dominio.limites.rangoValido(estado.estructura.l);
+      // Sin l no hay un rango que derivar (CLAUDE.md 5.7): se llena con un
+      // rango fijo, generoso frente a lo que suele caber en el salón.
+      const { min, max } = config.sinLongitud
+        ? { min: 1, max: 9999 }
+        : dominio.limites.rangoValido(estado.estructura.l);
       const objetivo = estado.estructura.n - dominio.estructura.cantidadClaves(estado.estructura);
       if (objetivo <= 0) {
         mostrarAlerta('error', `Estructura saturada: capacidad máxima de ${estado.estructura.n} casillas alcanzada.`);
@@ -1018,14 +1141,22 @@
       function colocar(candidato) {
         if (!config.insertar) return dominio.estructura.insertar(estado.estructura, candidato);
         // En una estructura dispersa la dirección la decide el algoritmo: se
-        // consulta su traza y se aplica el paso que coloca, si es que lo hay.
+        // consulta su traza y se aplican los efectos que declare, si los hay.
+        // No basta con aplicar solo el paso `insercion` de la clave: en otras
+        // búsquedas dinámicas (CLAUDE.md 5.7) una sola inserción puede traer
+        // además una expansión completa, con su propio `redimensionar` y una
+        // reubicación por cada clave viva — perderse esos pasos dejaría la
+        // estructura a medio crecer.
         if (dominio.estructura.casillaDe(estado.estructura, candidato) !== 0) {
           return { exito: false };
         }
         const pasos = config.insertar({ estructura: estado.estructura, clave: candidato });
-        const colocacion = pasos.find((paso) => paso.tipo === 'insercion');
-        if (!colocacion) return { exito: false };
-        return dominio.estructura.colocarEn(estado.estructura, colocacion.casilla, candidato);
+        const huboColocacion = pasos.some((paso) => paso.efecto);
+        if (!huboColocacion) return { exito: false };
+        for (const paso of pasos) {
+          if (paso.efecto) APLICADORES[paso.efecto.tipo](paso.efecto);
+        }
+        return { exito: true };
       }
 
       function insertarSiguiente() {
@@ -1139,13 +1270,18 @@
       // sale de la profundidad que dan los bits del código, y la clave es
       // siempre una letra. Pedir n y l ahí sería pedir un dato que el tema no
       // usa (CLAUDE.md 5.5).
+      //
+      // Otras búsquedas dinámicas (CLAUDE.md 5.7) sí pide n, pero no l: sus
+      // claves no tienen una longitud fija —el ejercicio mezcla libremente
+      // cifras de distinto tamaño—, así que ese campo se omite aparte.
       const camposTamano = config.sinTamano ? '' : `
         <label class="texto-nivel-3">Tamaño de la estructura (n)
           <input type="number" name="n" min="1" required>
         </label>
+        ${config.sinLongitud ? '' : `
         <label class="texto-nivel-3">Longitud de clave (l)
           <input type="number" name="l" min="1" required>
-        </label>`;
+        </label>`}`;
       contenedor.innerHTML = `
         <h2 class="panel__titulo texto-nivel-2">Configuración de la estructura</h2>
         ${camposTamano}
@@ -1171,7 +1307,9 @@
       contenedor.addEventListener('submit', (evento) => {
         evento.preventDefault();
         const datos = new FormData(contenedor);
-        const tamano = config.sinTamano ? config.tamano() : { n: Number(datos.get('n')), l: Number(datos.get('l')) };
+        const tamano = config.sinTamano
+          ? config.tamano()
+          : { n: Number(datos.get('n')), l: config.sinLongitud ? undefined : Number(datos.get('l')) };
         const tratamiento = config.tratamientos ? String(datos.get('tratamiento')) : null;
 
         // Los parámetros se validan contra n y l, así que no pueden validarse
@@ -1220,6 +1358,11 @@
       // colocaría en ella una clave que nunca se le insertó.
       invalidarReproduccion();
       resultado.estructura.parametros = parametros;
+      // El `n` con que se creó, aparte del `n` con que quede la estructura:
+      // en casi todos los temas son siempre el mismo valor, pero en otras
+      // búsquedas dinámicas (CLAUDE.md 5.x) `n` cambia con las expansiones y
+      // reducciones, y reiniciar tiene que volver a este, no al que alcanzó.
+      resultado.estructura.parametros.n0 = n;
       // El tamaño de la estructura secundaria no se pide: es forma de la
       // estructura y sale de `n` —o no tiene tope, con encadenamiento—. El
       // dominio lo necesita para saber cuánto cabe, y la vista para saber
@@ -1228,7 +1371,9 @@
         ? config.anidados.tamano(resultado.estructura)
         : 0;
       estado.estructura = resultado.estructura;
-      ajustarAnchoDeCasilla(l);
+      // Sin `l` no hay cifras que medir (CLAUDE.md 5.7): se reserva un ancho
+      // generoso y fijo, en vez del de una sola cifra que daría por defecto.
+      ajustarAnchoDeCasilla(config.sinLongitud ? ANCHO_CIFRAS_SIN_LONGITUD : l);
       limpiarAlerta();
       // Las advertencias del tema pesan más que la del tamaño: hablan de una
       // decisión que el estudiante acaba de tomar y puede rehacer.
@@ -1257,9 +1402,12 @@
         .filter((parametro) => !parametro.soloConTratamiento || parametro.soloConTratamiento === tratamiento)
         .map((parametro) => `, ${parametro.etiqueta.toLowerCase()} ${parametros[parametro.nombre]}`)
         .join('');
+      // Sin `l` no hay nada que anunciar ahí (CLAUDE.md 5.7): decir "l =
+      // undefined" mentiría sobre un dato que la estructura no tiene.
+      const detalleLongitud = config.sinLongitud ? '' : `, l = ${l}`;
       registrarBitacora(config.mensajeCreacion
         ? config.mensajeCreacion(estructura)
-        : `Estructura creada: n = ${n}, l = ${l}${detalleParametros}${detalleTratamiento}.`);
+        : `Estructura creada: n = ${n}${detalleLongitud}${detalleParametros}${detalleTratamiento}.`);
       // La estructura ya no lleva nombre propio: era el nombre por defecto del
       // archivo .cc2, y guardar quedó para el final del proyecto (CLAUDE.md
       // 10.3). La reciente se identifica por su tema y por los datos con que
@@ -1279,7 +1427,7 @@
       if (!requiereEstructura()) return;
       const anterior = estado.estructura;
       const rehecha = establecerEstructura({
-        n: anterior.n,
+        n: anterior.parametros.n0,
         l: anterior.l,
         tratamiento: anterior.tratamiento,
         parametros: anterior.parametros

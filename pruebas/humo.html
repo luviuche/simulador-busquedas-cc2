@@ -27,6 +27,7 @@
   <script src="../js/dominio/estructura.js"></script>
   <script src="../js/dominio/arbol.js"></script>
   <script src="../js/dominio/arbol-multiple.js"></script>
+  <script src="../js/dominio/cubetas.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
@@ -44,6 +45,7 @@
   <script src="../js/algoritmos/hash/plegamiento.js"></script>
   <script src="../js/algoritmos/hash/bases.js"></script>
   <script src="../js/algoritmos/hash/operaciones.js"></script>
+  <script src="../js/algoritmos/cubetas.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
   <script src="../js/vista/componentes/panel.js"></script>
@@ -83,6 +85,34 @@
     }
 
     const aviso = () => document.querySelector('.pantalla-tema__alertas .alerta');
+
+    // El catálogo es un árbol de tarjetas (CLAUDE.md 12): entrar a un tema
+    // final exige clicar antes cada categoría del camino. La ruta es fija
+    // por tema; si el catálogo cambia de forma, se actualiza aquí.
+    const RUTA_TEMA = {
+      'Búsqueda secuencial': ['Búsquedas', 'Búsquedas internas'],
+      'Búsqueda binaria': ['Búsquedas', 'Búsquedas internas'],
+      'Función módulo': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
+      'Función cuadrado': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
+      'Función truncamiento': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
+      'Función plegamiento': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
+      'Conversión de bases': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
+      'Búsqueda por residuos': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
+      'Árboles de búsqueda digital': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
+      'Residuos múltiples': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
+      'Otras búsquedas dinámicas': ['Búsquedas', 'Búsquedas externas']
+    };
+
+    function clicarTarjeta(texto) {
+      [...document.querySelectorAll('.tema-item')]
+        .find((el) => el.textContent.includes(texto))
+        .click();
+    }
+
+    function entrarATema(nombreTema) {
+      for (const paso of RUTA_TEMA[nombreTema] || []) clicarTarjeta(paso);
+      clicarTarjeta(nombreTema);
+    }
 
     // Insertar, buscar y eliminar comparten un panel: se escribe la clave una
     // vez y el botón dice qué hacer con ella. `formularios` queda en dos —la
@@ -130,6 +160,21 @@
       );
     }
 
+    // La misma comprobación que arriba, pero para la matriz horizontal de
+    // otras búsquedas dinámicas (CLAUDE.md 5.7): ahí una cubeta es una
+    // columna y sus renglones bajan dentro de ella, así que lo que tiene que
+    // alinearse entre columnas es la altura (`top`), no la posición (`left`).
+    function afirmarRenglonesAlineados(contexto) {
+      const filas = [...document.querySelectorAll('.columna-casilla')]
+        .filter((columna) => columna.querySelector('.casilla'))
+        .map((columna) => [...columna.querySelectorAll('.casilla')]
+          .map((c) => Math.round(c.getBoundingClientRect().top)).join(','));
+      afirmar(
+        new Set(filas).size === 1,
+        `${contexto}: todas las columnas alinean sus renglones (${new Set(filas).size} disposición(es))`
+      );
+    }
+
     const estadoDe = (casilla) =>
       casilla.className.replace(/casilla(--)?/g, '').trim().replace(/\s+/g, '+');
 
@@ -149,7 +194,12 @@
 
       // Horizontal apila casilla sobre marca; vertical las pone lado a lado.
       // El retrato es el mismo en ambas: la orientación no cambia qué se dice.
-      return [...document.querySelectorAll('.columna-casilla, .fila-casilla')].map((grupo) => {
+      // La columna de etiquetas de renglón (otras búsquedas dinámicas,
+      // CLAUDE.md 5.7) no es una cubeta —no lleva `.casilla` ni tramo— y se
+      // excluye aparte.
+      return [...document.querySelectorAll('.columna-casilla, .fila-casilla')]
+        .filter((grupo) => !grupo.classList.contains('columna-etiquetas'))
+        .map((grupo) => {
         const casilla = grupo.querySelector('.casilla');
         // Un tramo elidido no lleva marca de escala: se retrata por lo que
         // dice el propio tramo, que es cuántas casillas resume.
@@ -195,9 +245,7 @@
     function ejercitarTema(nombreTema, { n, l, claves, objetivo, comparacionesEsperadas, apilada }) {
       registro.push('', `── ${nombreTema} ──`);
 
-      const item = [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes(nombreTema));
-      item.click();
+      entrarATema(nombreTema);
       afirmar(!!document.querySelector('.pantalla-tema'), 'la pantalla del tema se monta');
 
       afirmar(
@@ -374,6 +422,7 @@
       arbolDigital();
       residuos();
       residuosMultiples();
+      cubetas();
       controlDeVelocidad();
     }
 
@@ -560,9 +609,7 @@
     function hashTruncamiento() {
       registro.push('', '── Función truncamiento ──');
 
-      [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes('Función truncamiento'))
-        .click();
+      entrarATema('Función truncamiento');
       const formularios = [...document.querySelectorAll('form.panel')];
 
       afirmar(
@@ -657,9 +704,7 @@
     function eliminarEnSecuencial() {
       registro.push('', '── Búsqueda secuencial · eliminar ──');
 
-      [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes('Búsqueda secuencial'))
-        .click();
+      entrarATema('Búsqueda secuencial');
       const formularios = [...document.querySelectorAll('form.panel')];
       enviar(formularios[0], { n: 12, l: 2 });
       for (const clave of [10, 20, 30, 40, 50]) operar(formularios, 'insertar', clave);
@@ -715,9 +760,7 @@
     function eliminarEnBinaria() {
       registro.push('', '── Búsqueda binaria · eliminar ──');
 
-      [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes('Búsqueda binaria'))
-        .click();
+      entrarATema('Búsqueda binaria');
       const formularios = [...document.querySelectorAll('form.panel')];
       enviar(formularios[0], { n: 12, l: 2 });
       for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) operar(formularios, 'insertar', clave);
@@ -1084,9 +1127,7 @@
     function arbolDigital() {
       registro.push('', '── Árboles de búsqueda digital ──');
 
-      [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes('Árboles de búsqueda digital'))
-        .click();
+      entrarATema('Árboles de búsqueda digital');
       const formularios = [...document.querySelectorAll('form.panel')];
       const operaciones = formularios[0];
 
@@ -1189,9 +1230,7 @@
     // a los temas que no declaran ese campo, y `enviar` no perdona un campo
     // que no existe (así se destapa un formulario que dejó de dibujarlo).
     function entrarATemaHash(tema, opciones) {
-      [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes(tema))
-        .click();
+      entrarATema(tema);
       const formularios = [...document.querySelectorAll('form.panel')];
       const campos = { n: opciones.n, l: opciones.l, tratamiento: opciones.tratamiento };
       for (const propio of ['base', 'posiciones', 'operacion', 'tamanoAnidado']) {
@@ -1381,9 +1420,7 @@
     function binariaSinResultado() {
       registro.push('', '── Búsqueda binaria · clave ausente ──');
 
-      [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes('Búsqueda binaria'))
-        .click();
+      entrarATema('Búsqueda binaria');
 
       const formularios = [...document.querySelectorAll('form.panel')];
       enviar(formularios[0], { n: 16, l: 2 });
@@ -1412,9 +1449,7 @@
     function residuos() {
       registro.push('', '── Búsqueda por residuos ──');
 
-      [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes('Búsqueda por residuos'))
-        .click();
+      entrarATema('Búsqueda por residuos');
       const formularios = [...document.querySelectorAll('form.panel')];
       const operaciones = formularios[0];
 
@@ -1521,9 +1556,7 @@
     function residuosMultiples() {
       registro.push('', '── Residuos múltiples ──');
 
-      [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes('Residuos múltiples'))
-        .click();
+      entrarATema('Residuos múltiples');
       const formularios = [...document.querySelectorAll('form.panel')];
       const operaciones = formularios[0];
 
@@ -1656,6 +1689,54 @@
       document.querySelector('.pantalla-tema__volver').click();
     }
 
+    // Otras búsquedas dinámicas: la única estructura donde n cambia solo. La
+    // aritmética exacta del taller ya está probada en `cubetas.test.js`, sin
+    // pasar por el DOM; aquí lo que hay que ver es que el formulario acepte
+    // sus parámetros propios (r, modo, umbrales), que la matriz de cubetas se
+    // dibuje alineada, y que reiniciar vuelva al n inicial y no al que
+    // alcanzó por expansión.
+    function cubetas() {
+      registro.push('', '── Otras búsquedas dinámicas ──');
+
+      entrarATema('Otras búsquedas dinámicas');
+      const formularios = [...document.querySelectorAll('form.panel')];
+      afirmar(
+        !formularios[0].querySelector('[name="l"]'),
+        'el formulario no pide longitud de clave: las claves no tienen una fija'
+      );
+      enviar(formularios[0], {
+        n: 2, r: 3, modoExpansion: 'total', umbralExpandir: 82, umbralReducir: 125
+      });
+
+      const metricas = () => [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+
+      for (const clave of [15, 26, 48, 79, 35, 62, 57, 81]) {
+        operar(formularios, 'insertar', clave);
+        agotarTraza(80);
+      }
+
+      registro.push('  métricas: ' + metricas().join(' · '));
+      afirmar(metricas()[2] === '4', `n terminó en 4 tras la expansión (reporta ${metricas()[2]})`);
+
+      afirmarCasillasParejas('otras búsquedas dinámicas');
+      afirmarRenglonesAlineados('otras búsquedas dinámicas');
+
+      operar(formularios, 'eliminar', 48);
+      agotarTraza(20);
+      afirmar(
+        metricas()[2] === '4',
+        'eliminar una sola clave no alcanza a bajar la densidad del umbral de reducir'
+      );
+
+      control('reiniciar').click();
+      afirmar(
+        metricas()[2] === '2',
+        `reiniciar vuelve al n inicial y no al que la estructura alcanzó por expansión (reporta ${metricas()[2]})`
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
     // El deslizador crece hacia la derecha porque se llama «Velocidad»: a la
     // derecha va más rápido (pedido del usuario, 2026-08-30). Lo que el
     // reproductor consume es lo contrario —el tiempo entre pasos—, así que la
@@ -1664,9 +1745,7 @@
     function controlDeVelocidad() {
       registro.push('', '── Control de velocidad ──');
 
-      [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes('Búsqueda secuencial'))
-        .click();
+      entrarATema('Búsqueda secuencial');
 
       const formularios = [...document.querySelectorAll('form.panel')];
       enviar(formularios[0], { n: 16, l: 2 });

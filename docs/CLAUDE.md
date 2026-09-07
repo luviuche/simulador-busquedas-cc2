@@ -34,11 +34,13 @@ Estos términos son fijos. No usar sinónimos ni en el código ni en la interfaz
 | **Bitácora** | Registro cronológico de la sesión | `bitacora` |
 | **Traza** | Secuencia de pasos que produce un algoritmo | `traza` |
 | **Tema** | Cada algoritmo del catálogo (búsqueda binaria, función módulo…) | `tema` |
-| **Unidad** | Cada división del programa que agrupa temas | `unidad` |
+| **Categoría** | Cada nodo navegable del catálogo que agrupa temas o más categorías (Búsquedas, Búsquedas internas, Búsqueda por residuo…) | `hijos` |
 
 Nunca decir *celda* por casilla, ni *dato* por clave, ni *índice* por dirección.
 
-**Los temas no son "módulos" ni se numeran** (decisión del docente, 2026-08-18). Se identifican por su nombre: ni el catálogo ni el encabezado de la pantalla de trabajo llevan `01`, `02`, … ni la palabra *módulo*. La numeración sobrevive solo en las **unidades**, que sí son divisiones del programa del curso.
+**Los temas no son "módulos" ni se numeran** (decisión del docente, 2026-08-18). Se identifican por su nombre: ni el catálogo ni el encabezado de la pantalla de trabajo llevan `01`, `02`, … ni la palabra *módulo*. **Tampoco las categorías**: ninguna tarjeta del menú lleva número, en ningún nivel.
+
+**El catálogo ya no se organiza por unidad del curso** (pedido del docente, 2026-09-06): la unidad mezclaba búsquedas externas con grafos en la misma división, que es justo la mezcla que el docente no quiere ver al navegar. Se reemplazó por dos grandes temas —**Búsquedas** y **Grafos**— con sus propias categorías por dentro (§4, "El catálogo del menú").
 
 La palabra *módulo* se reserva para dos usos que no tienen que ver con el catálogo y que sí son correctos: los **módulos ES** de JavaScript (sección 4) y la **función hash módulo** (sección 5.3).
 
@@ -242,6 +244,16 @@ El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada
 
 **Estados y modificadores de casilla son cosas distintas.** El estado pinta (`ocupada`, `en-evaluacion`, `descartada`, `encontrada`…) y es uno solo. Los modificadores marcan pertenencias independientes del color: el corchete del rango activo en binaria (`en-rango`, `en-rango-inicio`, `en-rango-fin`) cubre también la casilla en evaluación, que ya tiene su propio color, y por eso no puede ser un estado más.
 
+### El catálogo del menú: navegación por niveles (2026-09-06)
+
+**El catálogo (`CATALOGO` en `app.js`) es un árbol y no una lista plana de unidades.** Cada nodo es o bien una **categoría** navegable (trae `hijos`) o bien un **tema final** (trae `tema`, la clave que abre `TEMAS`). Se organiza en dos grandes temas —**Búsquedas** y **Grafos**— y no por unidad del curso (pedido del docente, §2): la unidad anterior mezclaba búsquedas externas con grafos en la misma división, que es justo la mezcla que el docente ya no quiere ver al navegar. Dentro de Búsquedas: **búsquedas internas** (secuencial, binaria, transformación de claves, búsqueda por residuo) y **búsquedas externas**, hoy en desarrollo.
+
+**Se navega por niveles, con una sola tarjeta que sirve para categoría y para tema final** (`vista/pantallas/menu.js`). Al entrar a una categoría la pantalla repinta solo la columna del catálogo con sus hijos —la barra y el panel de recientes no se mueven—; lo único que distingue el pie de la tarjeta es si lleva a más categorías (cuenta de subtemas y una flecha) o si es un tema aún no construido (insignia "En desarrollo"). **Ninguna tarjeta lleva número**, en ningún nivel (§2).
+
+**Se descartó el patrón de botones grandes por sección** que el docente mostró de un aplicativo de ejemplo (pedido del usuario): en su lugar, **migas de pan** arriba de cada nivel saltan directo a cualquier categoría ya visitada, sin repetir "atrás" una vez por nivel. Tampoco se introdujo color nuevo para marcar qué tarjeta es "seleccionable" (§8.1): la señal es la elevación y el borde al pasar el mouse, coherente con que los colores de estado del algoritmo no se reutilizan fuera de la casilla.
+
+**Búsqueda por residuo agrupa los tres árboles que trabajan con letras** (residuos, árbol digital, residuos múltiples, §5.5): son la misma familia de método a ojos del docente, aunque en el código no comparten más que la letra y su código de bits. **Método de la rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06): no se van a cubrir, y por eso tampoco aparecen ya en el catálogo ni en el alcance (§12). **Tablas de índices se movió a Búsquedas externas**: es ahí donde el docente lo está viendo en clase, y no junto a los árboles de residuo donde vivía antes.
+
 ### Organización de archivos
 
 ```
@@ -258,18 +270,20 @@ El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada
 │   ├── dominio/
 │   │   ├── clave.js        validación, normalización, mapeo alfabético
 │   │   ├── estructura.js   invariantes, insertar, eliminar, ordenar
-│   │   └── limites.js      rango derivado de l, límites de n
+│   │   ├── limites.js      rango derivado de l, límites de n
+│   │   └── cubetas.js      tamaño de la tabla de cubetas: siguienteN/anteriorN (§5.7)
 │   ├── algoritmos/
 │   │   ├── traza.js        contrato de paso y utilidades
 │   │   ├── secuencial.js
 │   │   ├── binaria.js
 │   │   ├── eliminacion.js  eliminar en las ordenadas: buscar y sacar
+│   │   ├── cubetas.js      otras búsquedas dinámicas: insertar, buscar, eliminar (§5.7)
 │   │   ├── hash/
 │   │   │   ├── comun.js       cifras necesarias, ajuste al rango
 │   │   │   ├── modulo.js · cuadrado.js · truncamiento.js
 │   │   │   ├── plegamiento.js · bases.js
 │   │   │   └── operaciones.js traza de insertar, buscar y eliminar
-│   │   └── colisiones/     reasignacion.js · anidados.js (falta encadenamiento)
+│   │   └── colisiones/     reasignacion.js · anidados.js · encadenamiento.js
 │   ├── vista/
 │   │   ├── componentes/    casilla, panel, alerta, métrica, bitácora, cálculo
 │   │   ├── pantallas/
@@ -468,7 +482,7 @@ Por eso la cadena ocupa **una sola columna del grid de la fila** y se ordena por
 
 ### 5.5 Otras búsquedas internas
 
-Por residuos, árboles de búsqueda digital, residuos múltiples, tablas de índices, método de la rejilla, árboles 2D. Mismo contrato: producen traza.
+Por residuos, árboles de búsqueda digital, residuos múltiples. Mismo contrato: producen traza. En el catálogo del menú viven agrupados bajo "Búsqueda por residuo" (§4). **Método de la rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06): no se van a cubrir. **Tablas de índices** no es de esta familia —se cubre junto a las búsquedas externas (§12), no aquí.
 
 **Los tres primeros trabajan con letras, no con números** (pedido del usuario, 2026-08-29): el ejercicio de clase es la palabra `prueba`, cuyas letras se insertan en orden.
 
@@ -593,6 +607,36 @@ Sin tratamiento no hay nada que redispersar: la casilla se vacía y ya, porque n
 **El paso declara su efecto, la vista lo aplica.** La traza sigue sin tocar la estructura (§4). Un paso puede llevar `efecto: { tipo: 'colocar' | 'retirar' | 'eliminar', casilla, clave }`, y la pantalla lo aplica al llegar y lo deshace al retroceder. Reconstruye desde el estado previo a la operación en vez de deshacer paso a paso: una eliminación con redispersión mueve varias claves, y las inversas encadenadas son justo donde se cuelan los errores. Antes de esto la pantalla adivinaba el efecto por el tipo del paso, lo que solo alcanzaba para una única colocación por operación.
 
 **En binaria, los pasos que sacan la clave no van apilados.** Sacar no es descartar, así que no les corresponde una fila más; y las filas ya dibujadas se leen del mismo arreglo, de modo que el desplazamiento las cambiaría todas hacia atrás. El tema lo declara con `apilada.aplicaA(paso)` y esos pasos se dibujan sobre la estructura completa, que es donde el desplazamiento se ve moverse.
+
+### 5.7 Otras búsquedas dinámicas — cubetas (2026-09-06)
+
+Primer tema construido de **Búsquedas externas** en el catálogo del menú (§4), aunque el algoritmo en sí no distingue disco de memoria: lo que lo hace distinto de todo lo demás en el proyecto es que **`n` cambia con el tiempo**. En ningún otro tema el estudiante deja de controlar `n` una vez creada la estructura; aquí crece al expandir y decrece al reducir, y eso rompe la invariante "el estudiante fija `n` para toda la vida de la estructura" (§3.2) — es la única excepción, y es deliberada.
+
+**Estructura**: `n` cubetas, cada una con `r` renglones fijos (`r` sí se fija al crear y no cambia). `H(k) = k mod n` da la cubeta; la clave entra en el primer renglón libre. Parámetros que se piden al crear, todos con su propio validador (`dominio/cubetas.js`): `n` inicial, `r`, el **modo de expansión y reducción** (`total` | `parcial`) y los **umbrales** de expandir y reducir (porcentajes, no fijos en la app).
+
+**Una cubeta con `r` renglones es la misma forma que ya usa el tratamiento de arreglos anidados** (§5.4): el primer renglón vive en `estructura.claves[dirección − 1]` y los `r − 1` restantes en `estructura.anidados[dirección − 1]`. Por eso el tema declara `modo: 'dispersa'` y `config.anidados = { tamano: r − 1, columnas: r − 1 }`, y reutiliza sin tocarlas `colocarEn`, `colocarEnAnidado`, `retirarDeAnidado` y sobre todo `compactarAnidado` (eliminar cierra el hueco de la cubeta exactamente como ya cerraba el de un arreglo anidado).
+
+**Se dibuja horizontal y no vertical como los temas hash** (corrección del usuario, 2026-09-06): el docente dibuja las cubetas en columnas —`n` cubetas lado a lado— con los renglones bajando dentro de cada una, y no una tabla de direcciones apiladas con su arreglo a la derecha. La matriz de "casilla principal + arreglo anidado" (`segmentosAnidados`, `casillasAnidadas`, CLAUDE.md 5.4) no dependía de la orientación más que por accidente —solo se invocaba dentro de la rama `vertical` de `renderizarFilaUnica`—, así que **se generalizó para dibujar también en horizontal**: `.columna-casilla` ya era un flex en columna, así que apilar ahí la casilla principal, los renglones del arreglo y la marca de escala alcanza sin CSS nuevo. Para los temas verticales existentes (todos los hash) el comportamiento no cambia: la condición pasó de "es vertical" a "hay columnas de arreglo que dibujar", que da el mismo resultado.
+
+**Las cubetas se numeran desde 0 — la única excepción del proyecto a "toda salida numera desde 1" (CLAUDE.md 3.1)** (pedido del usuario, 2026-09-06): así las dibuja el docente y así calcula `H(k) = k mod n`, sin un "+ 1" final. Los renglones dentro de cada cubeta sí numeran desde 1, como todo lo demás — la excepción es solo para el índice de cubeta. Alcanza a la escala (`crearMarca`, con `config.numerarDesdeCero`, que resta 1 solo al texto que se muestra), y también al aviso, la bitácora y el panel de cálculo, para que todo hable el mismo número: decir "cubeta 7" junto a una columna rotulada "6" habría sido peor que no tener el rótulo.
+
+Por dentro **nada cambia de base**: `estructura.claves[dirección − 1]` sigue siendo base 1 como en cualquier otro tema — es la única forma de reutilizar `dominio.estructura` y el resto de la pantalla sin tocarlos. La conversión vive en un solo punto, `mostrar = (indiceInterno) => indiceInterno - 1`, en `algoritmos/cubetas.js`.
+
+**Por eso no se reutiliza `hash/modulo.js`.** Esa función cierra con `residuo + 1` (CLAUDE.md 5.3), que es exactamente lo que aquí sobra: el residuo *es* la dirección que se muestra. `algoritmos/cubetas.js` trae su propio `calculoCubeta(clave, n)` —dos líneas, "Clave" y "Dirección" `= clave mod n`, sin la línea de "Residuo" intermedia que sí tienen los temas hash— y su propio `pasosDelCalculoCubeta`, que revela esas líneas igual que `pasosDelCalculo` pero **sin** derivar el índice interno del texto de la última línea: ese texto es la cubeta en base 0, y el índice que de verdad hace falta para indexar la estructura (base 1) se calcula aparte y viaja pegado al paso.
+
+**Densidad para expandir** = `claves_intentadas / (n × r)`, revisada después de cada inserción — cuenta la clave recién procesada aunque haya chocado, porque chocar es justo el caso en que no llegó a entrar. Si la densidad llega al umbral, o si la cubeta de la clave está llena (eso solo, aparte de la densidad), se expande.
+
+**Densidad para reducir** = `claves_restantes / n` — **una fórmula distinta, sin multiplicar por `r`** (confirmado contra un taller resuelto del curso, comparando sus tablas casilla por casilla). Se revisa después de cada eliminación.
+
+**Expansión total**: `n` se duplica. **Reducción total**: `n` se divide entre dos.
+
+**Expansión parcial**: dos series intercaladas que se doblan cada una por su cuenta. La 1ª estructura es `n₀` (el `n` con que se creó), la 2ª es `n₀ + 1`, y de ahí en adelante cada estructura dobla a la que quedó dos posiciones atrás (3ª = 2×1ª, 4ª = 2×2ª, 5ª = 2×3ª…). Con `n₀ = 2` da 2 → 3 → 4 → 6 → 8, verificado contra el taller. **Reducción parcial**: retrocede exactamente un paso en esa misma serie, sin necesidad de guardar un historial — alcanza con saber `n₀` (guardado una sola vez en `estructura.parametros.n0`) y el `n` actual para derivar tanto el siguiente como el anterior (`dominio/cubetas.js`, `siguienteN`/`anteriorN`). Para el modo total, retroceder así equivale a dividir entre dos: es el mismo caso general.
+
+**Al expandir o reducir, todas las claves vivas se rehashean en su orden original de llegada** —no en el orden que tenían en las cubetas viejas—, confirmado casilla por casilla contra el taller. Por eso la estructura lleva un `estructura.ordenLlegada` aparte de `claves`/`anidados`, que mantienen los efectos `colocar-cubeta`/`retirar-cubeta` (`tema-busqueda.js`). El efecto `redimensionar` solo vacía la tabla al tamaño nuevo; son los pasos de `calculo` + `insercion` que le siguen —uno por clave viva, reutilizando `pasosDelCalculo`— los que la vuelven a llenar.
+
+**`sincronizarEfectos` y `reproducirOperacion` (`tema-busqueda.js`) ahora también preservan `n` y `ordenLlegada`** en el snapshot "antes de la operación", además de `claves`/`anidados` de siempre: sin eso, retroceder a un paso anterior a una expansión a medio reproducir dejaría el `n` ya crecido. Es un campo que solo cubetas usa; para los demás temas queda `undefined` y no cambia nada.
+
+**Reiniciar vuelve al `n` con que se creó la estructura, no al que alcanzó por expansión.** `establecerEstructura` guarda `parametros.n0 = n` en cada creación (de cualquier tema, no solo este), y `reiniciarEstructura` lo usa en vez de `anterior.n`. Para los demás temas es el mismo número siempre, así que el cambio no altera nada; para cubetas es lo que hace que reiniciar de verdad vuelva al principio.
 
 ---
 
@@ -921,7 +965,7 @@ El documento incluye: encabezado con datos de la asignatura, configuración de l
 
 ### Fase 1 — implementar
 
-Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamiento, plegamiento, conversión de bases) **solo en decimal**, ya que lo binario quedó descartado (§5.3) · tratamiento de colisiones (reasignación, arreglos anidados, encadenamiento secuencial) · otras búsquedas internas (residuos, árboles de búsqueda digital, residuos múltiples, tablas de índices, rejilla, árboles 2D).
+Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamiento, plegamiento, conversión de bases) **solo en decimal**, ya que lo binario quedó descartado (§5.3) · tratamiento de colisiones (reasignación, arreglos anidados, encadenamiento secuencial) · otras búsquedas internas (residuos, árboles de búsqueda digital, residuos múltiples).
 
 **Orden de construcción confirmado: primero búsqueda secuencial, luego binaria.** Secuencial es el tema anterior a binaria en el orden de la asignatura, y sirve como la primera plantilla end-to-end (dominio → traza → elisión → animación → bitácora); binaria reutiliza ese mismo patrón, no al revés.
 
@@ -929,11 +973,13 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 
-**De «otras búsquedas internas» están construidos tres: árboles de búsqueda digital, búsqueda por residuos y residuos múltiples** (§5.5). El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima aportando una sola regla —las claves solo en las hojas—; y residuos múltiples entró sobre residuos cambiando solo la forma del árbol, que dejó de estar cableada en la pantalla y ahora viaja en `config.arbol`. Los tres comparten la letra y su código de cinco bits. Quedan **tablas de índices**, **rejilla** y **árboles 2D**.
+**«Otras búsquedas internas» está completa: árboles de búsqueda digital, búsqueda por residuos y residuos múltiples** (§5.5). El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima aportando una sola regla —las claves solo en las hojas—; y residuos múltiples entró sobre residuos cambiando solo la forma del árbol, que dejó de estar cableada en la pantalla y ahora viaja en `config.arbol`. Los tres comparten la letra y su código de cinco bits. **Rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06); **tablas de índices** pasó a cubrirse junto a las búsquedas externas, más abajo.
 
 **Los cuatro tratamientos de colisión están construidos: `ninguno`, `reasignación` (prueba lineal), `arreglos anidados` y `encadenamiento secuencial` (§5.4).** Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el encadenamiento entró sobre él: comparte almacenamiento, aplicadores y rama de eliminación, y lo único propio suyo es que su estructura secundaria no tiene tope.
 
 Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al stack de respaldo), y ni `css/impresion.css` ni `persistencia/archivo.js` (.cc2) están construidos.
+
+**Otras búsquedas dinámicas (cubetas) está construido** (§5.7), el primer tema de Búsquedas externas. Es la única estructura del catálogo donde `n` cambia con el tiempo, y la única razón por la que `tema-busqueda.js` tuvo que tocarse fuera de un tema nuevo declarando su config: `sincronizarEfectos`/`reproducirOperacion` ahora también preservan `n` y el orden de llegada de las claves, y `reiniciarEstructura` vuelve al `n` con que se creó y no al que alcanzó por expansión.
 
 ### Diferido dentro de Fase 1
 
@@ -943,7 +989,9 @@ Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al 
 
 ### Fase 2 — solo visible en el menú, sin implementar
 
-Búsquedas externas e índices para archivos · toda la unidad de grafos. Se muestran en el catálogo, atenuados y marcados "En desarrollo". Su presencia comunica el alcance del curso.
+Búsquedas externas —secuencial y binaria externa, **tablas de índices** (el docente la está viendo en clase, 2026-09-06), índices primarios/secundarios/multinivel— (salvo otras búsquedas dinámicas, §5.7, ya construida) y la categoría de grafos completa. Se muestran en el catálogo del menú, marcadas "En desarrollo", y responden al clic con un aviso de "en construcción" en vez de quedar mudas. Su presencia comunica el alcance del curso.
+
+**Búsqueda secuencial, binaria y hashing externos siguen sin algoritmo confirmado.** El usuario planteó parámetros de bloques (`B`) y registros (`N`), con `B = √N`, pero quedaron preguntas abiertas —cómo se redondea `B`, cómo se reparten los registros sobrantes entre bloques, y si comparar con el último registro de cada bloque cuenta como un acceso por bloque o se apoya en un índice en memoria— que el usuario le va a preguntar al docente. No construir esto por iniciativa propia mientras esas dudas sigan abiertas.
 
 ---
 

@@ -17,7 +17,10 @@
     return Math.ceil(Math.log2(n));
   }
 
-  // El límite derivado de l se valida al crear la estructura, no al insertar (CLAUDE.md 3.5).
+  // El límite derivado de l se valida al crear la estructura, no al insertar
+  // (CLAUDE.md 3.5). Sin `l` —otras búsquedas dinámicas, CLAUDE.md 5.7, donde
+  // la clave no tiene longitud fija— no hay tope de claves distintas que
+  // derivar, así que esa cota no aplica: solo queda el límite duro.
   function validarTamano(n, l) {
     if (n > LIMITE_DURO_N) {
       return {
@@ -25,12 +28,14 @@
         mensaje: `Tamaño inviable: el límite máximo de la estructura es ${LIMITE_DURO_N} casillas.`
       };
     }
-    const maxDistintas = clavesDistintasPosibles(l);
-    if (n > maxDistintas) {
-      return {
-        valido: false,
-        mensaje: `Tamaño inviable: para l = ${l} solo existen ${maxDistintas} claves distintas.`
-      };
+    if (l !== undefined) {
+      const maxDistintas = clavesDistintasPosibles(l);
+      if (n > maxDistintas) {
+        return {
+          valido: false,
+          mensaje: `Tamaño inviable: para l = ${l} solo existen ${maxDistintas} claves distintas.`
+        };
+      }
     }
     return {
       valido: true,

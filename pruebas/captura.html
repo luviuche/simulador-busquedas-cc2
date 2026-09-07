@@ -24,6 +24,9 @@
       eliminar-binaria    → lo mismo, localizando la clave por división
       eliminar-hash       → eliminando del medio de un sondeo: el grupo de
                             atrás vuelve a pasar por la función hash
+      cubetas             → otras búsquedas dinámicas: las 17 claves del
+                            taller resuelto (n0=2, r=3), hasta la última
+                            expansión
 
     Con ?paso=fin se recorre la traza completa en lugar de detenerse en el
     primer paso, que es lo que hay que mirar en la vista apilada y en el
@@ -42,6 +45,7 @@
   <script src="../js/dominio/estructura.js"></script>
   <script src="../js/dominio/arbol.js"></script>
   <script src="../js/dominio/arbol-multiple.js"></script>
+  <script src="../js/dominio/cubetas.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
@@ -59,6 +63,7 @@
   <script src="../js/algoritmos/hash/plegamiento.js"></script>
   <script src="../js/algoritmos/hash/bases.js"></script>
   <script src="../js/algoritmos/hash/operaciones.js"></script>
+  <script src="../js/algoritmos/cubetas.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
   <script src="../js/vista/componentes/panel.js"></script>
@@ -88,10 +93,33 @@
       panel.querySelector(`[data-accion="${accion}"]`).click();
     }
 
-    function entrarATema(nombreTema) {
+    // El catálogo es un árbol de tarjetas (CLAUDE.md 12): entrar a un tema
+    // final exige clicar antes cada categoría del camino. La ruta es fija
+    // por tema y vive aquí, no en el catálogo mismo, para no acoplar esta
+    // página a `app.js` más de lo que ya la acopla `.tema-item`.
+    const RUTA_TEMA = {
+      'Búsqueda secuencial': ['Búsquedas', 'Búsquedas internas'],
+      'Búsqueda binaria': ['Búsquedas', 'Búsquedas internas'],
+      'Función módulo': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
+      'Función cuadrado': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
+      'Función truncamiento': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
+      'Función plegamiento': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
+      'Conversión de bases': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
+      'Búsqueda por residuos': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
+      'Árboles de búsqueda digital': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
+      'Residuos múltiples': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
+      'Otras búsquedas dinámicas': ['Búsquedas', 'Búsquedas externas']
+    };
+
+    function clicarTarjeta(texto) {
       [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes(nombreTema))
+        .find((el) => el.textContent.includes(texto))
         .click();
+    }
+
+    function entrarATema(nombreTema) {
+      for (const paso of RUTA_TEMA[nombreTema] || []) clicarTarjeta(paso);
+      clicarTarjeta(nombreTema);
       return [...document.querySelectorAll('form.panel')];
     }
 
@@ -277,6 +305,31 @@
       avanzar(pasosAAvanzar(40));
     }
 
+    // Otras búsquedas dinámicas: n0 = 2, r = 3, en modo total por defecto. No
+    // pide longitud de clave (CLAUDE.md 5.7), así que aquí van las 17 claves
+    // tal como las trae el taller resuelto, mezclando cifras de dos y tres
+    // dígitos sin ningún ajuste. Cada expansión trae su propia secuencia de
+    // reubicación, así que avanzar necesita margen de sobra.
+    function prepararCubetas() {
+      const formularios = entrarATema('Otras búsquedas dinámicas');
+      enviar(formularios[0], {
+        n: Number(parametros.get('n')) || 2,
+        r: Number(parametros.get('r')) || 3,
+        modoExpansion: parametros.get('modo') || 'total',
+        umbralExpandir: Number(parametros.get('expandir')) || 82,
+        umbralReducir: Number(parametros.get('reducir')) || 125
+      });
+      const claves = [115, 96, 48, 79, 35, 26, 57, 81, 70, 64, 107, 45, 62, 98, 33, 28, 38];
+      for (const clave of claves) {
+        operar(formularios, 'insertar', clave);
+        avanzar(80);
+      }
+      const operacion = parametros.get('operacion');
+      if (!operacion) return;
+      operar(formularios, operacion, Number(parametros.get('clave')) || 48);
+      avanzar(pasosAAvanzar(80));
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const vista = parametros.get('vista') || 'menu';
       if (vista === 'menu') return;
@@ -288,6 +341,7 @@
       if (vista === 'residuos') return prepararResiduos();
       if (vista === 'residuos-multiples') return prepararResiduosMultiples();
       if (vista === 'eliminar-hash') return prepararEliminacionHash();
+      if (vista === 'cubetas') return prepararCubetas();
       if (vista === 'eliminar-binaria') return prepararEliminacion('Búsqueda binaria');
       if (vista === 'eliminar-secuencial') return prepararEliminacion('Búsqueda secuencial');
       prepararBusqueda(vista === 'binaria' ? 'Búsqueda binaria' : 'Búsqueda secuencial');

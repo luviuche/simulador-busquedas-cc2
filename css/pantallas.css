@@ -32,9 +32,9 @@
 }
 
 .pantalla-menu__catalogo {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--espacio-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
 }
 
 .pantalla-menu__recientes {
@@ -43,32 +43,40 @@
   gap: var(--espacio-3);
 }
 
-/* Unidad de catálogo (columna) */
-.unidad {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espacio-4);
-}
-
-.unidad--atenuada .tema-item__titulo {
-  font-weight: 400;
-  color: var(--tinta-suave);
-}
-
-.unidad--atenuada .tema-item {
-  cursor: default;
-}
-
-.unidad__encabezado {
+.pantalla-menu__encabezado-nivel {
   display: flex;
   flex-direction: column;
   gap: var(--espacio-1);
 }
 
-.unidad__metadatos {
+/* Migas de pan — reemplazan los botones grandes de sección por sección
+   (CLAUDE.md 12): cada nivel intermedio salta directo a esa profundidad. */
+.migas {
   display: flex;
   align-items: center;
   gap: var(--espacio-2);
+}
+
+.migas__item {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--tinta-suave);
+  cursor: pointer;
+}
+
+.migas__item:hover {
+  color: var(--tinta);
+  text-decoration: underline;
+}
+
+.migas__actual {
+  color: var(--tinta);
+  font-weight: 500;
+}
+
+.migas__separador {
+  color: var(--borde-fuerte);
 }
 
 .insignia {
@@ -93,45 +101,54 @@
   border-style: dashed;
 }
 
-.grupo-temas {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espacio-2);
+/* Tarjetas del catálogo — una sola por nivel, para categoría y para tema
+   final (CLAUDE.md 12): sin numeración, elevadas del papel y con más peso al
+   pasar el mouse. Nada de color nuevo (CLAUDE.md 8.1): la sensación de
+   "seleccionable" viene de la sombra y el borde, no de un acento cromático. */
+.grid-tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--espacio-4);
 }
 
-.lista-temas {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Sin número que lo anteceda, el tema se identifica por su nombre: título y
-   descripción se apilan, y la sangría sostiene la jerarquía bajo el grupo. */
 .tema-item {
   display: flex;
   flex-direction: column;
-  gap: var(--espacio-1);
+  gap: var(--espacio-2);
   width: 100%;
-  padding: var(--espacio-1) 0 var(--espacio-1) var(--espacio-3);
-  border: none;
-  border-left: 2px solid transparent;
-  background: none;
+  height: 100%;
+  padding: var(--espacio-4);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-panel);
+  background: var(--superficie);
+  box-shadow: var(--elev-1);
   text-align: left;
   cursor: pointer;
+  transition: box-shadow var(--duracion-interfaz) var(--curva-interfaz),
+              border-color var(--duracion-interfaz) var(--curva-interfaz),
+              transform var(--duracion-interfaz) var(--curva-interfaz);
 }
 
-.tema-item:disabled {
-  cursor: default;
+.tema-item:hover {
+  border-color: var(--borde-fuerte);
+  box-shadow: var(--elev-2);
+  transform: translateY(-2px);
 }
 
-.tema-item:not(:disabled):hover {
-  border-left-color: var(--estado-rango-borde);
+.tema-item__descripcion {
+  flex: 1;
 }
 
-.tema-item:not(:disabled):hover .tema-item__titulo {
-  color: var(--estado-rango-borde);
+.tema-item__pie {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  color: var(--tinta-suave);
+}
+
+.tema-item__flecha {
+  margin-left: auto;
+  font-family: var(--fuente-mono);
 }
 
 /* Recientes */
@@ -339,6 +356,20 @@
 .escala__marca--mayor {
   color: var(--tinta);
   font-weight: 500;
+}
+
+/* Numeración de renglones en otras búsquedas dinámicas (CLAUDE.md 5.7): una
+   columna aparte a la izquierda de la matriz horizontal, con un renglón por
+   fila. La altura fija empareja la de `.casilla` para que cada número quede
+   a la misma altura que su renglón en cualquier cubeta. */
+.renglon__marca {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--tinta-suave);
 }
 
 
