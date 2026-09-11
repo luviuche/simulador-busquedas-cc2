@@ -27,17 +27,25 @@ button, input, select {
 }
 
 /* Escala tipográfica (CLAUDE.md 8.3): una etiqueta nunca es más pequeña
-   que el contenido que etiqueta — se diferencian por peso y color. */
+   que el contenido que etiqueta — se diferencian por peso y color.
+
+   **Mayúsculas de verdad y no versalitas** (pedido del usuario, 2026-09-11).
+   Las versalitas solo se ven bien cuando la fuente las trae dibujadas, y
+   mientras falten los .woff2 de Plex Sans Condensed el navegador las falsea
+   encogiendo las mayúsculas: el rótulo salía con la inicial grande y el resto
+   en otra proporción —"Cᴏɴғɪɢᴜʀᴀᴄɪóɴ"—, y las tildes de MÉTRICAS y BITÁCORA
+   quedaban despegadas. Se leía como otra tipografía, que es justo lo que la
+   escala existe para evitar. */
 .texto-nivel-1 {
   font: 600 20px/1.2 var(--fuente-condensada);
-  font-variant-caps: small-caps;
+  text-transform: uppercase;
   letter-spacing: .08em;
   color: var(--tinta);
 }
 
 .texto-nivel-2 {
   font: 600 13px/1.2 var(--fuente-condensada);
-  font-variant-caps: small-caps;
+  text-transform: uppercase;
   letter-spacing: .08em;
   color: var(--tinta-suave);
 }

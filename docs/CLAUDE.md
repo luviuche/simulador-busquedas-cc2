@@ -889,14 +889,18 @@ Es el único sitio donde el reordenamiento no dura los 400 ms de siempre, y por 
 
 | Nivel | Uso | Tamaño | Familia y peso |
 |---|---|---|---|
-| 1 | Título de pantalla o tema | 20 px | Plex Sans Condensed 600, versalitas, `tracking .08em` |
-| 2 | Rótulo de panel | 13 px | Plex Sans Condensed 600, versalitas, `tracking .08em`, `--tinta-suave` |
+| 1 | Título de pantalla o tema | 20 px | Plex Sans Condensed 600, **mayúsculas**, `tracking .08em` |
+| 2 | Rótulo de panel | 13 px | Plex Sans Condensed 600, **mayúsculas**, `tracking .08em`, `--tinta-suave` |
 | 3 | Etiqueta de campo o grupo | 13 px | Plex Sans 500, `--tinta` |
 | 4 | Contenido, opciones, botones | 13 px | Plex Sans 400, `--tinta` |
 | 5 | Texto auxiliar y ayuda | 12 px | Plex Sans 400, `--tinta-suave` |
 | — | Claves, índices, métricas | según contexto | JetBrains Mono, **cifras tabulares obligatorias** |
 
 Las cifras tabulares no son opcionales: los dígitos deben alinearse en columna al comparar claves.
+
+**Mayúsculas de verdad y no versalitas en los niveles 1 y 2** (pedido del usuario, 2026-09-11). Las versalitas solo se ven bien cuando la fuente las trae dibujadas, y mientras falten los `.woff2` de Plex Sans Condensed el navegador las falsea encogiendo las mayúsculas: el rótulo salía con la inicial grande y el resto en otra proporción —«Cᴏɴғɪɢᴜʀᴀᴄɪóɴ ᴅᴇ ʟᴀ ᴇsᴛʀᴜᴄᴛᴜʀᴀ»— y las tildes de MÉTRICAS y BITÁCORA quedaban despegadas. Se leía como otra tipografía dentro de la misma pantalla, que es justo lo que esta escala existe para evitar.
+
+**Las métricas van en cuadrícula de dos columnas**, no en fila: son entre dos y cuatro según el tema, y en fila la cuarta se salía del panel y quedaba cortada contra el borde.
 
 ### 8.4 Elevación, radios y espaciado
 
