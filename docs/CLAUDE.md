@@ -1044,12 +1044,33 @@ Sombras cortas y definidas, nunca difusas. Sin gradientes ni glassmorphism. Tema
 }
 ```
 
+### Qué devuelve el archivo al cargarse (2026-09-11)
+
+**El archivo devuelve la estructura con sus claves, lista para operar: `n`, `l` y las claves, esté completa o no** (confirmado con el docente, traído por el usuario). No devuelve una sesión ni un estado de reproducción: ni bitácora, ni paso en curso, ni operación a medias.
+
+**Lo que se guarda son las claves en su orden de llegada, no la tabla.** En los temas de transformación de claves ese orden *es* lo que decide dónde cae cada una —dos órdenes distintos del mismo conjunto dan tablas distintas en cuanto hay colisiones—, así que la tabla se rehace al cargar reinsertando en ese orden. Es exactamente lo que ya hace cubetas al expandir (§5.7) y lo que hace Huffman con su palabra (§5.9): **el dato es la entrada; la colocación es su consecuencia.** Guardar la colocación sería guardar dos veces lo mismo, y mal, porque solo significa algo dentro de las reglas del tema que la produjo.
+
 ### Guardar — dos niveles con degradación
 
-1. **Siempre disponible:** generar el archivo y dispararlo como descarga.
+1. **Siempre disponible:** generar el archivo y dispararlo como descarga (`<a download>` sobre un Blob), con un nombre propuesto por la aplicación.
 2. **Donde el navegador lo soporte:** File System Access API para un diálogo real de "Guardar como", con elección de carpeta y regrabado sobre el mismo archivo.
 
-Probar el nivel 2 temprano: abriendo con `file://` puede comportarse distinto. Si falla, el nivel 1 cubre el caso sin cambiar el diseño.
+**Medido en el navegador, no supuesto** (2026-09-11), abriendo la aplicación como se abre de verdad —`file://`—:
+
+| | desde `file://` |
+|---|---|
+| `isSecureContext` | **sí** (no es un problema de seguridad) |
+| `showSaveFilePicker` / `showOpenFilePicker` | **no existen** |
+| `<a download>` + `URL.createObjectURL` | sí |
+| `<input type="file">` + `FileReader` | sí |
+
+O sea: **el nivel 2 no está disponible desde `file://`** —Chromium no expone esos selectores a una página abierta como archivo— y en la práctica el nivel 1 es el que se usa siempre. El nivel 2 entra solo si alguien abre la aplicación servida por `http://localhost`, y se detecta con `'showSaveFilePicker' in window`; no hay que elegir de antemano.
+
+**Elegir carpeta y nombre sin servidor no es problema del programa, es un ajuste del navegador.** Con «Preguntar dónde guardar cada archivo» activado (Chrome/Edge → Descargas), cada descarga abre el explorador de Windows y deja elegir las dos cosas. Conviene decirlo en la interfaz al guardar, en vez de perseguirlo con código.
+
+**Abrir sí funciona nativo desde `file://`**: `<input type="file">` abre el explorador de Windows y `FileReader` lee el JSON. No hace falta nada más.
+
+**Servir por `http://localhost` no es montar un servicio**, es publicar la carpeta, y hay varias formas según lo que haya instalado en la máquina: el servidor integrado de WebStorm (`http://localhost:63342/…`), `python3 -m http.server`, `npx serve`, o la extensión Live Server de VS Code. Lo que se gana es el diálogo real y el regrabado sobre el mismo archivo; lo que se pierde es abrir la aplicación con doble clic, que es la decisión de §4. **La aplicación tiene que seguir funcionando entera sin ninguna de esas cosas.**
 
 ### Nombre de la estructura — retirado hasta que exista el guardado (2026-08-29)
 
