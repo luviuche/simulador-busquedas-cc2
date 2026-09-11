@@ -43,7 +43,7 @@
       { etiqueta: 'Clave', expresion: '', resultado: String(clave) },
       {
         etiqueta: 'Código',
-        expresion: `posición ${posicionEnAlfabeto(clave)} en el alfabeto`,
+        expresion: `posición ${posicionEnAlfabeto(clave)} del alfabeto`,
         resultado: codigoDeLetra(clave, bits)
       }
     ];

@@ -55,7 +55,7 @@
       { etiqueta: 'Clave', expresion: '', resultado: String(clave) },
       {
         etiqueta: 'Código',
-        expresion: `posición ${posicionEnAlfabeto(clave)} en el alfabeto`,
+        expresion: `posición ${posicionEnAlfabeto(clave)} del alfabeto`,
         resultado: codigo
       },
       // La partición en bloques es la única cuenta propia del tema: sin verla

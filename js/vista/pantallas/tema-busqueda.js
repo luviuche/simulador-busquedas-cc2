@@ -1388,11 +1388,17 @@
         lienzoArbol.appendChild(el);
       }
 
-      const peso = document.createElement('span');
-      peso.className = 'bosque__peso';
-      peso.textContent = `${raiz.peso}/${total}`;
-
-      caja.append(lienzoArbol, peso);
+      // El peso solo se escribe al pie cuando el árbol es **una letra suelta**:
+      // en cuanto tiene raíz, la raíz ya lo lleva dentro de su círculo y
+      // repetirlo debajo era decir dos veces lo mismo —en el árbol final se
+      // leía `8/8` arriba y `8/8` abajo— (revisión de diseño, 2026-09-11).
+      caja.appendChild(lienzoArbol);
+      if (esHojaDeHuffman(raiz)) {
+        const peso = document.createElement('span');
+        peso.className = 'bosque__peso';
+        peso.textContent = `${raiz.peso}/${total}`;
+        caja.appendChild(peso);
+      }
       return caja;
     }
 

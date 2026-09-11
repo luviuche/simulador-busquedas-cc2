@@ -621,7 +621,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--espacio-6);
+  /* El canal entre la estructura y el cálculo: lo justo para separarlos. Era
+     de 32 px y en residuos múltiples —el dibujo más ancho— esos 16 px de más
+     salían del cálculo, que es quien cede (ver `.calculo`). */
+  gap: var(--espacio-4);
   min-height: 0;
   overflow: hidden;
 }
@@ -797,7 +800,9 @@
   max-width: 100%;
   max-height: 100%;
   overflow: auto;
-  padding: var(--espacio-4);
+  /* Relleno corto por la misma razón que el canal: en el árbol más ancho, cada
+     píxel de aire alrededor se lo quita al cálculo. */
+  padding: var(--espacio-2);
 }
 
 /* Ver el comentario de .calculo: el árbol se queda con el ancho que necesita
