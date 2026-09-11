@@ -31,6 +31,10 @@ Cubre catálogo, traza, métricas, bitácora, **layout** y **apilado**, entrando
 
 **Al comprobar layout, medir el contenido y no la caja.** `.estructura-vertical` lleva `max-height: 100%`, así que su rectángulo siempre cae dentro del viewport aunque por dentro sobresalgan filas: hay que comparar `scrollHeight` con `clientHeight`, o mirar dónde queda la casilla marcada. Una comprobación que medía la caja escondió durante semanas que la tabla desbordaba.
 
+**Al medir un rótulo, medir el texto y no la caja.** Un relleno sobrante deja el rectángulo del elemento centrado con las letras corridas dentro de él: `getBoundingClientRect()` da por bueno lo que a ojo está torcido. Un `Range` sobre el contenido (`selectNodeContents`) devuelve dónde están de verdad las letras. Así se cazó el rótulo «Paso n» de binaria (CLAUDE.md 6.3).
+
+**Y cuidado con medir posiciones mientras el FLIP está en vuelo.** El reordenamiento aplica un `transform` a las casillas, y `getBoundingClientRect()` devuelve la posición animada, no la final: una auditoría de rótulos dio 121 px de desvío en secuencial y 102 en la tabla hash, y las dos eran mentira —la captura mostraba todo alineado—. Comparar anchos, comparar elementos que se animan por igual, o mirar la captura antes de creerle al número.
+
 Dos ayudas ya escritas en `humo.html` para las regresiones de dibujo: `afirmarCasillasParejas` (todas las casillas miden lo mismo y nada se sale de la suya) y `afirmarColumnasAlineadas` (las filas de la vista vertical alinean sus columnas).
 
 **Si una prueba nueva de humo deja una inserción a medias**, la culpa suele ser de `agotarTraza()`: sus doce clics no bastan cuando la traza es larga —el cálculo de la dirección, más una posición recorrida por paso—. Se le pasa el número de clics: `agotarTraza(30)`.
