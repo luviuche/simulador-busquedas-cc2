@@ -638,6 +638,38 @@ Por dentro **nada cambia de base**: `estructura.claves[dirección − 1]` sigue 
 
 **Reiniciar vuelve al `n` con que se creó la estructura, no al que alcanzó por expansión.** `establecerEstructura` guarda `parametros.n0 = n` en cada creación (de cualquier tema, no solo este), y `reiniciarEstructura` lo usa en vez de `anterior.n`. Para los demás temas es el mismo número siempre, así que el cambio no altera nada; para cubetas es lo que hace que reiniciar de verdad vuelva al principio.
 
+### 5.8 Búsqueda secuencial externa (2026-09-11)
+
+Primer tema de **Búsquedas externas** con recorrido propio (cubetas, §5.7, no distingue disco de memoria). El archivo son `N` registros repartidos en `B` bloques de `r`, y **el estudiante no elige la forma**: fija `N` y la regla del docente deriva lo demás (traída por el usuario tras preguntarle en clase, 2026-09-11).
+
+**La forma del archivo** (`dominio/externa.js`):
+
+- `B = √N`, **truncado** a entero.
+- `r = N / √N`, **redondeado al más cercano**. Es el punto que más fácil se entiende mal, y por eso las dos pruebas son los dos ejemplos del docente: con `N = 23` el 4,79 sube a 5, pero con `N = 10` el 3,16 se queda en 3. Al techo, el segundo daría 4 y la forma entera saldría distinta.
+- Si `B · r < N`, se agrega **un** bloque más. De ahí sale la consecuencia limpia que fija una prueba de barrido: **el bloque extra aparece si y solo si `N` no es cuadrado perfecto**. El redondeo nunca empata, porque `√N` no puede terminar en `,5` para ningún `N` entero.
+- **El último bloque se queda con el sobrante y no acepta más**: la capacidad del archivo es exactamente `N`. Con `N = 23` son 5 bloques: 4 de 5 y uno de 3.
+
+**Por dentro no hay estructura nueva: es el mismo arreglo ordenado y denso de secuencial interna** (`modo` ordenada, §3.2), y los bloques son una **agrupación de posiciones consecutivas encima de él**. Esa decisión es la que paga:
+
+- **Insertar sigue siendo instantáneo**, como en secuencial y binaria — no hace falta traza propia. Y el desbordamiento al bloque de al lado, que es la animación que este tema tiene para enseñar, sale gratis: las claves se corren dentro del arreglo y el FLIP las anima cruzando el canal. Lo fija la prueba `insertar en medio empuja la última clave del bloque al bloque siguiente`.
+- **Eliminar reutiliza `eliminacion.eliminarPorBusqueda`** (§5.6) con el recorrido de este tema. Lo único que hubo que agregarle es `nombrar`, porque aquí el estudiante ubica **el bloque** y no el número de registro; sin ese parámetro los demás temas siguen diciendo "la casilla 7", igual que antes.
+
+**El recorrido**: se compara la clave contra el **último registro de cada bloque** —lo único que hay que leer para descartarlo entero— y solo se recorre por dentro el que sí puede contenerla. Si no está ahí, **no se siguen leyendo bloques**: el archivo está ordenado y no puede estar en otro, y decirlo es parte de lo que el tema enseña. Dentro del bloque se recorre entero, sin cortar al pasarse, igual que la secuencial interna (§5.1), que tampoco aprovecha el orden.
+
+**Los accesos se cuentan por bloque leído, no por registro** (supuesto del usuario, 2026-09-11, **pendiente de confirmar con el docente**): comparar contra el último registro *es* la lectura del bloque, así que recorrerlo por dentro no suma otro acceso. Es el número que el tema existe para enseñar —cercano a `√N` y no a `N`—, y por eso la métrica se llama **«Accesos a bloque»** y no «Accesos» a secas. Si en clase resulta ser al revés, es una línea.
+
+**Cómo se dibuja** (maqueta acordada con el usuario, 2026-09-11): **bloques verticales separados**, cada uno rotulado `B1…Bn` arriba —numerados **desde 1**, sin la excepción de cubetas— y una **sola escala de renglones a la izquierda**, porque todos los bloques tienen los mismos `r`. Es la **cuarta orientación** de la pantalla (§6.1), `orientacion: 'bloques'`.
+
+- **El último bloque se dibuja corto.** Sus posiciones de más no existen, y una casilla vacía ahí diría «aquí cabe una clave», que es mentira. Mismo criterio que el punto de bifurcación de residuos (§6.7).
+- **El bloque en curso se marca en su rótulo, no pintando la columna** (§8.1). El trazo grueso va por `box-shadow` y no engordando el borde: un borde de 2 px donde los demás llevan 1 hace la etiqueta un píxel más alta y **baja la columna entera ese píxel**. Lo destapó la prueba de humo, no la vista a ojo.
+- **El bloque descartado se apaga entero**, que es la unidad con la que este algoritmo descarta — igual que binaria apaga el tramo que tiró.
+- **La elisión es por bloque**, un nivel más arriba que la de siempre (§6.2). Cuando los renglones no caben, los bloques que no se están mirando **se comprimen a su último registro** —el único que el algoritmo llega a mirar— y los ya comparados que quedan lejos se juntan en un tramo `⋯ k bloques ⋯`; sobreviven el primero, el último, el del paso y los **dos** últimos comparados (`BLOQUES_RECIENTES`).
+- **El tramo mide exactamente lo que oculta** (`altoDeRenglones`), y no se reparte el sobrante con `flex`. Es lo que hace que cada casilla caiga en su renglón, que el último registro de un bloque comprimido quede a la altura del último de los completos, y que la escala de la izquierda siga rotulando lo que rotula. Para eso el alto de casilla dejó de estar suelto como `40px` en tres archivos y pasó a ser el token `--alto-casilla`.
+- **El panel del cálculo desarrolla la comparación en curso** —contra qué registro, de qué bloque, y qué se concluye— y no una dirección: es la cuenta que este algoritmo hace (§6.5).
+- **El aviso ubica la clave por bloque**: «Clave encontrada en el bloque 2», sin el número de registro (pedido del usuario, 2026-09-11).
+
+**Lo que no está confirmado y por eso no se construyó**: binaria externa y hashing externo. La forma del archivo de arriba probablemente les sirva igual, pero su recorrido no se le ha preguntado al docente. No implementarlos por iniciativa propia.
+
 ---
 
 ## 6. Visualización
@@ -646,6 +678,8 @@ Por dentro **nada cambia de base**: `estructura.claves[dirección − 1]` sigue 
 
 - Secuencial y binaria: estructura **horizontal**.
 - Funciones hash: estructura **vertical**.
+- Árboles de búsqueda por bits: por **niveles** (§6.7).
+- Búsquedas externas: en **bloques** —columnas separadas, con su rótulo arriba— (§5.8).
 
 ### 6.2 Regla de elisión
 
@@ -989,9 +1023,11 @@ Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al 
 
 ### Fase 2 — solo visible en el menú, sin implementar
 
-Búsquedas externas —secuencial y binaria externa, **tablas de índices** (el docente la está viendo en clase, 2026-09-06), índices primarios/secundarios/multinivel— (salvo otras búsquedas dinámicas, §5.7, ya construida) y la categoría de grafos completa. Se muestran en el catálogo del menú, marcadas "En desarrollo", y responden al clic con un aviso de "en construcción" en vez de quedar mudas. Su presencia comunica el alcance del curso.
+Búsquedas externas —binaria externa, **tablas de índices** (el docente la está viendo en clase, 2026-09-06), índices primarios/secundarios/multinivel— (salvo otras búsquedas dinámicas, §5.7, ya construida) y la categoría de grafos completa. Se muestran en el catálogo del menú, marcadas "En desarrollo", y responden al clic con un aviso de "en construcción" en vez de quedar mudas. Su presencia comunica el alcance del curso.
 
-**Búsqueda secuencial, binaria y hashing externos siguen sin algoritmo confirmado.** El usuario planteó parámetros de bloques (`B`) y registros (`N`), con `B = √N`, pero quedaron preguntas abiertas —cómo se redondea `B`, cómo se reparten los registros sobrantes entre bloques, y si comparar con el último registro de cada bloque cuenta como un acceso por bloque o se apoya en un índice en memoria— que el usuario le va a preguntar al docente. No construir esto por iniciativa propia mientras esas dudas sigan abiertas.
+**Búsqueda secuencial externa está construida** (§5.8, 2026-09-11): el docente confirmó la forma del archivo —`B = √N` truncado, `r = N/√N` redondeado al más cercano, un bloque más si no alcanza, y el último con el sobrante— y que el llenado es ordenado. Queda una sola duda abierta, que solo afecta al contador: si recorrer el bloque que contiene la clave suma **otro** acceso o si ya estaba contado por la comparación contra su último registro.
+
+**Binaria externa y hashing externo siguen sin algoritmo confirmado.** La forma del archivo probablemente les sirva igual, pero su recorrido no se le ha preguntado al docente. No construir esto por iniciativa propia mientras esa duda siga abierta.
 
 ---
 

@@ -46,6 +46,7 @@
   <script src="../js/dominio/arbol.js"></script>
   <script src="../js/dominio/arbol-multiple.js"></script>
   <script src="../js/dominio/cubetas.js"></script>
+  <script src="../js/dominio/externa.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
@@ -64,6 +65,7 @@
   <script src="../js/algoritmos/hash/bases.js"></script>
   <script src="../js/algoritmos/hash/operaciones.js"></script>
   <script src="../js/algoritmos/cubetas.js"></script>
+  <script src="../js/algoritmos/secuencial-externa.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
   <script src="../js/vista/componentes/panel.js"></script>
@@ -108,7 +110,8 @@
       'Búsqueda por residuos': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
       'Árboles de búsqueda digital': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
       'Residuos múltiples': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
-      'Otras búsquedas dinámicas': ['Búsquedas', 'Búsquedas externas']
+      'Otras búsquedas dinámicas': ['Búsquedas', 'Búsquedas externas'],
+      'Búsqueda secuencial externa': ['Búsquedas', 'Búsquedas externas']
     };
 
     function clicarTarjeta(texto) {
@@ -330,6 +333,26 @@
       avanzar(pasosAAvanzar(80));
     }
 
+    // Búsqueda secuencial externa: el archivo del ejemplo del docente —N = 23,
+    // que da 5 bloques de 5 con el último de 3— con doce claves ordenadas, y
+    // una búsqueda que descarta un bloque entero antes de entrar al que la
+    // contiene. Con ?n= grande se fotografía la elisión, que es la que
+    // comprime los bloques ya comparados.
+    function prepararSecuencialExterna() {
+      const formularios = entrarATema('Búsqueda secuencial externa');
+      const n = Number(parametros.get('n')) || 23;
+      enviar(formularios[0], { n, l: Number(parametros.get('l')) || 4 });
+
+      const claves = parametros.get('claves')
+        ? parametros.get('claves').split(',').map(Number)
+        : [1010, 1023, 1105, 1204, 1310, 2011, 2230, 3020, 3145, 3388, 4102, 4521];
+      for (const clave of claves) operar(formularios, 'insertar', clave);
+
+      const operacion = parametros.get('operacion') || 'buscar';
+      operar(formularios, operacion, Number(parametros.get('clave')) || 3020);
+      avanzar(pasosAAvanzar(40));
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const vista = parametros.get('vista') || 'menu';
       if (vista === 'menu') return;
@@ -342,6 +365,7 @@
       if (vista === 'residuos-multiples') return prepararResiduosMultiples();
       if (vista === 'eliminar-hash') return prepararEliminacionHash();
       if (vista === 'cubetas') return prepararCubetas();
+      if (vista === 'secuencial-externa') return prepararSecuencialExterna();
       if (vista === 'eliminar-binaria') return prepararEliminacion('Búsqueda binaria');
       if (vista === 'eliminar-secuencial') return prepararEliminacion('Búsqueda secuencial');
       prepararBusqueda(vista === 'binaria' ? 'Búsqueda binaria' : 'Búsqueda secuencial');

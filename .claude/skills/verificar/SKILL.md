@@ -43,7 +43,7 @@ node .claude/skills/verificar/scripts/captura.js "vista=anidados&n=10&l=4&paso=f
 
 Imprime la ruta del PNG (por defecto, en el directorio temporal del sistema; las capturas son material de trabajo, no del proyecto). Un segundo argumento suelto fija el destino, y `--alto` / `--ancho` el tamaño de ventana.
 
-Vistas de `pruebas/captura.html`: `menu`, `secuencial`, `binaria`, `hash`, `hash-libre`, `anidados`, `encadenamiento`, `eliminar-secuencial`, `eliminar-binaria`, `eliminar-hash`.
+Vistas de `pruebas/captura.html`: `menu`, `secuencial`, `binaria`, `hash`, `hash-libre`, `anidados`, `encadenamiento`, `arbol-digital`, `residuos`, `residuos-multiples`, `cubetas`, `secuencial-externa`, `eliminar-secuencial`, `eliminar-binaria`, `eliminar-hash`.
 
 Parámetros útiles: `paso=fin` recorre la traza entera (`paso=<n>` se detiene en un paso concreto, que es como se fotografía la casilla marcada antes de que se mueva nada), y en los temas de transformación de claves `tema=`, `tratamiento=`, `n=`, `l=`, `clave=`, `base=`, `posiciones=`, `operacion=`.
 
@@ -57,7 +57,7 @@ Las tres viven resueltas en `scripts/navegador.js`; están aquí por si hay que 
 - **El `#salida` del volcado se extrae con una expresión regular sobre el HTML, no con `sed`.** El `<pre>` lleva atributo `style` y su texto es multilínea; grepear el volcado entero cuenta las palabras del propio script y da falsos positivos.
 - **Sin `--virtual-time-budget` suficiente el volcado sale a medias**, con pruebas que ni llegaron a correr. La prueba de humo usa 30 s de tiempo virtual, que no es tiempo de reloj.
 
-Edge se busca en las rutas habituales de Windows; si está en otro sitio, indicarlo con la variable de entorno `CC2_EDGE`.
+Edge se busca en las rutas habituales de Windows; si está en otro sitio, indicarlo con la variable de entorno `CC2_EDGE`. **En esta máquina (Linux) no hay Edge**: los dos comandos funcionan igual con cualquier navegador de la familia Chromium, con `CC2_EDGE=/usr/bin/brave node …`.
 
 ## Qué se reporta al terminar
 

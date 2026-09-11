@@ -28,6 +28,7 @@
   <script src="../js/dominio/arbol.js"></script>
   <script src="../js/dominio/arbol-multiple.js"></script>
   <script src="../js/dominio/cubetas.js"></script>
+  <script src="../js/dominio/externa.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
@@ -46,6 +47,7 @@
   <script src="../js/algoritmos/hash/bases.js"></script>
   <script src="../js/algoritmos/hash/operaciones.js"></script>
   <script src="../js/algoritmos/cubetas.js"></script>
+  <script src="../js/algoritmos/secuencial-externa.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
   <script src="../js/vista/componentes/panel.js"></script>
@@ -100,7 +102,8 @@
       'Búsqueda por residuos': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
       'Árboles de búsqueda digital': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
       'Residuos múltiples': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
-      'Otras búsquedas dinámicas': ['Búsquedas', 'Búsquedas externas']
+      'Otras búsquedas dinámicas': ['Búsquedas', 'Búsquedas externas'],
+      'Búsqueda secuencial externa': ['Búsquedas', 'Búsquedas externas']
     };
 
     function clicarTarjeta(texto) {
@@ -423,6 +426,7 @@
       residuos();
       residuosMultiples();
       cubetas();
+      secuencialExterna();
       controlDeVelocidad();
     }
 
@@ -1735,6 +1739,123 @@
       );
 
       document.querySelector('.pantalla-tema__volver').click();
+    }
+
+
+    // Búsqueda secuencial externa: el archivo del ejemplo del docente. Lo que
+    // hay que ver por el DOM es el dibujo —la aritmética ya está probada en
+    // `externa.test.js` y `secuencial-externa.test.js`—: que los bloques se
+    // rotulen desde 1, que el último se dibuje corto, que insertar en medio
+    // empuje el desbordamiento al bloque de al lado, y sobre todo que los
+    // renglones de todos los bloques caigan a la misma altura, que es el
+    // defecto de layout que las pruebas de dominio no pueden ver.
+    function secuencialExterna() {
+      registro.push('', '── Búsqueda secuencial externa ──');
+
+      entrarATema('Búsqueda secuencial externa');
+      const formularios = [...document.querySelectorAll('form.panel')];
+      afirmar(
+        formularios[0].textContent.includes('Registros del archivo (N)'),
+        'el formulario pide los registros del archivo (N), no un tamaño genérico'
+      );
+
+      // N = 23 → 5 bloques de 5, el último con 3 posiciones.
+      enviar(formularios[0], { n: 23, l: 4 });
+      for (const clave of [1010, 1023, 1105, 1204, 1310, 2011, 2230, 3020, 3145, 3388, 4102, 4521]) {
+        operar(formularios, 'insertar', clave);
+      }
+
+      const bloques = () => [...document.querySelectorAll('.bloque')];
+      const rotulos = bloques().map((b) => b.querySelector('.bloque__etiqueta').textContent);
+      registro.push('  bloques: ' + rotulos.join(' '));
+      afirmar(rotulos.join(' ') === 'B1 B2 B3 B4 B5', 'se dibujan los 5 bloques, rotulados desde B1');
+
+      const casillasPorBloque = bloques().map((b) => b.querySelectorAll('.casilla').length);
+      afirmar(
+        casillasPorBloque.join(',') === '5,5,5,5,3',
+        `el último bloque se dibuja corto: 3 posiciones y no 5 (reporta ${casillasPorBloque.join(',')})`
+      );
+
+      afirmarCasillasParejas('búsqueda secuencial externa');
+      afirmarRenglonesDeBloquesAlineados('archivo completo');
+
+      // 1100 entra en el bloque 1 y empuja a 1310 al bloque 2: el
+      // desbordamiento entre bloques es la animación propia de este tema.
+      const claveDelRenglon = (bloque, renglon) =>
+        bloques()[bloque - 1].querySelectorAll('.casilla')[renglon - 1].textContent;
+      afirmar(claveDelRenglon(1, 5) === '1310', 'antes de insertar, 1310 cierra el bloque 1');
+      operar(formularios, 'insertar', 1100);
+      afirmar(
+        claveDelRenglon(1, 5) === '1204' && claveDelRenglon(2, 1) === '1310',
+        `insertar en medio empuja la última clave al bloque siguiente (B1 termina en ${claveDelRenglon(1, 5)}, B2 abre con ${claveDelRenglon(2, 1)})`
+      );
+
+      const metricas = () => [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+      operar(formularios, 'buscar', 3020);
+      agotarTraza(20);
+      registro.push('  métricas: ' + metricas().join(' · '));
+      afirmar(
+        document.querySelector('.alerta').textContent.includes('Clave encontrada en el bloque 2'),
+        'el aviso ubica la clave por bloque y no por número de registro'
+      );
+      // Dos accesos y no tres: al insertar 1100, 1310 pasó al bloque 2, así
+      // que 3020 ya cae en el segundo bloque y el tercero no se llega a leer.
+      afirmar(
+        metricas()[1] === '2',
+        `leer dos bloques cuesta dos accesos, uno por bloque (reporta ${metricas()[1]})`
+      );
+      afirmar(metricas()[2] === '5' && metricas()[3] === '5', 'las métricas reportan B = 5 y r = 5');
+
+      // Archivo grande: los renglones no caben y la elisión comprime los
+      // bloques ya comparados. El retoque que el usuario pidió sobre la
+      // maqueta (2026-09-11) es que el último registro de un bloque comprimido
+      // quede en el renglón que de verdad ocupa, no flotando.
+      control('reiniciar').click();
+      enviar(formularios[0], { n: 150, l: 4 });
+      for (let i = 0; i < 60; i++) operar(formularios, 'insertar', 1000 + 7 * i);
+      operar(formularios, 'buscar', 1385);
+      agotarTraza(30);
+
+      const tramos = document.querySelectorAll('.tramo-registros').length;
+      afirmar(tramos > 0, `con N = 150 los renglones se eliden (${tramos} tramo(s))`);
+      afirmar(
+        document.querySelectorAll('.tramo-bloques').length > 0,
+        'y los bloques lejanos se juntan en un tramo en vez de dibujarse uno a uno'
+      );
+      afirmarRenglonesDeBloquesAlineados('archivo elidido');
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+    // Los bloques son columnas independientes: que la casilla de un renglón
+    // caiga a la misma altura en todos —y que el último registro de un bloque
+    // comprimido coincida con el último de los completos— es lo único que hace
+    // legible la matriz, y no se ve desde `node --test`.
+    function afirmarRenglonesDeBloquesAlineados(contexto) {
+      const bloques = [...document.querySelectorAll('.bloque')];
+      const pies = bloques.map((bloque) => {
+        const casillas = [...bloque.querySelectorAll('.casilla')];
+        const ultima = casillas[casillas.length - 1];
+        return Math.round(ultima.getBoundingClientRect().bottom);
+      });
+      // El último bloque es más corto que los demás: su último registro está en
+      // su propio renglón y no tiene por qué caer con los otros.
+      const sinElUltimo = pies.slice(0, -1);
+      afirmar(
+        new Set(sinElUltimo).size === 1,
+        `${contexto}: todos los bloques cierran en el mismo renglón (${[...new Set(sinElUltimo)].join(', ')})`
+      );
+
+      // Solo los bloques dibujados enteros: uno comprimido empieza por su
+      // tramo, así que su primera casilla es la del último renglón y no la del
+      // primero.
+      const primeras = bloques
+        .filter((bloque) => bloque.querySelector('.bloque__registros').firstElementChild.classList.contains('casilla'))
+        .map((bloque) => Math.round(bloque.querySelector('.casilla').getBoundingClientRect().top));
+      afirmar(
+        new Set(primeras).size === 1,
+        `${contexto}: todos los bloques empiezan a la misma altura (${[...new Set(primeras)].join(', ')})`
+      );
     }
 
     // El deslizador crece hacia la derecha porque se llama «Velocidad»: a la

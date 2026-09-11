@@ -42,6 +42,12 @@
      exista una estructura. */
   --ancho-casilla: 48px;
 
+  /* Alto de casilla. A diferencia del ancho no depende de `l` —una clave no
+     crece hacia abajo—, pero sí hace falta nombrarlo: la altura de un bloque
+     de `k` registros se calcula con él (CLAUDE.md 5.x), y tenerlo suelto en
+     varios archivos hacía que cambiarlo desalineara la escala. */
+  --alto-casilla: 40px;
+
   /* Radios */
   --radio-casilla: 3px;
   --radio-control: 6px;

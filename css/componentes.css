@@ -10,7 +10,7 @@
   width: var(--ancho-casilla);
   min-width: 40px;
   flex: none;
-  height: 40px;
+  height: var(--alto-casilla);
   padding: 0 var(--espacio-2);
   border-radius: var(--radio-casilla);
   border: 1px solid var(--borde);
