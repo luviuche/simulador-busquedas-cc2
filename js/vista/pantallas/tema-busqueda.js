@@ -808,6 +808,11 @@
     const SEPARACION_NIVEL = 68;
     const SEPARACION_HERMANOS = 24;
     const ALTO_CASILLA = 40;
+    // El nodo de un árbol es redondo y algo mayor que la casilla: una caja
+    // redonda pierde las esquinas, y con 40 px la clave con su marca quedaba
+    // pegada al borde. Acompaña a `--diametro-nodo` en `tokens.css`: si uno
+    // cambia, el otro tiene que seguirlo.
+    const DIAMETRO_NODO = 44;
     const DIAMETRO_BIFURCACION = 10;
     // El punto de bifurcación no pide el mismo aire que una casilla: con el
     // hueco de casilla el árbol de «prueba» no cabía a lo ancho del lienzo y
@@ -932,19 +937,22 @@
     function renderizarArbol(paso, opciones) {
       const claves = estado.estructura.claves;
       const dibujadas = formaArbol.posicionesDibujadas(estado.estructura, paso);
-      const anchoCasilla = vista.componentes.casilla.anchoParaCifras(estado.estructura.l);
+      // El nodo del árbol es redondo, así que mide de ancho lo que de alto y
+      // no lo que mediría una casilla de `l` cifras. De paso el árbol se
+      // estrecha, que en residuos múltiples —donde el esqueleto entra justo—
+      // es aire ganado.
       const anchoDe = (indice) => (esBifurcacion(indice, paso)
         ? DIAMETRO_BIFURCACION + SEPARACION_BIFURCACION
-        : anchoCasilla + SEPARACION_HERMANOS);
+        : DIAMETRO_NODO + SEPARACION_HERMANOS);
       const altoDe = (indice) => (
-        esBifurcacion(indice, paso) ? DIAMETRO_BIFURCACION : ALTO_CASILLA
+        esBifurcacion(indice, paso) ? DIAMETRO_BIFURCACION : DIAMETRO_NODO
       );
 
       const reparto = distribuir(dibujadas, anchoDe);
       const posiciones = reparto.posiciones;
       const niveles = [...posiciones.keys()].reduce((mayor, i) => Math.max(mayor, formaArbol.nivelDe(i)), 1);
       const ancho = Math.max(reparto.ancho, 1);
-      const alto = (niveles - 1) * SEPARACION_NIVEL + ALTO_CASILLA;
+      const alto = (niveles - 1) * SEPARACION_NIVEL + DIAMETRO_NODO;
 
       let seguido = null;
       vista.animacion.animarFlip(dom.estructuraEl, () => {
@@ -1250,7 +1258,7 @@
       return {
         puestos,
         ancho: Math.max(x, anchoNodo),
-        alto: profundidad * SEPARACION_NIVEL + ALTO_CASILLA
+        alto: profundidad * SEPARACION_NIVEL + DIAMETRO_NODO
       };
     }
 
@@ -1314,7 +1322,9 @@
     // ordena la lista, así que se lee al pie de cada uno sin tener que buscarlo
     // dentro del dibujo.
     function crearArbolDelBosque(raiz, total, marcados) {
-      const anchoNodo = vista.componentes.casilla.anchoParaCifras(1) + SEPARACION_HERMANOS;
+      // Mismo ancho de nodo que en los demás árboles: el nodo es redondo y
+      // mide de ancho lo que de alto.
+      const anchoNodo = DIAMETRO_NODO + SEPARACION_HERMANOS;
       const { puestos, ancho, alto } = disponerHuffman(raiz, anchoNodo);
 
       const caja = document.createElement('div');
@@ -1331,9 +1341,7 @@
         const el = esHojaDeHuffman(nodo)
           ? crearHojaDeHuffman(nodo, marcado)
           : crearNodoDePeso(nodo, total, marcado);
-        const anchoEl = esHojaDeHuffman(nodo)
-          ? anchoNodo - SEPARACION_HERMANOS
-          : DIAMETRO_PESO;
+        const anchoEl = esHojaDeHuffman(nodo) ? DIAMETRO_NODO : DIAMETRO_PESO;
         el.style.position = 'absolute';
         el.style.left = `${centro - anchoEl / 2}px`;
         el.style.top = `${nivel * SEPARACION_NIVEL}px`;

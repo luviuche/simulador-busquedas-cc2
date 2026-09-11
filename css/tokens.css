@@ -48,6 +48,13 @@
      varios archivos hacía que cambiarlo desalineara la escala. */
   --alto-casilla: 40px;
 
+  /* Diámetro del nodo de un árbol (CLAUDE.md 6.7). Mayor que el alto de la
+     casilla porque una caja redonda pierde las esquinas: con 40 px, una clave
+     con su marca —«a ◂»— quedaba pegada al borde. Lo acompaña
+     `DIAMETRO_NODO` en `tema-busqueda.js`, que reparte las columnas: si uno
+     cambia, el otro tiene que seguirlo. */
+  --diametro-nodo: 44px;
+
   /* Radios */
   --radio-casilla: 3px;
   --radio-control: 6px;
