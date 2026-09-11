@@ -1133,6 +1133,7 @@
         'el panel lateral queda en cuatro paneles'
       );
       afirmar(!!document.querySelector('.estructura-arbol'), 'el árbol existe desde que se entra al tema');
+      afirmarEstructuraCentrada('árbol de búsqueda digital');
 
       // El ejercicio de clase: «prueba», en una sola operación.
       operaciones.querySelector('[name="palabra"]').value = 'prueba';
@@ -1448,6 +1449,7 @@
 
       afirmar(formularios.length === 1, `el tema no dibuja panel de configuración (${formularios.length} formulario(s))`);
       afirmar(!!document.querySelector('.estructura-arbol'), 'el árbol existe desde que se entra al tema');
+      afirmarEstructuraCentrada('árbol de búsqueda digital');
 
       operaciones.querySelector('[name="palabra"]').value = 'prueba';
       operaciones.querySelector('[data-accion="insertar-palabra"]').click();
@@ -1772,6 +1774,7 @@
 
       afirmarCasillasParejas('búsqueda secuencial externa');
       afirmarRenglonesDeBloquesAlineados('archivo completo');
+      afirmarEstructuraCentrada('búsqueda secuencial externa');
 
       // 1100 entra en el bloque 1 y empuja a 1310 al bloque 2: el
       // desbordamiento entre bloques es la animación propia de este tema.
@@ -1840,6 +1843,31 @@
         marcas.length > 0 && marcas.length === referencias.length && dispares.length === 0,
         `${contexto}: la escala numera a la altura de lo que rotula`
           + (dispares.length ? ` (${dispares.length} desalineada(s): ${dispares.map((p) => p.join('≠')).join(' ')})` : '')
+      );
+    }
+
+    // La estructura va centrada en el lienzo, sea del tipo que sea (CLAUDE.md
+    // 6.2). No lo garantiza el CSS del escenario por sí solo: el lienzo es una
+    // rejilla de dos filas y, si el escenario cae en la de arriba —la que mide
+    // lo que su contenido—, la estructura se pega al borde superior con medio
+    // lienzo vacío debajo. Le pasaba a los árboles, que no llevan control de
+    // elisión, y empezó a pasarle a cualquier tema cuya estructura cupiera
+    // entera, desde que el control se esconde cuando no hay nada que elidir.
+    function afirmarEstructuraCentrada(contexto) {
+      const escenario = document.querySelector('.lienzo__escenario');
+      const estructura = escenario && escenario.firstElementChild;
+      if (!estructura) {
+        afirmar(false, `${contexto}: no hay estructura que centrar`);
+        return;
+      }
+      const centro = (el) => {
+        const r = el.getBoundingClientRect();
+        return Math.round(r.top + r.height / 2);
+      };
+      const desvio = Math.abs(centro(escenario) - centro(estructura));
+      afirmar(
+        desvio <= 2,
+        `${contexto}: la estructura queda centrada en el lienzo (desvío de ${desvio} px)`
       );
     }
 
@@ -1968,6 +1996,8 @@
         document.querySelectorAll('.nodo-peso').length === 5,
         'los cinco nodos internos llevan su peso dentro'
       );
+
+      afirmarEstructuraCentrada('árbol de Huffman');
 
       const tabla = document.querySelector('.tabla-codigos');
       afirmar(!!tabla, 'la tabla de codificación aparece al terminar');

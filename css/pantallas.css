@@ -286,8 +286,19 @@
   overflow: hidden;
 }
 
+/* Cada uno a su fila, dicho explícitamente. Sin esto, el escenario se cae a la
+   fila de arriba —la que mide lo que su contenido— en cuanto el control no
+   está: y no está ni en los árboles, que no eliden, ni en cualquier tema cuya
+   estructura quepa entera. El resultado era que el árbol se pegaba al borde
+   de arriba del lienzo con medio lienzo vacío debajo, mientras las tablas y
+   las filas sí quedaban centradas (defecto visto por el usuario, 2026-09-11). */
 .lienzo__control {
+  grid-row: 1;
   justify-self: end;
+}
+
+.lienzo__escenario {
+  grid-row: 2;
 }
 
 .pantalla-tema__panel-lateral {
