@@ -686,6 +686,37 @@ Primer tema de **Búsquedas externas** con recorrido propio (cubetas, §5.7, no 
 
 ---
 
+### 5.9 Árbol de Huffman (2026-09-11)
+
+Cuarto tema de **Árboles de búsqueda por residuo** (§5.5), y el único de la familia que **no busca nada**: se construye desde una palabra y se lee su tabla de codificación. Comparte con los otros tres la bajada —un bit por nivel, 0 a la izquierda y 1 a la derecha, claves solo en las hojas—, pero se aparta en lo esencial: **la forma del árbol no la dicta la clave sino la frecuencia**. En el árbol digital el camino de la `a` está fijado de antemano por su código de cinco bits; aquí se descubre construyendo, y por eso lo que el tema enseña es la construcción.
+
+**La regla** (confirmada con el usuario contra el ejemplo del docente, CIENCIAS):
+
+1. Las letras se ordenan por **frecuencia ascendente**, y a igual frecuencia **por orden de lectura** —la que aparece antes en la palabra entra antes—. Con CIENCIAS: `e, n, a, s, c, i`.
+2. Se reducen de dos en dos, tomando siempre los dos primeros.
+3. **El nodo nuevo vuelve a la lista en su sitio por peso**, y a igual peso detrás de los que ya estaban. De ahí sale el paso que revela la regla fina: con cuatro nodos de 2/8 —`c`, `i`, `e+n`, `a+s`— se unen las dos **letras**, porque llevaban más tiempo en la lista que los nodos recién creados.
+4. Al quedar un solo nodo, su peso es 1: esa es la comprobación que el docente hace en el tablero, y ese nodo es el árbol.
+
+El primero de cada pareja va a la izquierda. Con CIENCIAS da `c=00, i=01, e=100, n=101, a=110, s=111`.
+
+**Lo que el ejemplo del docente no alcanza a decidir, y por eso está fijado por una prueba aparte**: en CIENCIAS todos los empates caen a favor de las letras, así que no distingue si el nodo nuevo se ordena por peso o se empuja al final de la lista. Con pesos `1,1,1,5` las dos formas dan árboles distintos y solo la primera es Huffman — lo fija `bcdaaaaa` en `huffman.test.js`.
+
+**La tabla de codificación** cierra el tema: por letra, su código, la longitud `Li`, la frecuencia `Pi` y el producto, con la suma de `Pi × Li` al pie, que es la longitud media del código —cuánto costó de verdad cada letra—. Con CIENCIAS, `20/8 = 2,5` bits por letra frente a los 3 de un código de longitud fija para seis símbolos. **Las filas van en el orden inverso al de entrada** (`i, c, s, a, n, e`), que es como el docente escribe la lista de frecuencias en el tablero. **Las fracciones se guardan como numerador sobre el total**, no como decimal: así la tabla se lee igual que en el tablero y la comprobación de que todo suma 1 sigue siendo exacta.
+
+**Cómo se dibuja** (maqueta acordada con el usuario, 2026-09-11): **quinta orientación de la pantalla**, `orientacion: 'bosque'`. El lienzo no muestra un árbol sino **la lista de nodos tal como está** —las letras sueltas y los arbolitos ya formados, cada uno con su peso al pie, en el orden en que se van a reducir—. Cada unión marca los dos nodos que se van a juntar **antes** de juntarlos, para que se vea por qué se eligen esos dos; la última deja un solo árbol, que es el final, sin redibujar nada. Se descartó mostrar solo la lista y revelar el árbol al terminar: más simple, pero se pierde el momento en que dos nodos se vuelven uno, que es lo único que este tema tiene de propio.
+
+- **El nodo interno lleva su peso dentro, en un círculo.** Es lo contrario del punto de bifurcación de residuos (§6.7): allí el nodo interno no puede guardar nada y dibujarlo como caja sería mentir; aquí el nodo interno *es* una suma. Redondo para que no se confunda con la casilla de una clave.
+- **La tabla aparece solo al final** y ocupa el sitio del panel de reducciones, así que el lienzo no cambia de forma al terminar. Antes no habría nada que poner en la columna del código.
+- **El panel no tiene operaciones de clave** (`soloPalabra`): ni insertar, ni buscar, ni eliminar. Solo la palabra.
+
+**Nada de esto toca `estructura.claves`.** El bosque de cada paso viaja en el propio paso, porque se deduce entero de la construcción: retroceder es volver a dibujar y no hay efectos que deshacer. La estructura existe solo para que la pantalla tenga de qué colgar la operación.
+
+**Una palabra de una sola letra distinta se rechaza.** No hay reducción posible y su código sería la cadena vacía; no se inventa la convención de que «vale 0», que el docente no ha dado.
+
+---
+
+---
+
 ## 6. Visualización
 
 ### 6.1 Orientación
@@ -694,6 +725,7 @@ Primer tema de **Búsquedas externas** con recorrido propio (cubetas, §5.7, no 
 - Funciones hash: estructura **vertical**.
 - Árboles de búsqueda por bits: por **niveles** (§6.7).
 - Búsquedas externas: en **bloques** —columnas separadas, con su rótulo arriba— (§5.8).
+- Árbol de Huffman: en **bosque** —los árboles que aún no se han unido, en fila— (§5.9).
 
 ### 6.2 Regla de elisión
 
@@ -1040,7 +1072,7 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 
-**«Árboles de búsqueda por residuo» tiene tres de sus cuatro temas construidos: árbol de búsqueda digital, árbol de búsqueda por residuos (trie) y árbol de búsqueda por residuos múltiples** (§5.5). **Falta el árbol de Huffman**, que el docente incluye en esta misma familia (traído por el usuario, 2026-09-11) y que ya aparece en el catálogo marcado «En desarrollo». El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima aportando una sola regla —las claves solo en las hojas—; y residuos múltiples entró sobre residuos cambiando solo la forma del árbol, que dejó de estar cableada en la pantalla y ahora viaja en `config.arbol`. Los tres comparten la letra y su código de cinco bits. **Rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06); **tablas de índices** pasó a cubrirse junto a las búsquedas externas, más abajo.
+**«Árboles de búsqueda por residuo» está completa, con sus cuatro temas: árbol de búsqueda digital, árbol de búsqueda por residuos (trie), árbol de búsqueda por residuos múltiples y árbol de Huffman** (§5.5 y §5.9). El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima aportando una sola regla —las claves solo en las hojas—; y residuos múltiples entró sobre residuos cambiando solo la forma del árbol, que dejó de estar cableada en la pantalla y ahora viaja en `config.arbol`. Los tres comparten la letra y su código de cinco bits. **Rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06); **tablas de índices** pasó a cubrirse junto a las búsquedas externas, más abajo.
 
 **Los cuatro tratamientos de colisión están construidos: `ninguno`, `reasignación` (prueba lineal), `arreglos anidados` y `encadenamiento secuencial` (§5.4).** Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el encadenamiento entró sobre él: comparte almacenamiento, aplicadores y rama de eliminación, y lo único propio suyo es que su estructura secundaria no tiene tope.
 
@@ -1059,8 +1091,6 @@ Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al 
 Búsquedas externas —binaria externa, **tablas de índices** (el docente la está viendo en clase, 2026-09-06), índices primarios/secundarios/multinivel— (salvo otras búsquedas dinámicas, §5.7, ya construida) y la categoría de grafos completa. Se muestran en el catálogo del menú, marcadas "En desarrollo", y responden al clic con un aviso de "en construcción" en vez de quedar mudas. Su presencia comunica el alcance del curso.
 
 **Búsqueda secuencial externa está construida** (§5.8, 2026-09-11): el docente confirmó la forma del archivo —`B = √N` truncado, `r = N/√N` redondeado al más cercano, un bloque más si no alcanza, y el último con el sobrante— y que el llenado es ordenado. Queda una sola duda abierta, que solo afecta al contador: si recorrer el bloque que contiene la clave suma **otro** acceso o si ya estaba contado por la comparación contra su último registro.
-
-**El árbol de Huffman no tiene algoritmo confirmado** (2026-09-11). El docente lo agrupa con los otros tres árboles por residuo, y comparte con ellos la bajada —bit a bit hasta una hoja—, pero se aparta en lo esencial: **la forma del árbol no la dicta la clave sino la frecuencia**, así que lo que hay que enseñar es la construcción y no solo el recorrido. Antes de construirlo hay que saber de dónde salen las frecuencias, cómo se rompen los empates entre nodos del mismo peso —que es lo que decide la forma final—, si 0 va a la izquierda como en los demás, y si se evalúa construir, codificar, decodificar o las tres.
 
 **Binaria externa y hashing externo siguen sin algoritmo confirmado.** La forma del archivo probablemente les sirva igual, pero su recorrido no se le ha preguntado al docente. No construir esto por iniciativa propia mientras esa duda siga abierta.
 

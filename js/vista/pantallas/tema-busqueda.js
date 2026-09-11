@@ -130,7 +130,10 @@
       // Otras búsquedas dinámicas (CLAUDE.md 5.x): que `n` acaba de cambiar es
       // justo la noticia que el tema enseña, así que también avisa.
       expansion: 'advertencia',
-      reduccion: 'info'
+      reduccion: 'info',
+      // El árbol de Huffman terminado —con su longitud media— es la noticia
+      // del tema; las uniones de en medio son el trámite y no avisan.
+      construido: 'info'
     });
 
     // El aviso se deduce del punto de la traza y no se acumula: al retroceder
@@ -1199,6 +1202,220 @@
       }, opciones);
     }
 
+    // Árbol de Huffman (CLAUDE.md 5.x): quinta orientación de la pantalla. No
+    // es un árbol —todavía—, sino **un bosque que se va uniendo**: la lista de
+    // nodos tal como está en cada paso, las letras sueltas y los arbolitos ya
+    // formados, cada uno con su peso debajo y en el orden en que se van a
+    // reducir. La última unión deja un solo árbol, que es el árbol final: no
+    // hay que redibujar nada al terminar, y eso es justo lo que el tema enseña
+    // (decisión del usuario sobre maqueta, 2026-09-11).
+    //
+    // A diferencia de los otros árboles, aquí los nodos **no** salen de
+    // `estructura.claves`: el bosque de cada paso viaja en el propio paso
+    // (`paso.bosque`), porque se deduce entero de la construcción. Retroceder
+    // es volver a dibujar, sin efectos que deshacer.
+
+    const DIAMETRO_PESO = 36;
+
+    function esBosque() {
+      return config.orientacion === 'bosque';
+    }
+
+    const esHojaDeHuffman = (nodo) => nodo.letra !== undefined;
+
+    // Reparto de un árbol de Huffman: cada hoja ocupa una columna y cada nodo
+    // interno se centra entre sus dos hijos. No vale el reparto de los otros
+    // árboles, que deriva la columna de la posición en el arreglo implícito:
+    // aquí la forma la decidió la frecuencia y no hay arreglo del que leerla.
+    function disponerHuffman(raiz, anchoNodo) {
+      const puestos = [];
+      let x = 0;
+      let profundidad = 0;
+
+      (function bajar(nodo, nivel) {
+        profundidad = Math.max(profundidad, nivel);
+        if (esHojaDeHuffman(nodo)) {
+          const centro = x + anchoNodo / 2;
+          x += anchoNodo;
+          puestos.push({ nodo, centro, nivel });
+          return centro;
+        }
+        const izquierda = bajar(nodo.izquierda, nivel + 1);
+        const derecha = bajar(nodo.derecha, nivel + 1);
+        const centro = (izquierda + derecha) / 2;
+        puestos.push({ nodo, centro, nivel });
+        return centro;
+      })(raiz, 0);
+
+      return {
+        puestos,
+        ancho: Math.max(x, anchoNodo),
+        alto: profundidad * SEPARACION_NIVEL + ALTO_CASILLA
+      };
+    }
+
+    // El peso de un nodo interno va **dentro** del nodo, y por eso aquí no
+    // vale el punto de bifurcación de residuos (CLAUDE.md 6.7): allí el nodo
+    // interno no puede guardar nada y dibujarlo como caja sería mentir; aquí
+    // el nodo interno *es* una suma, y el peso es lo que el método va
+    // calculando. Un círculo con la fracción dentro dice las dos cosas: que no
+    // es una clave, y cuánto pesa.
+    function crearNodoDePeso(nodo, total, marcado) {
+      const el = document.createElement('div');
+      el.className = 'nodo-peso' + (marcado ? ' nodo-peso--en-curso' : '');
+      el.textContent = `${nodo.peso}/${total}`;
+      return el;
+    }
+
+    function crearHojaDeHuffman(nodo, marcado) {
+      return vista.componentes.casilla.crearCasilla({
+        clave: nodo.letra,
+        indice: nodo.letra,
+        estado: marcado ? 'en-evaluacion' : 'ocupada',
+        modificadores: []
+      });
+    }
+
+    function crearAristasHuffman(puestos, ancho, alto) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'arbol__aristas');
+      svg.setAttribute('width', ancho);
+      svg.setAttribute('height', alto);
+      svg.setAttribute('aria-hidden', 'true');
+
+      const sitioDe = new Map(puestos.map((p) => [p.nodo, p]));
+      for (const { nodo, centro, nivel } of puestos) {
+        if (esHojaDeHuffman(nodo)) continue;
+        const pie = nivel * SEPARACION_NIVEL + DIAMETRO_PESO;
+        for (const [hijo, bit] of [[nodo.izquierda, '0'], [nodo.derecha, '1']]) {
+          const sitio = sitioDe.get(hijo);
+          const y = sitio.nivel * SEPARACION_NIVEL;
+
+          const linea = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          linea.setAttribute('class', 'arbol__arista');
+          linea.setAttribute('x1', centro);
+          linea.setAttribute('y1', pie);
+          linea.setAttribute('x2', sitio.centro);
+          linea.setAttribute('y2', y);
+          svg.appendChild(linea);
+
+          const rotulo = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          rotulo.setAttribute('class', 'arbol__bit');
+          rotulo.setAttribute('x', centro + (sitio.centro - centro) * 0.45 + (sitio.centro < centro ? -8 : 8));
+          rotulo.setAttribute('y', pie + (y - pie) * 0.45);
+          rotulo.textContent = bit;
+          svg.appendChild(rotulo);
+        }
+      }
+      return svg;
+    }
+
+    // Un árbol del bosque, con su peso debajo: el peso del nodo raíz es lo que
+    // ordena la lista, así que se lee al pie de cada uno sin tener que buscarlo
+    // dentro del dibujo.
+    function crearArbolDelBosque(raiz, total, marcados) {
+      const anchoNodo = vista.componentes.casilla.anchoParaCifras(1) + SEPARACION_HERMANOS;
+      const { puestos, ancho, alto } = disponerHuffman(raiz, anchoNodo);
+
+      const caja = document.createElement('div');
+      caja.className = 'bosque__arbol' + (marcados.includes(raiz) ? ' bosque__arbol--en-curso' : '');
+
+      const lienzoArbol = document.createElement('div');
+      lienzoArbol.className = 'arbol';
+      lienzoArbol.style.width = `${ancho}px`;
+      lienzoArbol.style.height = `${alto}px`;
+      lienzoArbol.appendChild(crearAristasHuffman(puestos, ancho, alto));
+
+      for (const { nodo, centro, nivel } of puestos) {
+        const marcado = marcados.includes(nodo);
+        const el = esHojaDeHuffman(nodo)
+          ? crearHojaDeHuffman(nodo, marcado)
+          : crearNodoDePeso(nodo, total, marcado);
+        const anchoEl = esHojaDeHuffman(nodo)
+          ? anchoNodo - SEPARACION_HERMANOS
+          : DIAMETRO_PESO;
+        el.style.position = 'absolute';
+        el.style.left = `${centro - anchoEl / 2}px`;
+        el.style.top = `${nivel * SEPARACION_NIVEL}px`;
+        lienzoArbol.appendChild(el);
+      }
+
+      const peso = document.createElement('span');
+      peso.className = 'bosque__peso';
+      peso.textContent = `${raiz.peso}/${total}`;
+
+      caja.append(lienzoArbol, peso);
+      return caja;
+    }
+
+    // La tabla de codificación, que aparece solo al terminar (pedido del
+    // usuario, 2026-09-11): antes ninguna letra tendría código que poner en
+    // ella. Ocupa el sitio del panel de reducciones, así que el lienzo no
+    // cambia de forma al acabar la construcción.
+    function crearTablaDeCodigos(tabla) {
+      const el = document.createElement('table');
+      el.className = 'tabla-codigos';
+      const filas = tabla.filas.map((fila) => `
+        <tr>
+          <td class="tabla-codigos__clave">${fila.letra}</td>
+          <td>${fila.codigo}</td>
+          <td>${fila.longitud}</td>
+          <td>${fila.veces}/${tabla.total}</td>
+          <td>${fila.producto}/${tabla.total}</td>
+        </tr>`).join('');
+      const media = (tabla.suma / tabla.total).toString().replace('.', ',');
+      el.innerHTML = `
+        <thead>
+          <tr>
+            <th class="tabla-codigos__clave">k</th><th>Código</th><th>Li</th><th>Pi</th><th>Pi × Li</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+        <tfoot>
+          <tr>
+            <td class="tabla-codigos__clave" colspan="4">Σ Pi × Li</td>
+            <td>${tabla.suma}/${tabla.total} = ${media}</td>
+          </tr>
+        </tfoot>`;
+      return el;
+    }
+
+    function renderizarBosque(paso, opciones) {
+      const bosque = (paso && paso.bosque) || [];
+      const total = (paso && paso.total) || 0;
+      const marcados = (paso && paso.uniendo) || [];
+
+      vista.animacion.animarFlip(dom.estructuraEl, () => {
+        dom.estructuraEl.className = 'estructura-bosque';
+        dom.estructuraEl.removeAttribute('style');
+        dom.estructuraEl.innerHTML = '';
+
+        if (bosque.length === 0) {
+          const vacio = document.createElement('p');
+          vacio.className = 'texto-nivel-5';
+          vacio.textContent = 'Escriba una palabra para construir su árbol.';
+          dom.estructuraEl.appendChild(vacio);
+          return;
+        }
+        for (const raiz of bosque) {
+          dom.estructuraEl.appendChild(crearArbolDelBosque(raiz, total, marcados));
+        }
+      }, opciones);
+
+      // La tabla sustituye al panel del desarrollo en el último paso, y no se
+      // suma a él: los dos dicen lo mismo desde dos sitios, y el lienzo no da
+      // para ambos.
+      if (dom.tabla) dom.tabla.remove();
+      dom.tabla = null;
+      if (paso && paso.tabla) {
+        dom.tabla = crearTablaDeCodigos(paso.tabla);
+        dom.escenario.appendChild(dom.tabla);
+        if (dom.calculo) dom.calculo.el.hidden = true;
+      } else if (dom.calculo) {
+        dom.calculo.el.hidden = false;
+      }
+    }
+
     // El apilado es el dispositivo de la búsqueda: una fila por descarte. Los
     // pasos que sacan una clave no descartan nada y además cambian la
     // estructura bajo las filas ya dibujadas —que se leen del mismo arreglo—,
@@ -1218,6 +1435,10 @@
       }
       if (esBloques()) {
         renderizarBloques(paso, opciones);
+        return;
+      }
+      if (esBosque()) {
+        renderizarBosque(paso, opciones);
         return;
       }
       const aplicaApilado = !config.apilada || !config.apilada.aplicaA || !paso
@@ -1351,7 +1572,9 @@
     // Una letra repetida no se comprueba antes: la traza la descubre y levanta
     // su aviso, como la inserción de un duplicado en los demás temas.
     function insertarPalabra(texto) {
-      const validacion = dominio.clave.validarPalabra(texto);
+      // Un tema puede pedirle más a la palabra que ser letras: Huffman exige
+      // al menos dos distintas, porque con una sola no hay reducción posible.
+      const validacion = (config.validarPalabra || dominio.clave.validarPalabra)(texto);
       if (!validacion.valido) {
         mostrarAlerta('error', validacion.mensaje);
         return;
@@ -1730,6 +1953,7 @@
            </div>`;
       contenedor.innerHTML = `
         <h2 class="panel__titulo texto-nivel-2">Operaciones</h2>
+        ${config.soloPalabra ? '' : `
         <label class="texto-nivel-3">Clave
           ${campoClave}
         </label>
@@ -1737,7 +1961,7 @@
           <button type="submit" class="boton boton--primario" data-accion="insertar">Insertar</button>
           <button type="button" class="boton" data-accion="buscar">Buscar</button>
           <button type="button" class="boton" data-accion="eliminar">Eliminar</button>
-        </div>
+        </div>`}
         ${segundaFila}
       `;
 
@@ -1755,8 +1979,13 @@
         evento.preventDefault();
         operar(insertarClave, true)();
       });
-      contenedor.querySelector('[data-accion="buscar"]').addEventListener('click', operar(iniciarBusqueda, false));
-      contenedor.querySelector('[data-accion="eliminar"]').addEventListener('click', operar(eliminarClave, false));
+      // El árbol de Huffman no tiene operaciones de clave: no se busca ni se
+      // elimina en él, se construye desde una palabra y se lee la tabla. Su
+      // panel es el campo de palabra y nada más (CLAUDE.md 5.x).
+      if (!config.soloPalabra) {
+        contenedor.querySelector('[data-accion="buscar"]').addEventListener('click', operar(iniciarBusqueda, false));
+        contenedor.querySelector('[data-accion="eliminar"]').addEventListener('click', operar(eliminarClave, false));
+      }
       const llenado = contenedor.querySelector('[data-accion="llenado-automatico"]');
       if (llenado) {
         llenado.addEventListener('click', () => {
@@ -1910,6 +2139,7 @@
     lienzo.className = 'pantalla-tema__lienzo';
     dom.estructuraEl = document.createElement('div');
     dom.estructuraEl.className = esArbol() ? 'estructura-arbol'
+      : esBosque() ? 'estructura-bosque'
       : esBloques() ? 'estructura-bloques'
       : esVertical() ? 'estructura-vertical' : 'estructura-horizontal';
 
@@ -1917,6 +2147,7 @@
     // la correspondencia entre la cuenta y la casilla que resulta de ella.
     const escenario = document.createElement('div');
     escenario.className = 'lienzo__escenario';
+    dom.escenario = escenario;
     escenario.appendChild(dom.estructuraEl);
     if (config.calculo) {
       dom.calculo = vista.componentes.calculo.crearPanelCalculo({ titulo: config.tituloCalculo });

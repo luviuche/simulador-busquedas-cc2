@@ -47,6 +47,7 @@
   <script src="../js/dominio/arbol-multiple.js"></script>
   <script src="../js/dominio/cubetas.js"></script>
   <script src="../js/dominio/externa.js"></script>
+  <script src="../js/dominio/huffman.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
@@ -66,6 +67,7 @@
   <script src="../js/algoritmos/hash/operaciones.js"></script>
   <script src="../js/algoritmos/cubetas.js"></script>
   <script src="../js/algoritmos/secuencial-externa.js"></script>
+  <script src="../js/algoritmos/huffman.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
   <script src="../js/vista/componentes/panel.js"></script>
@@ -341,6 +343,17 @@
       avanzar(pasosAAvanzar(40));
     }
 
+    // Árbol de Huffman: el ejemplo del docente —CIENCIAS— construido entero.
+    // Con ?paso= se fotografía un momento de la construcción; con `fin`, el
+    // árbol terminado y su tabla.
+    function prepararHuffman() {
+      const formularios = entrarATema('Árbol de Huffman');
+      const panel = formularios[0];
+      panel.querySelector('[name="palabra"]').value = parametros.get('palabra') || 'ciencias';
+      panel.querySelector('[data-accion="insertar-palabra"]').click();
+      avanzar(pasosAAvanzar(20));
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const vista = parametros.get('vista') || 'menu';
       if (vista === 'menu') return;
@@ -354,6 +367,7 @@
       if (vista === 'eliminar-hash') return prepararEliminacionHash();
       if (vista === 'cubetas') return prepararCubetas();
       if (vista === 'secuencial-externa') return prepararSecuencialExterna();
+      if (vista === 'huffman') return prepararHuffman();
       if (vista === 'eliminar-binaria') return prepararEliminacion('Búsqueda binaria');
       if (vista === 'eliminar-secuencial') return prepararEliminacion('Búsqueda secuencial');
       prepararBusqueda(vista === 'binaria' ? 'Búsqueda binaria' : 'Búsqueda secuencial');

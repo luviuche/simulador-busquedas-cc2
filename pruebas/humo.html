@@ -29,6 +29,7 @@
   <script src="../js/dominio/arbol-multiple.js"></script>
   <script src="../js/dominio/cubetas.js"></script>
   <script src="../js/dominio/externa.js"></script>
+  <script src="../js/dominio/huffman.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
@@ -48,6 +49,7 @@
   <script src="../js/algoritmos/hash/operaciones.js"></script>
   <script src="../js/algoritmos/cubetas.js"></script>
   <script src="../js/algoritmos/secuencial-externa.js"></script>
+  <script src="../js/algoritmos/huffman.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
   <script src="../js/vista/componentes/panel.js"></script>
@@ -412,6 +414,7 @@
       residuosMultiples();
       cubetas();
       secuencialExterna();
+      arbolDeHuffman();
       controlDeElision();
       controlDeVelocidad();
     }
@@ -1914,6 +1917,79 @@
       afirmar(
         !control().hidden,
         'con "ver estructura completa" marcada el control sigue a la vista, para poder desmarcarla'
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+
+    // Árbol de Huffman (CLAUDE.md 5.x). Lo que solo se ve por el DOM: que el
+    // lienzo dibuja un bosque y no un árbol mientras se construye, que los
+    // nodos internos llevan su peso dentro, que la tabla aparece solo al final
+    // y que el panel no ofrece operaciones de clave, porque en este tema no se
+    // busca nada. La aritmética ya está probada en `huffman.test.js` contra el
+    // ejemplo del docente.
+    function arbolDeHuffman() {
+      registro.push('', '── Árbol de Huffman ──');
+
+      entrarATema('Árbol de Huffman');
+      const formularios = [...document.querySelectorAll('form.panel')];
+      const operaciones = formularios[0];
+
+      afirmar(
+        !operaciones.querySelector('[name="clave"]'),
+        'el panel no pide clave: en este tema no se busca ni se elimina, se construye'
+      );
+
+      operaciones.querySelector('[name="palabra"]').value = 'ciencias';
+      operaciones.querySelector('[data-accion="insertar-palabra"]').click();
+
+      // Tres pasos: la lista inicial y las dos primeras uniones. El bosque
+      // tiene entonces cuatro árboles —c, i, (e+n), (a+s)— y el siguiente paso
+      // une las dos letras, que es la regla fina del método.
+      control('siguiente').click();
+      control('siguiente').click();
+      control('siguiente').click();
+      const arboles = document.querySelectorAll('.bosque__arbol');
+      registro.push('  bosque a mitad: ' + [...arboles].map((a) => a.textContent).join(' | '));
+      afirmar(arboles.length === 4, `a mitad de la construcción el bosque tiene cuatro árboles (tiene ${arboles.length})`);
+      afirmar(
+        document.querySelectorAll('.casilla--en-evaluacion').length === 2,
+        'se marcan las dos que se van a unir'
+      );
+      afirmar(!document.querySelector('.tabla-codigos'), 'la tabla todavía no está: ninguna letra tiene código aún');
+
+      agotarTraza(20);
+      afirmar(
+        document.querySelectorAll('.bosque__arbol').length === 1,
+        'al terminar queda un solo árbol, que es el árbol final'
+      );
+      afirmar(
+        document.querySelectorAll('.nodo-peso').length === 5,
+        'los cinco nodos internos llevan su peso dentro'
+      );
+
+      const tabla = document.querySelector('.tabla-codigos');
+      afirmar(!!tabla, 'la tabla de codificación aparece al terminar');
+      afirmar(
+        tabla.querySelectorAll('tbody tr').length === 6,
+        'la tabla trae una fila por letra distinta'
+      );
+      const pie = tabla.querySelector('tfoot').textContent;
+      registro.push('  pie de la tabla: ' + pie.trim());
+      afirmar(pie.includes('20/8') && pie.includes('2,5'), 'el pie de la tabla suma 20/8 = 2,5 bits por letra');
+
+      const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+      registro.push('  métricas: ' + metricas.join(' · '));
+      afirmar(metricas.join(' ') === '6 5 2,5', `las métricas reportan 6 letras, 5 reducciones y 2,5 bits (reporta ${metricas.join(' ')})`);
+
+      // Con una sola letra distinta no hay reducción posible, y el tema lo dice
+      // en vez de inventar un código vacío.
+      operaciones.querySelector('[name="palabra"]').value = 'aaa';
+      operaciones.querySelector('[data-accion="insertar-palabra"]').click();
+      afirmar(
+        document.querySelector('.alerta--error') !== null,
+        'una palabra de una sola letra distinta se rechaza con un aviso'
       );
 
       document.querySelector('.pantalla-tema__volver').click();

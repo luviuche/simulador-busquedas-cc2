@@ -632,6 +632,118 @@
   border-bottom: 1px dashed var(--borde-fuerte);
 }
 
+/* Árbol de Huffman (CLAUDE.md 5.x): un bosque que se va uniendo. Los nodos
+   sueltos y los arbolitos ya formados, en fila y en el orden en que se van a
+   reducir, cada uno con su peso al pie. Alineados por arriba, que es donde
+   están las raíces: es el peso de la raíz lo que decide la siguiente unión, y
+   los árboles del bosque no tienen por qué tener la misma profundidad. */
+.estructura-bosque {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--espacio-6);
+  place-self: center;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--espacio-2);
+}
+
+.bosque__arbol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--espacio-2);
+}
+
+.bosque__peso {
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--tinta-suave);
+}
+
+.bosque__arbol--en-curso .bosque__peso {
+  color: var(--estado-evaluacion-borde);
+  font-weight: 500;
+}
+
+/* Nodo interno de Huffman. Al revés que el punto de bifurcación de residuos
+   (§6.7), **aquí el nodo interno sí tiene contenido**: su peso, que es lo que
+   el método va sumando. Por eso lleva caja —redonda, para que no se confunda
+   con la casilla de una clave— y la fracción dentro. */
+.nodo-peso {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--borde-fuerte);
+  background: var(--superficie);
+  color: var(--tinta);
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.nodo-peso--en-curso {
+  border-width: 2px;
+  border-color: var(--estado-evaluacion-borde);
+  background: var(--estado-evaluacion-relleno);
+}
+
+/* Tabla de codificación (CLAUDE.md 5.x): aparece solo al terminar, en el sitio
+   que deja el panel del desarrollo. Las columnas van a la derecha porque son
+   números que se comparan en columna, y la clave a la izquierda porque es lo
+   que se busca al leer la tabla. */
+.tabla-codigos {
+  border-collapse: collapse;
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-panel);
+  box-shadow: var(--elev-1);
+  overflow: hidden;
+}
+
+.tabla-codigos th {
+  font-family: var(--fuente-condensada);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+  text-align: right;
+  padding: var(--espacio-2) var(--espacio-3);
+  border-bottom: 1px solid var(--borde-fuerte);
+}
+
+.tabla-codigos td {
+  text-align: right;
+  padding: var(--espacio-1) var(--espacio-3);
+  border-bottom: 1px solid var(--borde);
+  color: var(--tinta);
+}
+
+.tabla-codigos tbody tr:last-child td {
+  border-bottom: 1px solid var(--borde-fuerte);
+}
+
+.tabla-codigos__clave {
+  text-align: left;
+}
+
+/* La suma es la conclusión del tema —cuánto costó de verdad cada letra—, así
+   que se destaca como se destaca la línea activa del desarrollo. */
+.tabla-codigos tfoot td {
+  border-bottom: none;
+  font-weight: 500;
+  background: var(--estado-evaluacion-relleno);
+}
+
 /* Árbol de búsqueda por bits (CLAUDE.md 5.5 y 6.7). Tercera orientación de la
    pantalla: ni fila ni tabla, sino niveles. Cada nodo se posiciona a mano
    —columna por recorrido en orden, fila por nivel— porque el nivel *es* el

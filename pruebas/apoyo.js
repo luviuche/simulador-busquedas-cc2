@@ -10,6 +10,7 @@ require('../js/dominio/arbol.js');
 require('../js/dominio/arbol-multiple.js');
 require('../js/dominio/cubetas.js');
 require('../js/dominio/externa.js');
+require('../js/dominio/huffman.js');
 require('../js/algoritmos/traza.js');
 require('../js/algoritmos/secuencial.js');
 require('../js/algoritmos/binaria.js');
@@ -29,6 +30,7 @@ require('../js/algoritmos/hash/bases.js');
 require('../js/algoritmos/hash/operaciones.js');
 require('../js/algoritmos/cubetas.js');
 require('../js/algoritmos/secuencial-externa.js');
+require('../js/algoritmos/huffman.js');
 // elision.js vive en vista/ pero es cálculo puro: no toca el DOM.
 require('../js/vista/elision.js');
 

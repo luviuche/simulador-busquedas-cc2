@@ -33,7 +33,14 @@
     // tamaño antes de la secuencia de reubicación (pasos `calculo` +
     // `insercion`, iguales a los de cualquier inserción).
     EXPANSION: 'expansion',
-    REDUCCION: 'reduccion'
+    REDUCCION: 'reduccion',
+    // Árbol de Huffman (CLAUDE.md 5.x). `union` es lo que el docente llama
+    // reducción —dos nodos que se vuelven uno—, pero no puede llamarse así:
+    // `reduccion` ya significa "la tabla de cubetas encogió", y son cosas
+    // distintas. `construido` cierra la operación: el árbol está entero y
+    // aparece la tabla de codificación.
+    UNION: 'union',
+    CONSTRUIDO: 'construido'
   });
 
   // Un paso puede declarar el `efecto` que produce sobre la estructura:

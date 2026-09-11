@@ -58,7 +58,7 @@
                 { id: 'arbol-digital', titulo: 'Árbol de búsqueda digital', descripcion: 'Inserción bit a bit', tema: 'arbol-digital', disponible: true },
                 { id: 'residuos', titulo: 'Árbol de búsqueda por residuos', descripcion: 'Claves solo en las hojas · trie', tema: 'residuos', disponible: true },
                 { id: 'residuos-multiples', titulo: 'Árbol de búsqueda por residuos múltiples', descripcion: 'Ramificación por bloques de bits', tema: 'residuos-multiples', disponible: true },
-                { id: 'huffman', titulo: 'Árbol de Huffman', descripcion: 'La forma del árbol la dan las frecuencias', tema: null, disponible: false }
+                { id: 'huffman', titulo: 'Árbol de Huffman', descripcion: 'La forma del árbol la dan las frecuencias', tema: 'huffman', disponible: true }
               ]
             }
           ]
@@ -93,6 +93,14 @@
       ]
     }
   ];
+
+  // Cuántas hojas hay en el bosque de un paso. No cambia durante la
+  // construcción —las letras son las que son— pero hay que contarlas bajando,
+  // porque a mitad de camino unas ya cuelgan de un nodo y otras siguen sueltas.
+  function hojasDelPaso(paso) {
+    const contar = (nodo) => (nodo.letra !== undefined ? 1 : contar(nodo.izquierda) + contar(nodo.derecha));
+    return (paso.bosque || []).reduce((total, raiz) => total + contar(raiz), 0);
+  }
 
   // Métricas comunes: comparaciones y accesos los reporta todo paso de traza.
   const METRICA_COMPARACIONES = {
@@ -539,6 +547,64 @@
         ]
       };
     })(),
+
+    // Árbol de Huffman (CLAUDE.md 5.x). El cuarto de los árboles por residuo
+    // del docente, y el único que no busca nada: se construye desde una
+    // palabra y se lee su tabla de codificación. Por eso su panel no tiene
+    // clave, ni inserta, ni elimina —`soloPalabra`—, y por eso su lienzo no
+    // dibuja un árbol sino **un bosque que se va uniendo** (`orientacion:
+    // 'bosque'`), que es donde se ve lo único que este tema enseña: cómo se
+    // forma el árbol.
+    //
+    // Nada de esto toca `estructura.claves`: el bosque de cada paso viaja en
+    // el propio paso, porque se deduce entero de la construcción. La
+    // estructura existe solo para que la pantalla tenga de qué colgar la
+    // operación.
+    huffman: {
+      orientacion: 'bosque',
+      modo: dominio.estructura.MODOS.ARBOL,
+      calculo: true,
+      // Lo que se desarrolla no es una dirección ni un código de clave, sino
+      // la cadena de reducciones que acaba en 1.
+      tituloCalculo: 'Reducción',
+      palabra: true,
+      soloPalabra: true,
+      sinTamano: true,
+      sinConfiguracion: true,
+      tamano: () => ({ n: 1, l: 1 }),
+      nombreEstructura: 'árbol',
+      mensajeReinicio: 'Árbol reiniciado: sin palabra.',
+      mensajeCreacion: () => 'Escriba una palabra para construir su árbol.',
+      detalleReciente: () => 'árbol de Huffman',
+      // La palabra necesita al menos dos letras distintas: con una sola no hay
+      // reducción posible y su código sería la cadena vacía.
+      validarPalabra: (entrada) => dominio.huffman.validarPalabra(entrada),
+      insertarPalabra: ({ letras }) => algoritmos.huffman.construirDesdePalabra({ letras }),
+      casillasRelevantes: () => [],
+      describirCasilla: ({ ocupada }) => ({ estado: ocupada ? 'ocupada' : 'vacia' }),
+      metricas: [
+        {
+          id: 'letras',
+          etiqueta: 'Letras distintas',
+          valor: ({ paso }) => (paso && paso.total ? String(hojasDelPaso(paso)) : '0')
+        },
+        {
+          id: 'reducciones',
+          etiqueta: 'Reducciones',
+          valor: ({ paso }) => (paso && paso.total ? String(Math.max(hojasDelPaso(paso) - 1, 0)) : '0')
+        },
+        {
+          // La conclusión del tema: cuántos bits cuesta en promedio una letra.
+          // Hasta que el árbol no está, ninguna letra tiene código y no hay
+          // media que dar.
+          id: 'media',
+          etiqueta: 'Bits por letra',
+          valor: ({ paso }) => (paso && paso.tabla
+            ? (paso.tabla.suma / paso.tabla.total).toString().replace('.', ',')
+            : '—')
+        }
+      ]
+    },
 
     'hash-modulo': temaHash({
       direccionDe: algoritmos.hash.modulo.direccionModulo
