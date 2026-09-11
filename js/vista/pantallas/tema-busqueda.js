@@ -84,8 +84,12 @@
     };
     const dom = { metricas: {} };
 
+    // En 24 horas y no en 12: "12:54:31 p. m." es el formato más largo posible,
+    // y esta columna vive en el panel más estrecho de la pantalla.
     function horaActual() {
-      return new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return new Date().toLocaleTimeString('es-CO', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      });
     }
 
     function registrarBitacora(mensaje) {
@@ -1203,6 +1207,11 @@
     // `opciones.duracionMs` alarga el reordenamiento: lo usa el llenado
     // automático, que va más despacio que una inserción suelta.
     function renderizarEstructura(paso, indicePaso, opciones) {
+      dibujar(paso, indicePaso, opciones);
+      actualizarControlElision();
+    }
+
+    function dibujar(paso, indicePaso, opciones) {
       if (esArbol()) {
         renderizarArbol(paso, opciones);
         return;
@@ -1825,6 +1834,23 @@
       return vista.componentes.panel.crearPanel({ titulo: 'Métricas', contenido: contenedorMetricas });
     }
 
+    // El control solo tiene sentido cuando hay algo comprimido que mirar: con
+    // `n` chico no hace nada y ocupa la esquina del lienzo. Se decide **después
+    // de dibujar y mirando el dibujo** —¿quedó algún tramo?— y no recalculando
+    // la elisión, que es la única forma de que valga para las cuatro
+    // orientaciones sin repetir su lógica en cada una.
+    //
+    // La segunda condición es la que hace que se pueda volver: con la casilla
+    // marcada no queda ni un tramo, y sin ella el control desaparecería justo
+    // cuando hace falta para desmarcarla.
+    const TRAMOS = '.tramo-elidido, .tramo-registros, .tramo-bloques';
+
+    function actualizarControlElision() {
+      if (!dom.controlElision) return;
+      const hayTramos = !!dom.estructuraEl.querySelector(TRAMOS);
+      dom.controlElision.hidden = !hayTramos && !estado.mostrarCompleta;
+    }
+
     function crearControlElision() {
       const etiqueta = document.createElement('label');
       etiqueta.className = 'lienzo__control texto-nivel-5';
@@ -1899,8 +1925,16 @@
     // El árbol no elide: se dibuja entero, porque su tamaño lo acota el
     // alfabeto y no un n que el estudiante elige. Sin elisión, el control
     // sobra y solo ocuparía alto del lienzo.
-    if (esArbol()) lienzo.append(escenario);
-    else lienzo.append(crearControlElision(), escenario);
+    if (esArbol()) {
+      // El árbol no elide: su tamaño lo acota el alfabeto y no un n elegido.
+      lienzo.append(escenario);
+    } else {
+      dom.controlElision = crearControlElision();
+      // Nace escondido: no hay estructura todavía, así que no hay nada que
+      // comprimir. `renderizarEstructura` lo destapa en cuanto lo haya.
+      dom.controlElision.hidden = true;
+      lienzo.append(dom.controlElision, escenario);
+    }
 
     const panelLateral = document.createElement('div');
     panelLateral.className = 'pantalla-tema__panel-lateral';

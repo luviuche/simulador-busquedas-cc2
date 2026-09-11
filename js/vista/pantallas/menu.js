@@ -130,6 +130,11 @@
   // archivo .cc2 y guardar quedó para el final del proyecto (CLAUDE.md 10.3),
   // así que una reciente se reconoce por su tema y por los datos con que se
   // creó, que es lo que el estudiante recuerda de ella.
+  // **Solo existe si hay recientes** (2026-09-11). Vacío decía "para crear una
+  // estructura, seleccione un tema del catálogo" —una obviedad, ahora que el
+  // catálogo entero está a la vista— y se quedaba con una columna de 320 px
+  // del mejor sitio de la pantalla. Sin recientes no hay columna, y el índice
+  // se reparte el ancho.
   function crearPanelRecientes(recientes) {
     const aside = document.createElement('aside');
     aside.className = 'panel pantalla-menu__recientes';
@@ -138,14 +143,6 @@
     titulo.className = 'panel__titulo texto-nivel-2';
     titulo.textContent = 'Estructuras recientes';
     aside.appendChild(titulo);
-
-    if (recientes.length === 0) {
-      const vacio = document.createElement('p');
-      vacio.className = 'texto-nivel-5';
-      vacio.textContent = 'Para crear una estructura, seleccione un tema del catálogo.';
-      aside.appendChild(vacio);
-      return aside;
-    }
 
     const lista = document.createElement('ul');
     lista.className = 'lista-recientes';
@@ -196,7 +193,12 @@
       columnaCatalogo.appendChild(crearSeccion(parte, 0, alSeleccionarTema));
     }
 
-    cuerpo.append(columnaCatalogo, crearPanelRecientes(recientes));
+    cuerpo.appendChild(columnaCatalogo);
+    if (recientes.length > 0) {
+      cuerpo.appendChild(crearPanelRecientes(recientes));
+    } else {
+      cuerpo.classList.add('pantalla-menu__cuerpo--solo-catalogo');
+    }
     pantalla.append(barra, cuerpo);
     return pantalla;
   }

@@ -31,6 +31,12 @@
   align-items: start;
 }
 
+/* Sin estructuras recientes no hay panel, y el índice se queda con el ancho
+   entero en vez de dejar una columna de 320 px ocupada por un aviso. */
+.pantalla-menu__cuerpo--solo-catalogo {
+  grid-template-columns: 1fr;
+}
+
 .pantalla-menu__catalogo {
   display: flex;
   flex-direction: column;
@@ -55,9 +61,15 @@
 /* Las dos partes —Búsquedas y Grafos— una al lado de la otra: en una sola
    columna el índice no cabe en la ventana de proyección y Grafos quedaba al
    fondo (medido sobre maqueta, 2026-09-11). */
+/* Columnas con tope de ancho, no `1fr` a secas: sin el panel de recientes la
+   pantalla entera son dos columnas de unos 700 px, y la guía de puntos se
+   estira tanto que el ojo pierde el renglón entre el título y su descripción.
+   El tope las deja en un ancho de lectura, y cuando sí hay recientes encogen
+   solas. */
 .indice--columnas {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 620px));
+  justify-content: start;
   gap: var(--espacio-6);
   align-items: start;
 }

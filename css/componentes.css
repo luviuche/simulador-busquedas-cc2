@@ -221,9 +221,14 @@ form input[type="checkbox"] {
   overflow-y: auto;
 }
 
+/* La columna de la hora mide lo que mide una hora —ocho cifras de la
+   monoespaciada— y no `max-content`: cada fila es su propia cuadrícula, así
+   que con `max-content` el renglón cuya hora se omite por repetida daba una
+   columna de ancho cero y su mensaje se corría a la izquierda, desalineado de
+   los demás (CLAUDE.md 6.x). */
 .bitacora__fila {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: 8ch 1fr;
   gap: var(--espacio-2);
   padding: var(--espacio-2) 0;
   border-bottom: 1px solid var(--borde);

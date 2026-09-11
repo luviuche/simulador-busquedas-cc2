@@ -412,6 +412,7 @@
       residuosMultiples();
       cubetas();
       secuencialExterna();
+      controlDeElision();
       controlDeVelocidad();
     }
 
@@ -1877,6 +1878,45 @@
         [...document.querySelectorAll('.escala-registros .renglon__marca')],
         [...enCurso.querySelector('.bloque__registros').children]
       );
+    }
+
+
+    // El control de elisión solo tiene sentido cuando hay algo comprimido que
+    // mirar (2026-09-11). Se decide mirando el dibujo —¿quedó algún tramo?— y
+    // no recalculando la elisión, así que la comprobación entra por donde
+    // entra el estudiante: creando una estructura que quepa y otra que no.
+    function controlDeElision() {
+      registro.push('', '── Control de elisión ──');
+
+      entrarATema('Búsqueda secuencial');
+      const formularios = [...document.querySelectorAll('form.panel')];
+      const control = () => document.querySelector('.lienzo__control');
+
+      enviar(formularios[0], { n: 8, l: 2 });
+      for (const clave of [10, 20, 30]) operar(formularios, 'insertar', clave);
+      afirmar(
+        control().hidden,
+        'con una estructura que cabe entera, el control no se muestra'
+      );
+
+      // Con l = 2 solo existen 90 claves distintas y n = 100 se rechaza
+      // (CLAUDE.md 3.5), así que la estructura grande va con l = 3.
+      enviar(formularios[0], { n: 100, l: 3 });
+      for (const clave of [100, 200, 300, 400, 500]) operar(formularios, 'insertar', clave);
+      afirmar(
+        !control().hidden,
+        'con una estructura elidida, el control aparece'
+      );
+
+      // Si el control se escondiera al desaparecer los tramos, no habría forma
+      // de volver: quedaría marcado y fuera de la vista.
+      document.querySelector('[data-control="mostrar-completa"]').click();
+      afirmar(
+        !control().hidden,
+        'con "ver estructura completa" marcada el control sigue a la vista, para poder desmarcarla'
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
     }
 
     // El deslizador crece hacia la derecha porque se llama «Velocidad»: a la

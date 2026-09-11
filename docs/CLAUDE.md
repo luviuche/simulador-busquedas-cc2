@@ -699,7 +699,7 @@ Solo se dibuja lo relevante del paso actual. Es lo que permite que `n` no tenga 
 - **Cada tramo comprimido muestra cuántas casillas oculta, y nada más.** Sin el conteo se pierde la noción del tamaño real. **Lo que sí se quitó es el rótulo del rango elidido** (`6–8` en la escala, pedido del usuario, 2026-08-29): se multiplicaba con la estructura, porque cada clave insertada parte un tramo en dos y la tabla acababa con más números de escala que claves. Lo que el tema enseña es dónde cayó cada clave, y el rango elidido no aporta a eso. Vale en los tres dibujos —secuencial, binaria apilada y hash—, para que la elisión se lea igual en toda la aplicación.
 - **Un tramo de una sola casilla no se comprime: se dibuja.** El rótulo `⋯ 1 ⋯` ocupa más que la casilla que esconde. Aparece de forma natural en binaria, cuando `inicio`, `medio` y `fin` con sus vecinas dejan una casilla suelta entre dos visibles.
 - La expansión y compresión de tramos se anima; no es un salto brusco.
-- Control "Ver estructura completa" que desactiva la elisión.
+- Control "Ver estructura completa" que desactiva la elisión. **Solo se muestra cuando hay algo comprimido que mirar** (2026-09-11): con `n` chico no hacía nada y ocupaba la esquina del lienzo. Se decide **después de dibujar y mirando el dibujo** —¿quedó algún tramo?— y no recalculando la elisión, que es lo que permite que valga igual para las cuatro orientaciones sin repetir su lógica en cada una. La excepción es la casilla ya marcada: con ella no queda ni un tramo, así que el control tiene que seguir a la vista o no habría forma de desmarcarla. Lo vigila `controlDeElision` en la prueba de humo.
 
 La estructura se dibuja **centrada** en el lienzo, horizontal y verticalmente. Es el foco de atención durante toda la clase.
 
@@ -992,6 +992,8 @@ Consecuencia: **una estructura reciente se identifica por su tema y por los dato
 
 ### Estructuras recientes
 
+**El panel solo existe si hay recientes** (2026-09-11). Vacío decía «Para crear una estructura, seleccione un tema del catálogo» —una obviedad, ahora que el catálogo entero está a la vista (§4)— y se quedaba con una columna de 320 px del mejor sitio de la pantalla. Sin recientes no hay columna y el índice se reparte el ancho, con tope de 620 px por columna: sin el tope, la guía de puntos se estira tanto que el ojo pierde el renglón entre el título y su descripción.
+
 Hasta 5, en almacenamiento del navegador. **No son la copia real**: si el estudiante borra datos de navegación, desaparecen. La interfaz debe dejar claro que el archivo `.cc2` es la copia real.
 
 ### Al cargar
@@ -1001,6 +1003,10 @@ Validar integridad y correspondencia con el tema activo. Si no corresponde, info
 ### Bitácora
 
 **No se persiste.** Al recuperar una estructura, la bitácora inicia vacía y registra solo la sesión en curso.
+
+**La hora se escribe solo cuando cambia, y en 24 horas** (2026-09-11). Una traza entera cae dentro del mismo segundo, así que la hora se repetía quince renglones seguidos en la columna más estrecha de la pantalla, y `12:54:31 p. m.` es además el formato más largo posible. Con el cambio, la hora marca *cuándo empezó lo que viene debajo*, que es lo que de verdad aporta.
+
+**El hueco de la hora se conserva aunque el texto no esté**, para que los mensajes sigan alineados: su columna mide `8ch` de la monoespaciada —lo que mide `HH:MM:SS`— y no `max-content`. Cada fila es su propia cuadrícula, así que con `max-content` el renglón cuya hora se omite daba una columna de ancho cero y su mensaje se corría a la izquierda, desalineado de los demás. La hora omitida sí viaja en `aria-label`: la repetición estorba a la vista, que abarca varios renglones de un golpe, no al oído.
 
 ---
 
