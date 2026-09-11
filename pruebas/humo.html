@@ -89,32 +89,17 @@
     const aviso = () => document.querySelector('.pantalla-tema__alertas .alerta');
 
     // El catálogo es un árbol de tarjetas (CLAUDE.md 12): entrar a un tema
-    // final exige clicar antes cada categoría del camino. La ruta es fija
-    // por tema; si el catálogo cambia de forma, se actualiza aquí.
-    const RUTA_TEMA = {
-      'Búsqueda secuencial': ['Búsquedas', 'Búsquedas internas'],
-      'Búsqueda binaria': ['Búsquedas', 'Búsquedas internas'],
-      'Función módulo': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
-      'Función cuadrado': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
-      'Función truncamiento': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
-      'Función plegamiento': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
-      'Conversión de bases': ['Búsquedas', 'Búsquedas internas', 'Búsqueda por transformación de claves'],
-      'Búsqueda por residuos': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
-      'Árboles de búsqueda digital': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
-      'Residuos múltiples': ['Búsquedas', 'Búsquedas internas', 'Búsquedas por residuo'],
-      'Otras búsquedas dinámicas': ['Búsquedas', 'Búsquedas externas'],
-      'Búsqueda secuencial externa': ['Búsquedas', 'Búsquedas externas']
-    };
-
-    function clicarTarjeta(texto) {
-      [...document.querySelectorAll('.tema-item')]
-        .find((el) => el.textContent.includes(texto))
-        .click();
-    }
-
+    // El catálogo es un índice con todo a la vista (CLAUDE.md 2): entrar a un
+    // tema es un solo clic en su renglón, sin recorrer categorías.
+    //
+    // **Por título exacto y no por `includes`**: en el índice conviven
+    // "Búsqueda secuencial" y "Búsqueda secuencial externa", y un `includes`
+    // entraría siempre al primero que aparezca.
     function entrarATema(nombreTema) {
-      for (const paso of RUTA_TEMA[nombreTema] || []) clicarTarjeta(paso);
-      clicarTarjeta(nombreTema);
+      const renglon = [...document.querySelectorAll('.indice__tema')]
+        .find((el) => el.querySelector('.indice__tema-titulo').textContent === nombreTema);
+      if (!renglon) throw new Error(`No está en el índice: ${nombreTema}`);
+      renglon.click();
     }
 
     // Insertar, buscar y eliminar comparten un panel: se escribe la clave una
@@ -393,7 +378,7 @@
 
     function ejecutar() {
       // El catálogo no numera los temas: ese es el pedido del docente.
-      const numerados = [...document.querySelectorAll('.tema-item')]
+      const numerados = [...document.querySelectorAll('.indice__tema')]
         .filter((el) => /^\s*\d/.test(el.textContent));
       afirmar(numerados.length === 0, 'ningún tema del catálogo aparece numerado');
 

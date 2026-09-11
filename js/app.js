@@ -12,8 +12,11 @@
   // no quiere ver en el menú. Cada nodo es o bien una categoría (`hijos`,
   // navegable) o bien un tema final (`tema`, la clave que abre `TEMAS`).
   // `disponible` en un tema final refleja el estado real de esta compilación,
-  // no el alcance final de la asignatura; una categoría sin `estado` se
-  // asume disponible y solo lleva insignia cuando está `en desarrollo`.
+  // no el alcance final de la asignatura. Las categorías ya no llevan estado
+  // propio: el catálogo se dibuja como un índice con todo a la vista
+  // (CLAUDE.md 2), así que cada tema dice el suyo y una insignia en la
+  // categoría solo repetiría —o mentiría, como en búsquedas externas, que
+  // tiene dos temas construidos y tres por construir—.
   //
   // Los temas no se numeran: se identifican por su nombre (decisión del
   // docente, 2026-08-18). Ninguna categoría ni tema final lleva número.
@@ -58,7 +61,6 @@
           id: 'externas',
           titulo: 'Búsquedas externas',
           descripcion: 'La estructura no cabe completa en memoria',
-          estado: 'desarrollo',
           hijos: [
             { id: 'externa-secuencial', titulo: 'Búsqueda secuencial externa', descripcion: 'El archivo se lee bloque por bloque', tema: 'secuencial-externa', disponible: true },
             { id: 'externa-binaria', titulo: 'Búsqueda binaria externa', descripcion: '', tema: null, disponible: false },
@@ -73,7 +75,6 @@
       id: 'grafos',
       titulo: 'Grafos',
       descripcion: 'Vértices, aristas, y los recorridos y propiedades que se derivan de ellos',
-      estado: 'desarrollo',
       hijos: [
         { id: 'grafos-def', titulo: 'Definiciones, recorridos e isomorfismo', descripcion: '', tema: null, disponible: false },
         { id: 'grafos-euler', titulo: 'Circuitos de Euler y Hamilton', descripcion: '', tema: null, disponible: false },

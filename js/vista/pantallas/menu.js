@@ -6,114 +6,99 @@
     return `${fecha.getDate()} ${MESES[fecha.getMonth()]} ${fecha.getFullYear()}`;
   }
 
-  function crearInsignia(estado) {
+  // Los temas no construidos se marcan y siguen respondiendo al clic, para
+  // avisar en vez de quedarse mudos (decisión del usuario, 2026-09-11). La
+  // marca es siempre la misma —"En desarrollo"—: lo disponible no se
+  // rotula, porque en un índice lo normal es que el tema exista.
+  function crearEstado() {
     const el = document.createElement('span');
-    const disponible = estado === 'disponible';
-    el.className = `insignia insignia--${disponible ? 'disponible' : 'desarrollo'}`;
-    el.textContent = disponible ? 'Disponible' : 'En desarrollo';
+    el.className = 'indice__estado';
+    el.textContent = 'En desarrollo';
     return el;
   }
 
-  // El catálogo es un árbol (CLAUDE.md 2 y 12): cada nodo es una categoría
-  // navegable (`hijos`) o un tema final (`tema`, la clave que abre `TEMAS`).
-  // `nodoEn` resuelve una ruta de ids hasta el nodo que le corresponde, con
-  // la raíz virtual `{ hijos: catalogo }` para que una ruta vacía tenga
-  // siempre un nodo del que leer `hijos`.
-  function nodoEn(catalogo, ruta) {
-    let nodo = { hijos: catalogo };
-    for (const id of ruta) {
-      nodo = (nodo.hijos || []).find((hijo) => hijo.id === id);
-      if (!nodo) return null;
-    }
-    return nodo;
-  }
-
-  // Una sola tarjeta sirve para categoría y para tema final: lo único que
-  // cambia es el pie. Una categoría dice cuántos subtemas trae y hacia dónde
-  // lleva; un tema final solo avisa si aún no está construido. Ninguna lleva
-  // número — el docente no quiere ver los temas numerados (CLAUDE.md 2).
-  function crearTarjeta(nodo, alSeleccionar) {
+  // El catálogo se lee como el índice de un libro: **todo a la vista**, sin
+  // navegar por niveles ni tarjetas que abrir (pedido del usuario, 2026-09-11,
+  // sobre maqueta). La jerarquía la dicen la sangría y la tipografía, sobre la
+  // división que pide el docente —Búsquedas y Grafos—, y ningún nodo lleva
+  // número, en ningún nivel (CLAUDE.md 2).
+  //
+  // Un renglón de tema es: título · guía de puntos · descripción. La guía es
+  // la línea que en un libro lleva del título al número de página; aquí lleva
+  // a lo que hay que saber del tema, y por eso ningún renglón la deja colgando
+  // sin nada al otro lado.
+  function crearRenglonTema(nodo, alSeleccionarTema) {
+    const li = document.createElement('li');
     const boton = document.createElement('button');
     boton.type = 'button';
-    boton.className = 'tema-item';
+    boton.className = 'indice__tema' + (nodo.disponible ? '' : ' indice__tema--pendiente');
 
     const titulo = document.createElement('span');
-    titulo.className = 'tema-item__titulo texto-nivel-3';
+    titulo.className = 'indice__tema-titulo';
     titulo.textContent = nodo.titulo;
 
-    const descripcion = document.createElement('span');
-    descripcion.className = 'tema-item__descripcion texto-nivel-5';
-    descripcion.textContent = nodo.descripcion || '';
+    const guia = document.createElement('span');
+    guia.className = 'indice__guia';
+    guia.setAttribute('aria-hidden', 'true');
 
-    boton.append(titulo, descripcion);
+    boton.append(titulo, guia);
 
-    const pie = document.createElement('span');
-    pie.className = 'tema-item__pie texto-nivel-5';
-
-    if (nodo.hijos) {
-      const contador = document.createElement('span');
-      contador.textContent = `${nodo.hijos.length} subtema${nodo.hijos.length === 1 ? '' : 's'}`;
-      pie.appendChild(contador);
-      if (nodo.estado === 'desarrollo') pie.appendChild(crearInsignia(nodo.estado));
-      const flecha = document.createElement('span');
-      flecha.className = 'tema-item__flecha';
-      flecha.textContent = '→';
-      pie.appendChild(flecha);
-    } else if (!nodo.disponible) {
-      pie.appendChild(crearInsignia('desarrollo'));
+    if (nodo.descripcion) {
+      const descripcion = document.createElement('span');
+      descripcion.className = 'indice__tema-descripcion texto-nivel-5';
+      descripcion.textContent = nodo.descripcion;
+      boton.appendChild(descripcion);
     }
+    if (!nodo.disponible) boton.appendChild(crearEstado());
 
-    if (pie.childNodes.length > 0) boton.appendChild(pie);
-
-    boton.addEventListener('click', () => alSeleccionar(nodo));
-    return boton;
+    boton.addEventListener('click', () => alSeleccionarTema(nodo));
+    li.appendChild(boton);
+    return li;
   }
 
-  function crearSeparadorMigas() {
-    const span = document.createElement('span');
-    span.className = 'migas__separador';
-    span.textContent = '›';
-    span.setAttribute('aria-hidden', 'true');
-    return span;
-  }
+  // Una sección del índice, en la profundidad que le toque. Los tres niveles
+  // no son tres componentes: es el mismo, rotulado distinto —parte, grupo y
+  // subgrupo sangrado—, porque el catálogo es un árbol y nada garantiza que
+  // siempre tenga tres niveles.
+  const CLASES_POR_PROFUNDIDAD = ['parte', 'grupo', 'subgrupo'];
 
-  // Migas de pan: reemplazan los botones grandes de sección por sección que
-  // no convencían al docente. Cada nivel intermedio es un botón que salta
-  // directo a esa profundidad, sin repetir "atrás" una vez por nivel.
-  function crearMigas(catalogo, ruta, alNavegar) {
-    const nav = document.createElement('nav');
-    nav.className = 'migas';
+  function crearSeccion(nodo, profundidad, alSeleccionarTema) {
+    const nivel = CLASES_POR_PROFUNDIDAD[Math.min(profundidad, CLASES_POR_PROFUNDIDAD.length - 1)];
+    const seccion = document.createElement('section');
+    seccion.className = `indice__${nivel}`;
 
-    const raiz = document.createElement('button');
-    raiz.type = 'button';
-    raiz.className = 'migas__item texto-nivel-4';
-    raiz.textContent = 'Catálogo';
-    raiz.addEventListener('click', () => alNavegar([]));
-    nav.appendChild(raiz);
+    const titulo = document.createElement(profundidad === 0 ? 'h2' : profundidad === 1 ? 'h3' : 'h4');
+    titulo.className = `indice__${nivel}-titulo`;
+    titulo.textContent = nodo.titulo;
 
-    let nodo = { hijos: catalogo };
-    let acumulada = [];
-    for (const id of ruta) {
-      nodo = nodo.hijos.find((hijo) => hijo.id === id);
-      acumulada = [...acumulada, id];
-      nav.appendChild(crearSeparadorMigas());
+    // La descripción de la parte va pegada a su título, en la misma línea: es
+    // el subtítulo de la sección y no un párrafo aparte.
+    if (profundidad === 0 && nodo.descripcion) {
+      const descripcion = document.createElement('span');
+      descripcion.className = 'indice__parte-descripcion';
+      descripcion.textContent = nodo.descripcion;
+      titulo.appendChild(descripcion);
+    }
+    seccion.appendChild(titulo);
 
-      if (acumulada.length === ruta.length) {
-        const actual = document.createElement('span');
-        actual.className = 'migas__actual texto-nivel-4';
-        actual.textContent = nodo.titulo;
-        nav.appendChild(actual);
-      } else {
-        const rutaDestino = acumulada;
-        const boton = document.createElement('button');
-        boton.type = 'button';
-        boton.className = 'migas__item texto-nivel-4';
-        boton.textContent = nodo.titulo;
-        boton.addEventListener('click', () => alNavegar(rutaDestino));
-        nav.appendChild(boton);
+    // Los temas seguidos se juntan en una sola lista y las categorías abren su
+    // propia sección, **respetando el orden del catálogo**: en búsquedas
+    // internas, secuencial y binaria van antes que transformación de claves.
+    let lista = null;
+    for (const hijo of nodo.hijos || []) {
+      if (hijo.hijos) {
+        lista = null;
+        seccion.appendChild(crearSeccion(hijo, profundidad + 1, alSeleccionarTema));
+        continue;
       }
+      if (!lista) {
+        lista = document.createElement('ul');
+        lista.className = 'indice__lista';
+        seccion.appendChild(lista);
+      }
+      lista.appendChild(crearRenglonTema(hijo, alSeleccionarTema));
     }
-    return nav;
+    return seccion;
   }
 
   function crearItemReciente(item) {
@@ -199,59 +184,17 @@
     const cuerpo = document.createElement('div');
     cuerpo.className = 'pantalla-menu__cuerpo';
 
+    // Las dos partes van una al lado de la otra (`indice--columnas`): el
+    // catálogo entero en una sola columna mide 1439 px y no cabe en la ventana
+    // de proyección de 950, así que Grafos quedaba al fondo y había que
+    // desplazar para verlo — justo lo que el índice viene a evitar. A dos
+    // columnas mide 1045 y las dos mitades del programa quedan a la misma
+    // altura (medido sobre la maqueta, 2026-09-11).
     const columnaCatalogo = document.createElement('div');
-    columnaCatalogo.className = 'pantalla-menu__catalogo';
-
-    // La ruta vive en el closure de la pantalla, igual que el estado de un
-    // tema (CLAUDE.md 12): navegar entre categorías repinta solo esta
-    // columna, sin tocar la barra ni el panel de recientes.
-    let ruta = [];
-
-    function navegarA(nuevaRuta) {
-      ruta = nuevaRuta;
-      pintarNivel();
+    columnaCatalogo.className = 'pantalla-menu__catalogo indice indice--columnas';
+    for (const parte of catalogo) {
+      columnaCatalogo.appendChild(crearSeccion(parte, 0, alSeleccionarTema));
     }
-
-    function pintarNivel() {
-      const nodo = nodoEn(catalogo, ruta);
-      columnaCatalogo.innerHTML = '';
-
-      if (ruta.length > 0) {
-        columnaCatalogo.appendChild(crearMigas(catalogo, ruta, navegarA));
-      }
-
-      const encabezado = document.createElement('div');
-      encabezado.className = 'pantalla-menu__encabezado-nivel';
-
-      const titulo = document.createElement('h2');
-      titulo.className = 'texto-nivel-1';
-      titulo.textContent = ruta.length === 0 ? 'Catálogo de temas' : nodo.titulo;
-      encabezado.appendChild(titulo);
-
-      if (ruta.length > 0 && nodo.descripcion) {
-        const descripcion = document.createElement('p');
-        descripcion.className = 'texto-nivel-5';
-        descripcion.textContent = nodo.descripcion;
-        encabezado.appendChild(descripcion);
-      }
-      columnaCatalogo.appendChild(encabezado);
-
-      const grid = document.createElement('div');
-      grid.className = 'grid-tarjetas';
-      const hijos = ruta.length === 0 ? catalogo : nodo.hijos;
-      for (const hijo of hijos) {
-        grid.appendChild(crearTarjeta(hijo, (seleccionado) => {
-          if (seleccionado.hijos) {
-            navegarA([...ruta, seleccionado.id]);
-          } else {
-            alSeleccionarTema(seleccionado);
-          }
-        }));
-      }
-      columnaCatalogo.appendChild(grid);
-    }
-
-    pintarNivel();
 
     cuerpo.append(columnaCatalogo, crearPanelRecientes(recientes));
     pantalla.append(barra, cuerpo);

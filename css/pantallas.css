@@ -43,112 +43,150 @@
   gap: var(--espacio-3);
 }
 
-.pantalla-menu__encabezado-nivel {
+/* El catálogo se lee como el índice de un libro (CLAUDE.md 2): todo a la
+   vista, sin tarjetas ni navegación por niveles. La jerarquía la dicen la
+   sangría y la tipografía, y ningún nodo lleva número. */
+.indice {
   display: flex;
   flex-direction: column;
-  gap: var(--espacio-1);
+  gap: var(--espacio-5);
 }
 
-/* Migas de pan — reemplazan los botones grandes de sección por sección
-   (CLAUDE.md 12): cada nivel intermedio salta directo a esa profundidad. */
-.migas {
-  display: flex;
-  align-items: center;
-  gap: var(--espacio-2);
-}
-
-.migas__item {
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--tinta-suave);
-  cursor: pointer;
-}
-
-.migas__item:hover {
-  color: var(--tinta);
-  text-decoration: underline;
-}
-
-.migas__actual {
-  color: var(--tinta);
-  font-weight: 500;
-}
-
-.migas__separador {
-  color: var(--borde-fuerte);
-}
-
-.insignia {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px var(--espacio-2);
-  border-radius: 999px;
-  border: 1px solid var(--borde-fuerte);
-  font-family: var(--fuente-mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-
-.insignia--disponible {
-  color: var(--tinta);
-  border-color: var(--tinta);
-}
-
-.insignia--desarrollo {
-  color: var(--tinta-suave);
-  border-style: dashed;
-}
-
-/* Tarjetas del catálogo — una sola por nivel, para categoría y para tema
-   final (CLAUDE.md 12): sin numeración, elevadas del papel y con más peso al
-   pasar el mouse. Nada de color nuevo (CLAUDE.md 8.1): la sensación de
-   "seleccionable" viene de la sombra y el borde, no de un acento cromático. */
-.grid-tarjetas {
+/* Las dos partes —Búsquedas y Grafos— una al lado de la otra: en una sola
+   columna el índice no cabe en la ventana de proyección y Grafos quedaba al
+   fondo (medido sobre maqueta, 2026-09-11). */
+.indice--columnas {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--espacio-4);
+  grid-template-columns: 1fr 1fr;
+  gap: var(--espacio-6);
+  align-items: start;
 }
 
-.tema-item {
+.indice__parte,
+.indice__grupo {
   display: flex;
   flex-direction: column;
   gap: var(--espacio-2);
+}
+
+.indice__parte {
+  gap: var(--espacio-3);
+}
+
+.indice__parte-titulo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espacio-3);
+  font-family: var(--fuente-condensada);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--tinta);
+  padding-bottom: var(--espacio-2);
+  border-bottom: 1px solid var(--borde-fuerte);
+}
+
+/* Subtítulo de la parte, en la misma línea que su título: la descripción no
+   es un párrafo aparte, y como tal no hereda ni las versalitas ni el tracking. */
+.indice__parte-descripcion {
+  font-family: var(--fuente-texto);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--tinta-suave);
+}
+
+.indice__grupo-titulo {
+  font-family: var(--fuente-condensada);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+/* El subgrupo se sangra en vez de rotularse más fuerte: la sangría ya dice
+   que cuelga del grupo, y un rótulo más marcado competiría con él. */
+.indice__subgrupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-2);
+  margin-left: var(--espacio-4);
+}
+
+.indice__subgrupo-titulo {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tinta);
+}
+
+.indice__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Un tema es un renglón, no una tarjeta: se levanta del papel solo al pasar
+   el mouse, y sin color nuevo (CLAUDE.md 8.1). */
+.indice__tema {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espacio-3);
   width: 100%;
-  height: 100%;
-  padding: var(--espacio-4);
-  border: 1px solid var(--borde);
-  border-radius: var(--radio-panel);
-  background: var(--superficie);
-  box-shadow: var(--elev-1);
+  /* Renglón apretado, como el de un índice: con el aire de un botón normal el
+     catálogo entero medía 1067 px y Grafos se salía de la ventana de
+     proyección, que es justo lo que este menú viene a arreglar. */
+  padding: var(--espacio-1) var(--espacio-3);
+  border: 1px solid transparent;
+  border-radius: var(--radio-control);
+  background: none;
   text-align: left;
   cursor: pointer;
-  transition: box-shadow var(--duracion-interfaz) var(--curva-interfaz),
-              border-color var(--duracion-interfaz) var(--curva-interfaz),
-              transform var(--duracion-interfaz) var(--curva-interfaz);
+  transition: background var(--duracion-interfaz) var(--curva-interfaz),
+              border-color var(--duracion-interfaz) var(--curva-interfaz);
 }
 
-.tema-item:hover {
-  border-color: var(--borde-fuerte);
-  box-shadow: var(--elev-2);
-  transform: translateY(-2px);
+.indice__tema:hover {
+  background: var(--superficie);
+  border-color: var(--borde);
 }
 
-.tema-item__descripcion {
-  flex: 1;
+.indice__tema-titulo {
+  font-size: 13px;
+  color: var(--tinta);
 }
 
-.tema-item__pie {
-  display: flex;
-  align-items: center;
-  gap: var(--espacio-2);
+.indice__tema--pendiente .indice__tema-titulo {
   color: var(--tinta-suave);
 }
 
-.tema-item__flecha {
-  margin-left: auto;
+.indice__tema-descripcion {
+  text-align: right;
+}
+
+/* Lo que un tema sin construir tiene al otro lado de la guía. Va en la
+   mono de las métricas y en versalitas: se lee como un sello y no como
+   descripción, que es lo que ocupa ese mismo lugar en los demás renglones. */
+.indice__estado {
   font-family: var(--fuente-mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+  white-space: nowrap;
+}
+
+/* La guía de puntos: la línea que en un libro lleva del título al número de
+   página. Aquí lleva a la descripción del tema —o a su estado—, y por eso
+   ningún renglón la deja colgando sin nada al otro lado. Se sube un poco
+   porque se alinea por la base del texto y no por su caja. */
+.indice__guia {
+  flex: 1;
+  min-width: var(--espacio-5);
+  border-bottom: 1px dotted var(--borde-fuerte);
+  transform: translateY(-3px);
 }
 
 /* Recientes */
