@@ -334,6 +334,27 @@
           `cada estructura es más corta que la anterior (${anchos.join(' → ')})`
         );
 
+        // El rótulo de cada paso nombra su fila, así que va a su altura. Vivía
+        // a caballo entre la fila de las casillas y la de la escala, y se
+        // centraba entre las dos: quedaba 16 px por debajo de lo que nombra
+        // (defecto visto por el usuario, 2026-09-11).
+        const filaDe = (el) => parseInt(el.style.gridRow, 10);
+        const centroDeCaja = (el) => {
+          const r = el.getBoundingClientRect();
+          return Math.round(r.top + r.height / 2);
+        };
+        const casillasApiladas = [...document.querySelectorAll('.estructura-apilada .casilla')];
+        const desviados = [...document.querySelectorAll('.apilada__rotulo')]
+          .map((rotulo) => {
+            const casilla = casillasApiladas.find((c) => filaDe(c) === filaDe(rotulo));
+            return casilla ? Math.abs(centroDeCaja(rotulo) - centroDeCaja(casilla)) : 0;
+          })
+          .filter((desvio) => desvio > 1);
+        afirmar(
+          desviados.length === 0,
+          `cada rótulo «Paso n» va a la altura de su fila (${desviados.length} desviado(s))`
+        );
+
         const antesDeRetroceder = filas();
         anteriorBoton.click();
         afirmar(

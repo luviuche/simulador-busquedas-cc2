@@ -762,11 +762,15 @@
         const rango = config.apilada.rangoDePaso(paso);
         const filaCasillas = orden * 2 + 1;
 
+        // **En la fila de las casillas y no a caballo entre ella y la escala**
+        // (defecto visto por el usuario, 2026-09-11). Abarcando las dos, el
+        // rótulo se centraba entre ambas y quedaba 16 px por debajo del centro
+        // de la fila que nombra — más cerca de la escala que de las casillas.
         const rotulo = document.createElement('span');
         rotulo.className = 'apilada__rotulo texto-nivel-5';
         rotulo.textContent = `Paso ${orden + 1}`;
         rotulo.style.gridColumn = '1';
-        rotulo.style.gridRow = `${filaCasillas} / span 2`;
+        rotulo.style.gridRow = String(filaCasillas);
         agregar(orden, rotulo);
 
         // El paso final sin rango es el que agotó la búsqueda: no queda
@@ -776,7 +780,7 @@
           cierre.className = 'apilada__cierre texto-nivel-5';
           cierre.textContent = 'Rango vacío: no quedan casillas por examinar.';
           cierre.style.gridColumn = `2 / span ${segmentos.length}`;
-          cierre.style.gridRow = `${filaCasillas} / span 2`;
+          cierre.style.gridRow = String(filaCasillas);
           agregar(orden, cierre);
           continue;
         }
