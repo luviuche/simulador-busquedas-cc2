@@ -69,9 +69,9 @@
           descripcion: 'La estructura no cabe completa en memoria',
           hijos: [
             { id: 'externa-secuencial', titulo: 'Búsqueda secuencial externa', descripcion: 'El archivo se lee bloque por bloque', tema: 'secuencial-externa', disponible: true },
-            { id: 'externa-binaria', titulo: 'Búsqueda binaria externa', descripcion: '', tema: null, disponible: false },
-            { id: 'tablas-indices', titulo: 'Tablas de índices', descripcion: '', tema: null, disponible: false },
-            { id: 'indices', titulo: 'Índices primarios, secundarios y multinivel', descripcion: '', tema: null, disponible: false },
+            { id: 'externa-binaria', titulo: 'Búsqueda binaria externa', descripcion: 'La división a la mitad, por bloques', tema: null, disponible: false },
+            { id: 'tablas-indices', titulo: 'Tablas de índices', descripcion: 'Una tabla aparte dice en qué bloque buscar', tema: null, disponible: false },
+            { id: 'indices', titulo: 'Índices primarios, secundarios y multinivel', descripcion: 'Índices sobre índices', tema: null, disponible: false },
             { id: 'cubetas', titulo: 'Otras búsquedas dinámicas', descripcion: 'Cubetas con expansión y reducción dinámica de n', tema: 'cubetas', disponible: true }
           ]
         }
@@ -82,14 +82,14 @@
       titulo: 'Grafos',
       descripcion: 'Vértices, aristas, y los recorridos y propiedades que se derivan de ellos',
       hijos: [
-        { id: 'grafos-def', titulo: 'Definiciones, recorridos e isomorfismo', descripcion: '', tema: null, disponible: false },
-        { id: 'grafos-euler', titulo: 'Circuitos de Euler y Hamilton', descripcion: '', tema: null, disponible: false },
-        { id: 'grafos-operaciones', titulo: 'Operaciones entre grafos', descripcion: '', tema: null, disponible: false },
-        { id: 'grafos-expansion', titulo: 'Árboles de expansión — Prim y Kruskal', descripcion: '', tema: null, disponible: false },
-        { id: 'grafos-corte', titulo: 'Conjuntos de corte y conectividad', descripcion: '', tema: null, disponible: false },
-        { id: 'grafos-matricial', titulo: 'Representación matricial', descripcion: '', tema: null, disponible: false },
-        { id: 'grafos-coloreado', titulo: 'Coloreado y particionamiento', descripcion: '', tema: null, disponible: false },
-        { id: 'grafos-pareamientos', titulo: 'Pareamientos y envolventes', descripcion: '', tema: null, disponible: false }
+        { id: 'grafos-def', titulo: 'Definiciones, recorridos e isomorfismo', descripcion: 'Cuándo dos grafos son el mismo', tema: null, disponible: false },
+        { id: 'grafos-euler', titulo: 'Circuitos de Euler y Hamilton', descripcion: 'Una sola vez por cada arista, o por cada vértice', tema: null, disponible: false },
+        { id: 'grafos-operaciones', titulo: 'Operaciones entre grafos', descripcion: 'Unión, intersección y diferencia de dos grafos', tema: null, disponible: false },
+        { id: 'grafos-expansion', titulo: 'Árboles de expansión — Prim y Kruskal', descripcion: 'El árbol de coste mínimo', tema: null, disponible: false },
+        { id: 'grafos-corte', titulo: 'Conjuntos de corte y conectividad', descripcion: 'Qué quitar para desconectarlo', tema: null, disponible: false },
+        { id: 'grafos-matricial', titulo: 'Representación matricial', descripcion: 'El grafo escrito como matriz de adyacencia', tema: null, disponible: false },
+        { id: 'grafos-coloreado', titulo: 'Coloreado y particionamiento', descripcion: 'Colorear sin que dos vecinos compartan color', tema: null, disponible: false },
+        { id: 'grafos-pareamientos', titulo: 'Pareamientos y envolventes', descripcion: 'Emparejar vértices y cubrir las aristas', tema: null, disponible: false }
       ]
     }
   ];

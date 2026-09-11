@@ -1472,8 +1472,28 @@
     // `opciones.duracionMs` alarga el reordenamiento: lo usa el llenado
     // automático, que va más despacio que una inserción suelta.
     function renderizarEstructura(paso, indicePaso, opciones) {
+      // Sin estructura no hay nada que dibujar, pero un rectángulo gris y mudo
+      // no le dice al estudiante que le toca crearla (defecto visto al revisar
+      // el diseño, 2026-09-11). Es lo primero que se ve al entrar a cualquier
+      // tema con configuración.
+      if (!estado.estructura) {
+        renderizarLienzoVacio();
+        return;
+      }
       dibujar(paso, indicePaso, opciones);
       actualizarControlElision();
+    }
+
+    function renderizarLienzoVacio() {
+      dom.estructuraEl.className = 'estructura-vacia';
+      dom.estructuraEl.removeAttribute('style');
+      dom.estructuraEl.innerHTML = '';
+      const aviso = document.createElement('p');
+      aviso.className = 'texto-nivel-5';
+      aviso.textContent = config.mensajeLienzoVacio
+        || 'Cree una estructura para empezar: elija su tamaño en el panel de la derecha.';
+      dom.estructuraEl.appendChild(aviso);
+      if (dom.controlElision) dom.controlElision.hidden = true;
     }
 
     function dibujar(paso, indicePaso, opciones) {
@@ -2246,6 +2266,10 @@
     if (config.sinConfiguracion) {
       const tamano = config.tamano();
       crearYRegistrar({ n: tamano.n, l: tamano.l, tratamiento: null, parametros: {} });
+    } else {
+      // Y los demás entran con el lienzo diciendo qué falta, en vez de con un
+      // rectángulo gris y mudo.
+      renderizarEstructura(null);
     }
     return pantalla;
   }

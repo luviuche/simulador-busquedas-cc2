@@ -165,9 +165,13 @@
   border-color: var(--borde);
 }
 
+/* El título no se parte nunca: es el nombre del tema, y partido deja de
+   leerse de un vistazo, que es para lo que sirve un índice. Si hay que ceder
+   ancho, lo cede la descripción. */
 .indice__tema-titulo {
   font-size: 13px;
   color: var(--tinta);
+  white-space: nowrap;
 }
 
 .indice__tema--pendiente .indice__tema-titulo {
@@ -620,6 +624,15 @@
   gap: var(--espacio-6);
   min-height: 0;
   overflow: hidden;
+}
+
+/* Lienzo sin estructura todavía: dice qué falta en vez de quedarse mudo. Va
+   centrado como iría la estructura, para que el aviso ocupe el sitio de lo que
+   anuncia. */
+.estructura-vacia {
+  place-self: center;
+  max-width: 44ch;
+  text-align: center;
 }
 
 /* Estructura vertical (transformación de claves, CLAUDE.md 6.1): la tabla de
