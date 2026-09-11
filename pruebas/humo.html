@@ -1709,6 +1709,11 @@
 
       afirmarCasillasParejas('otras búsquedas dinámicas');
       afirmarRenglonesAlineados('otras búsquedas dinámicas');
+      afirmarEscalaAlineada(
+        'otras búsquedas dinámicas',
+        [...document.querySelectorAll('.columna-etiquetas .renglon__marca')],
+        [...document.querySelectorAll('.columna-casilla:not(.columna-etiquetas)')[0].querySelectorAll('.casilla')]
+      );
 
       operar(formularios, 'eliminar', 48);
       agotarTraza(20);
@@ -1812,6 +1817,28 @@
       document.querySelector('.pantalla-tema__volver').click();
     }
 
+    // La escala de renglones vive en una columna aparte, así que **ninguna
+    // cuadrícula garantiza que quede alineada** con lo que rotula: hay que
+    // medirla. Dos defectos reales salieron de aquí (2026-09-11): un
+    // espaciador vacío arriba —sin línea que medir, alto cero— subía la
+    // columna entera 16 px, un renglón completo; y un alto escrito a mano la
+    // dejaba 2 px arriba, poco por renglón y visible al acumularse.
+    const centroDe = (el) => {
+      const r = el.getBoundingClientRect();
+      return Math.round(r.top + r.height / 2);
+    };
+
+    function afirmarEscalaAlineada(contexto, marcas, referencias) {
+      const dispares = marcas
+        .map((marca, i) => [centroDe(marca), centroDe(referencias[i])])
+        .filter(([a, b]) => Math.abs(a - b) > 1);
+      afirmar(
+        marcas.length > 0 && marcas.length === referencias.length && dispares.length === 0,
+        `${contexto}: la escala numera a la altura de lo que rotula`
+          + (dispares.length ? ` (${dispares.length} desalineada(s): ${dispares.map((p) => p.join('≠')).join(' ')})` : '')
+      );
+    }
+
     // Los bloques son columnas independientes: que la casilla de un renglón
     // caiga a la misma altura en todos —y que el último registro de un bloque
     // comprimido coincida con el último de los completos— es lo único que hace
@@ -1840,6 +1867,15 @@
       afirmar(
         new Set(primeras).size === 1,
         `${contexto}: todos los bloques empiezan a la misma altura (${[...new Set(primeras)].join(', ')})`
+      );
+
+      // La escala se dibuja con los mismos segmentos que el bloque en curso
+      // —casillas y tramos—, así que se comparan uno a uno.
+      const enCurso = bloques.find((b) => b.querySelector('.bloque--en-curso')) || bloques[0];
+      afirmarEscalaAlineada(
+        contexto,
+        [...document.querySelectorAll('.escala-registros .renglon__marca')],
+        [...enCurso.querySelector('.bloque__registros').children]
       );
     }
 

@@ -436,7 +436,11 @@
   padding-top: var(--espacio-2);
 }
 
-.bloque {
+/* La escala de renglones comparte la disposición del bloque —y por tanto sus
+   huecos y rellenos— porque es lo que la mantiene alineada con lo que rotula
+   sin escribir ni un alto a mano. */
+.bloque,
+.escala-registros {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -518,16 +522,11 @@
   writing-mode: vertical-rl;
 }
 
-.escala-registros {
-  display: flex;
-  flex-direction: column;
-  gap: var(--espacio-1);
-}
-
-/* Deja pasar la fila de rótulos, para que el renglón 1 de la escala quede a la
-   altura de la primera casilla de cualquier bloque. */
-.escala-registros__hueco {
-  height: 26px;
+/* El hueco que deja pasar la fila de rótulos es un rótulo de verdad, oculto:
+   `visibility` conserva su sitio —y esconde su línea— sin que haya que
+   escribir su alto a mano. */
+.bloque__etiqueta--hueco {
+  visibility: hidden;
 }
 
 

@@ -306,7 +306,11 @@
         umbralExpandir: Number(parametros.get('expandir')) || 82,
         umbralReducir: Number(parametros.get('reducir')) || 125
       });
-      const claves = [115, 96, 48, 79, 35, 26, 57, 81, 70, 64, 107, 45, 62, 98, 33, 28, 38];
+      // Con `?claves=` vacío se fotografía la estructura recién creada, que es
+      // donde se ve cómo queda dibujada una cubeta sin nada dentro.
+      const claves = parametros.has('claves')
+        ? parametros.get('claves').split(',').filter(Boolean).map(Number)
+        : [115, 96, 48, 79, 35, 26, 57, 81, 70, 64, 107, 45, 62, 98, 33, 28, 38];
       for (const clave of claves) {
         operar(formularios, 'insertar', clave);
         avanzar(80);

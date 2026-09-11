@@ -292,10 +292,14 @@
       columna.className = 'columna-casilla columna-etiquetas';
 
       // Ocupa el mismo lugar que la marca de la cubeta en las columnas reales,
-      // para que el primer renglón quede a la misma altura en todas.
+      // para que el primer renglón quede a la misma altura en todas. **Lleva
+      // un espacio duro dentro**: vacío, el navegador le da alto cero —no hay
+      // línea que medir— y toda la columna de números subía 16 px, un renglón
+      // entero desalineada respecto de las cubetas que rotula.
       const espaciador = document.createElement('span');
       espaciador.className = 'escala__marca';
       espaciador.setAttribute('aria-hidden', 'true');
+      espaciador.textContent = '\u00A0';
       columna.appendChild(espaciador);
 
       const principal = document.createElement('span');
@@ -408,7 +412,16 @@
           // identidad dejarían al FLIP sin saber cuál se movió (CLAUDE.md 7).
           indice: `${indice}.${posicion}`,
           estado: descripcion.estado,
-          modificadores: (descripcion.modificadores || []).concat('anidada')
+          // El trazo punteado de `anidada` dice "esto es la estructura
+          // secundaria de la casilla de al lado", y eso solo es cierto en los
+          // temas hash (CLAUDE.md 5.4). **En la matriz horizontal —cubetas— los
+          // `r` renglones son todos lo mismo**: renglones de la misma cubeta,
+          // y el primero no es más tabla que los otros. Marcarlo distinto hacía
+          // que la primera fila se viera con otro borde (defecto visto por el
+          // usuario, 2026-09-11).
+          modificadores: esVertical()
+            ? (descripcion.modificadores || []).concat('anidada')
+            : (descripcion.modificadores || [])
         });
       });
     }
@@ -997,16 +1010,26 @@
     // los bloques tienen los mismos `r`, así que una columna por bloque sería
     // repetir el mismo número B veces (decisión sobre maqueta, 2026-09-11).
     function crearEscalaRegistros(segmentosDelRenglon) {
+      // La escala **se construye como un bloque más**: rótulo arriba —oculto,
+      // porque no rotula ninguna cubeta— y sus marcas donde van las casillas.
+      // Así hereda los mismos huecos y rellenos que un bloque de verdad y el
+      // renglón 1 cae a la altura de la primera casilla sin un solo número
+      // escrito a mano. Medir el hueco a ojo dejaba la escala dos o cuatro
+      // píxeles arriba, poco por renglón y visible al acumularse.
+      // No lleva la clase `bloque`: comparte su disposición desde el CSS, pero
+      // no *es* un bloque, y quien cuente bloques —las pruebas, sin ir más
+      // lejos— no tiene por qué encontrarse una columna de más.
       const columna = document.createElement('div');
       columna.className = 'escala-registros';
 
-      // Ocupa el lugar del rótulo del bloque, para que el renglón 1 quede a la
-      // misma altura que la primera casilla de cualquier bloque.
       const hueco = document.createElement('span');
-      hueco.className = 'escala-registros__hueco';
+      hueco.className = 'bloque__etiqueta bloque__etiqueta--hueco';
       hueco.setAttribute('aria-hidden', 'true');
+      hueco.textContent = '\u00A0';
       columna.appendChild(hueco);
 
+      const marcas = document.createElement('div');
+      marcas.className = 'bloque__registros';
       for (const segmento of segmentosDelRenglon) {
         const marca = document.createElement('span');
         marca.className = 'renglon__marca';
@@ -1015,8 +1038,9 @@
         // casilla, la escala se iría despegando de las casillas renglón a
         // renglón y acabaría numerando la que no es.
         if (segmento.tipo === 'tramo') marca.style.height = altoDeRenglones(segmento.cantidad);
-        columna.appendChild(marca);
+        marcas.appendChild(marca);
       }
+      columna.appendChild(marcas);
       return columna;
     }
 
