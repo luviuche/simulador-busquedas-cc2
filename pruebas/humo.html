@@ -203,6 +203,13 @@
     // eso vive en su propio panel y no dentro del formulario de búsqueda.
     const control = (accion) => document.querySelector(`[data-accion="${accion}"]`);
 
+    // Vaciar pide un segundo clic: el primero pregunta (CLAUDE.md 9). Las
+    // pruebas que solo quieren la estructura vacía usan este atajo.
+    function vaciar() {
+      control('vaciar').click();
+      control('vaciar').click();
+    }
+
     // Avanza hasta consumar la operación. No se detiene al ver dos retratos
     // iguales —los primeros pasos del cálculo no tocan la estructura y se
     // verían idénticos— sino que insiste: el reproductor ignora los clics que
@@ -245,9 +252,9 @@
       );
 
       const formularios = [...document.querySelectorAll('form.panel')];
-      afirmar(control('reiniciar').hidden, 'sin estructura no hay nada que reiniciar: el botón no aparece');
+      afirmar(control('vaciar').hidden, 'sin estructura no hay nada que reiniciar: el botón no aparece');
       enviar(formularios[0], { n, l });
-      afirmar(!control('reiniciar').hidden, 'con la estructura creada, el botón de reiniciar aparece');
+      afirmar(!control('vaciar').hidden, 'con la estructura creada, el botón de reiniciar aparece');
       for (const clave of claves) operar(formularios, 'insertar', clave);
 
       const dibujadas = [...document.querySelectorAll('.casilla')].length;
@@ -385,12 +392,19 @@
 
       // Reiniciar vacía la estructura sin salir del tema y conserva sus datos:
       // n y l siguen siendo los que se digitaron.
-      control('reiniciar').click();
-      afirmar(clavesDibujadas().length === 0, `reiniciar deja la estructura sin claves (quedan ${clavesDibujadas().length})`);
+      // Un solo clic pregunta y no vacía: es la confirmación que pidió el
+      // usuario, sin diálogo (CLAUDE.md 9).
+      control('vaciar').click();
+      afirmar(
+        clavesDibujadas().length > 0 && /¿Vaciar/.test(control('vaciar').textContent),
+        'el primer clic pregunta en vez de vaciar'
+      );
+      control('vaciar').click();
+      afirmar(clavesDibujadas().length === 0, `vaciar deja la estructura sin claves (quedan ${clavesDibujadas().length})`);
       operar(formularios, 'insertar', claves[0]);
       afirmar(
         clavesDibujadas().join(' ') === String(claves[0]),
-        'tras reiniciar se puede volver a insertar sobre la misma estructura'
+        'tras vaciar se puede volver a insertar sobre la misma estructura'
       );
 
       document.querySelector('.pantalla-tema__volver').click();
@@ -1231,18 +1245,18 @@
 
       // Reiniciar deja la pantalla como recién entrada: antes tocaba salir al
       // menú y volver a entrar (pedido del usuario, 2026-08-29).
-      control('reiniciar').click();
+      vaciar();
       registro.push('  tras reiniciar: ' + (nodos() || '(vacío)'));
-      afirmar(nodos() === '', 'reiniciar deja el árbol sin claves');
+      afirmar(nodos() === '', 'vaciar deja el árbol sin claves');
       const bitacoraTrasReiniciar = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
       afirmar(
-        bitacoraTrasReiniciar.length === 1 && bitacoraTrasReiniciar[0].includes('Árbol reiniciado'),
-        `reiniciar vacía la bitácora y deja constancia (${bitacoraTrasReiniciar.length} línea(s))`
+        bitacoraTrasReiniciar.length === 1 && bitacoraTrasReiniciar[0].includes('Árbol vaciado'),
+        `vaciar limpia la bitácora y deja constancia (${bitacoraTrasReiniciar.length} línea(s))`
       );
-      afirmar(!aviso(), 'reiniciar limpia el aviso en curso');
+      afirmar(!aviso(), 'vaciar limpia el aviso en curso');
       operar(formularios, 'insertar', 'p');
       agotarTraza();
-      afirmar(nodos() === 'p', 'tras reiniciar se puede volver a insertar');
+      afirmar(nodos() === 'p', 'tras vaciar se puede volver a insertar');
 
       document.querySelector('.pantalla-tema__volver').click();
     }
@@ -1567,7 +1581,7 @@
         'no queda ningún hueco dibujado tras cerrar la eliminación'
       );
 
-      control('reiniciar').click();
+      vaciar();
       afirmar(letras() === '' && puntos() === 0, 'reiniciar deja el árbol sin claves ni bifurcaciones');
 
       document.querySelector('.pantalla-tema__volver').click();
@@ -1708,8 +1722,8 @@
         'la posición que se vació queda marcada donde estaba la clave'
       );
 
-      control('reiniciar').click();
-      afirmar(letras() === '', 'reiniciar deja el árbol sin claves');
+      vaciar();
+      afirmar(letras() === '', 'vaciar deja el árbol sin claves');
 
       document.querySelector('.pantalla-tema__volver').click();
     }
@@ -1758,10 +1772,10 @@
         'eliminar una sola clave no alcanza a bajar la densidad del umbral de reducir'
       );
 
-      control('reiniciar').click();
+      vaciar();
       afirmar(
         metricas()[2] === '2',
-        `reiniciar vuelve al n inicial y no al que la estructura alcanzó por expansión (reporta ${metricas()[2]})`
+        `vaciar vuelve al n inicial y no al que la estructura alcanzó por expansión (reporta ${metricas()[2]})`
       );
 
       // El momento de la colisión, tal como lo escribe el docente en el taller
@@ -1871,7 +1885,7 @@
       // bloques ya comparados. El retoque que el usuario pidió sobre la
       // maqueta (2026-09-11) es que el último registro de un bloque comprimido
       // quede en el renglón que de verdad ocupa, no flotando.
-      control('reiniciar').click();
+      vaciar();
       enviar(formularios[0], { n: 150, l: 4 });
       for (let i = 0; i < 60; i++) operar(formularios, 'insertar', 1000 + 7 * i);
       operar(formularios, 'buscar', 1385);
@@ -2100,7 +2114,7 @@
 
       entrarATema('Búsqueda secuencial');
       const boton = (accion) => document.querySelector(`[data-accion="${accion}"]`);
-      afirmar(!!boton('abrir'), 'el botón de abrir está desde que se entra al tema');
+      afirmar(!!boton('cargar'), 'el botón de cargar está desde que se entra al tema');
       afirmar(
         boton('guardar') && boton('guardar').hidden,
         'guardar no se ofrece mientras no hay estructura'

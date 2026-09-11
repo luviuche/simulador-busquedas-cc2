@@ -988,7 +988,20 @@
 /* Reiniciar vive en el encabezado, empujado al extremo: no es una operación
    sobre las claves sino sobre la pantalla entera, y ahí no depende de cuánto
    haya que desplazar el panel lateral para alcanzarlo. */
-.pantalla-tema__reiniciar {
+/* Las tres acciones sobre la estructura —cargar, guardar, vaciar— juntas y a
+   la derecha de la barra: sueltas junto al título parecían parte de él. */
+.pantalla-tema__acciones {
   margin-left: auto;
   align-self: center;
+  display: flex;
+  gap: var(--espacio-2);
+}
+
+/* Un botón que ha preguntado y espera el segundo clic. Sin color nuevo: lo
+   dice el texto, y el borde marcado lo distingue de sus vecinos (CLAUDE.md
+   8.1). */
+.boton--confirmando {
+  border-color: var(--estado-evaluacion-borde);
+  border-width: 2px;
+  font-weight: 500;
 }

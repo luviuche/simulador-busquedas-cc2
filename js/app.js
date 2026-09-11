@@ -375,7 +375,7 @@
         clavesSoloEnHojas: true,
         tamano: () => ({ n: arbol.posiciones(), l: 1 }),
         nombreEstructura: 'árbol',
-        mensajeReinicio: 'Árbol reiniciado: sin claves.',
+        mensajeReinicio: 'Árbol vaciado: sin claves.',
         mensajeCreacion: () => `Árbol creado: código de ${BITS} bits por letra, en bloques de ${arbol.BLOQUES.join(', ')}.`,
         detalleReciente: () => `bloques de ${arbol.BLOQUES.join(', ')} bits`,
         insertar: operar(algoritmos.residuosMultiples.insertar),
@@ -444,7 +444,7 @@
         clavesSoloEnHojas: true,
         tamano: () => ({ n: dominio.arbol.posiciones(NIVELES), l: 1 }),
         nombreEstructura: 'árbol',
-        mensajeReinicio: 'Árbol reiniciado: sin claves.',
+        mensajeReinicio: 'Árbol vaciado: sin claves.',
         mensajeCreacion: () => `Árbol creado: código de ${BITS} bits por letra, claves solo en las hojas.`,
         detalleReciente: () => `código de ${BITS} bits por letra`,
         insertar: operar(algoritmos.residuos.insertar),
@@ -513,7 +513,7 @@
         sinConfiguracion: true,
         tamano: () => ({ n: dominio.arbol.posiciones(BITS), l: 1 }),
         nombreEstructura: 'árbol',
-        mensajeReinicio: 'Árbol reiniciado: sin claves.',
+        mensajeReinicio: 'Árbol vaciado: sin claves.',
         mensajeCreacion: () => `Árbol creado: código de ${BITS} bits por letra.`,
         detalleReciente: () => `código de ${BITS} bits por letra`,
         insertar: operar(algoritmos.arbolDigital.insertar),
@@ -573,7 +573,7 @@
       sinConfiguracion: true,
       tamano: () => ({ n: 1, l: 1 }),
       nombreEstructura: 'árbol',
-      mensajeReinicio: 'Árbol reiniciado: sin palabra.',
+      mensajeReinicio: 'Árbol vaciado: sin palabra.',
       mensajeCreacion: () => 'Escriba una palabra para construir su árbol.',
       detalleReciente: () => 'árbol de Huffman',
       // La palabra necesita al menos dos letras distintas: con una sola no hay
@@ -833,6 +833,10 @@
       buscar: algoritmos.cubetas.buscar,
       eliminar: algoritmos.cubetas.eliminar,
       detalleReciente: (estructura) => `n = ${estructura.n} · r = ${estructura.parametros.r}`,
+      // Vaciar aquí hace algo más que quitar las claves: devuelve `n` al valor
+      // con que se creó la estructura, no al que alcanzó expandiéndose
+      // (CLAUDE.md 5.7). Es el único tema donde eso pasa, así que se dice.
+      mensajeReinicio: (estructura) => `Estructura vaciada: sin claves, y n vuelve a ${estructura.n}.`,
       casillasRelevantes: (paso) => (paso.casilla ? [paso.casilla] : []),
       describirCasilla: ({ paso, indice, posicion, ocupada }) => {
         const base = ocupada ? 'ocupada' : 'vacia';

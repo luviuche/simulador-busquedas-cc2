@@ -2109,6 +2109,32 @@
     // vacía —con los mismos datos con que se creó— y la bitácora, el aviso y
     // la reproducción en blanco. Antes tocaba salir al menú y volver a entrar
     // (pedido del usuario, 2026-08-29).
+    // Vaciar pide un segundo clic (pedido del usuario, 2026-09-11): con quince
+    // claves puestas a mano, un clic por error duele. No hay diálogo —el
+    // proyecto no usa ninguno— sino que el propio botón pregunta y espera unos
+    // segundos; si no se confirma, vuelve solo a lo que decía.
+    const MS_CONFIRMACION = 4000;
+
+    function pedirVaciar() {
+      if (!requiereEstructura()) return;
+      if (estado.confirmandoVaciado) {
+        cancelarConfirmacionDeVaciado();
+        reiniciarEstructura();
+        return;
+      }
+      estado.confirmandoVaciado = window.setTimeout(cancelarConfirmacionDeVaciado, MS_CONFIRMACION);
+      dom.reiniciar.textContent = `¿Vaciar ${nombreEstructura()}?`;
+      dom.reiniciar.classList.add('boton--confirmando');
+    }
+
+    function cancelarConfirmacionDeVaciado() {
+      if (!estado.confirmandoVaciado) return;
+      window.clearTimeout(estado.confirmandoVaciado);
+      estado.confirmandoVaciado = null;
+      dom.reiniciar.textContent = `Vaciar ${nombreEstructura()}`;
+      dom.reiniciar.classList.remove('boton--confirmando');
+    }
+
     function reiniciarEstructura() {
       if (!requiereEstructura()) return;
       const anterior = estado.estructura;
@@ -2120,7 +2146,11 @@
       });
       if (!rehecha) return;
       vista.componentes.bitacora.vaciar(dom.bitacora);
-      registrarBitacora(config.mensajeReinicio || 'Estructura reiniciada: sin claves.');
+      // El mensaje puede depender de la estructura: en cubetas, vaciar además
+      // devuelve `n` al valor con que se creó, y eso hay que decirlo.
+      registrarBitacora(typeof config.mensajeReinicio === 'function'
+        ? config.mensajeReinicio(rehecha)
+        : (config.mensajeReinicio || 'Estructura vaciada: sin claves.'));
     }
 
     // «estructura» en casi todos los temas y «árbol» en los de bits: el botón
@@ -2328,18 +2358,20 @@
       subtituloEl.className = 'pantalla-tema__subtitulo texto-nivel-5';
       subtituloEl.textContent = config.descripcion;
 
-      // Reiniciar vive en el encabezado y no en un panel: no es una operación
-      // sobre las claves sino sobre la pantalla entera, y ahí está siempre a
-      // la vista, sin depender de cuánto haya que desplazar el panel lateral.
+      // **«Vaciar» y no «reiniciar»** (pedido del usuario, 2026-09-11): lo que
+      // hace es dejar la misma estructura sin claves —mismo n, misma l, mismos
+      // parámetros—, y «reiniciar» sonaba a empezar de cero, tanto que el
+      // usuario llegó a pedir un segundo botón para lo que este ya hacía. El
+      // nombre era el problema, no el comportamiento.
       dom.reiniciar = document.createElement('button');
       dom.reiniciar.type = 'button';
-      dom.reiniciar.className = 'boton pantalla-tema__reiniciar';
-      dom.reiniciar.dataset.accion = 'reiniciar';
-      dom.reiniciar.textContent = `Reiniciar ${nombreEstructura()}`;
-      // Sin estructura no hay nada que reiniciar: el botón aparece cuando la
-      // hay, y en los temas que la crean solas eso es de entrada.
+      dom.reiniciar.className = 'boton';
+      dom.reiniciar.dataset.accion = 'vaciar';
+      dom.reiniciar.textContent = `Vaciar ${nombreEstructura()}`;
+      // Sin estructura no hay nada que vaciar: el botón aparece cuando la hay,
+      // y en los temas que la crean solas eso es de entrada.
       dom.reiniciar.hidden = true;
-      dom.reiniciar.addEventListener('click', reiniciarEstructura);
+      dom.reiniciar.addEventListener('click', pedirVaciar);
 
       // Guardar y abrir viven en el encabezado, junto a reiniciar, por la
       // misma razón: son operaciones sobre la pantalla entera y no sobre las
@@ -2348,8 +2380,8 @@
       dom.abrir = document.createElement('button');
       dom.abrir.type = 'button';
       dom.abrir.className = 'boton';
-      dom.abrir.dataset.accion = 'abrir';
-      dom.abrir.textContent = 'Abrir';
+      dom.abrir.dataset.accion = 'cargar';
+      dom.abrir.textContent = 'Cargar';
       dom.abrir.addEventListener('click', () => dom.selectorDeArchivo.click());
 
       // El `input` de verdad no se ve: abrir el explorador del sistema es lo
@@ -2376,10 +2408,17 @@
       dom.guardar.hidden = true;
       dom.guardar.addEventListener('click', guardarArchivo);
 
-      encabezado.append(
-        botonVolver, tituloEl, subtituloEl,
-        dom.abrir, dom.guardar, dom.reiniciar, dom.selectorDeArchivo
-      );
+      // Las tres acciones van juntas y a la derecha (decisión del usuario sobre
+      // maqueta, 2026-09-11): sueltas junto al título parecían parte de él y
+      // quedaban flotando en un sitio donde no hay nada más. Agrupadas se leen
+      // como lo que son —lo que se puede hacer con la estructura entera— y no
+      // le quitan ni un píxel al panel lateral ni al lienzo, que son los que
+      // van justos.
+      const acciones = document.createElement('div');
+      acciones.className = 'pantalla-tema__acciones';
+      acciones.append(dom.abrir, dom.guardar, dom.reiniciar);
+
+      encabezado.append(botonVolver, tituloEl, subtituloEl, acciones, dom.selectorDeArchivo);
       return encabezado;
     }
 

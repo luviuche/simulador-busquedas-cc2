@@ -1000,6 +1000,12 @@ Sombras cortas y definidas, nunca difusas. Sin gradientes ni glassmorphism. Tema
 ## 9. Voz de la interfaz
 
 - Los mensajes describen el estado del sistema; no se disculpan ni interpelan al usuario.
+
+**«Vaciar» y no «reiniciar»** (2026-09-11). El botón deja la misma estructura sin claves —mismo `n`, misma `l`, mismos parámetros— y eso es vaciarla. Se llamaba «Reiniciar estructura», que sonaba a empezar de cero: tanto, que el usuario llegó a pedir un segundo botón para lo que este ya hacía. **El nombre era el problema, no el comportamiento**, y añadir el botón habría dejado dos que hacen lo mismo. Para crear una estructura distinta no hace falta ningún botón: se cambian los parámetros y se pulsa «Crear estructura», que reemplaza la que haya.
+
+En cubetas, vaciar además devuelve `n` al valor con que se creó y no al que alcanzó expandiéndose (§5.7). Es el único tema donde pasa, y lo dice su mensaje de bitácora en vez de cambiarle el nombre al botón: una palabra distinta por tema confunde más de lo que aclara.
+
+**Vaciar pide un segundo clic** (pedido del usuario, 2026-09-11). Con quince claves puestas a mano, un clic por error duele. No hay diálogo —el proyecto no usa ninguno— sino que **el propio botón pregunta**: cambia su texto a «¿Vaciar estructura?» y espera cuatro segundos; si no se confirma, vuelve solo a lo que decía. El realce es el borde de evaluación, sin color nuevo (§8.1).
 - Los botones nombran la acción: *Insertar*, no *Aceptar*. Nunca un verbo genérico.
 - **El botón nombra el verbo; el objeto lo pone el campo si ya está a la vista.** En el panel de operaciones los tres botones dicen *Insertar*, *Buscar* y *Eliminar* a secas, porque el campo que tienen encima ya dice *Clave*: repetir la palabra tres veces en una fila no cabe y no agrega nada. Un botón suelto, sin campo que lo acompañe, sí nombra el objeto completo.
 - Una acción conserva el mismo nombre en todo el flujo: si el botón dice *Insertar*, la bitácora registra *Clave insertada*.
@@ -1076,7 +1082,9 @@ O sea: **el nivel 2 no está disponible desde `file://`** —Chromium no expone 
 
 `persistencia/archivo.js` guarda, valida y lee; la pantalla pone los dos botones y el camino de vuelta.
 
-**Guardar y Abrir viven en el encabezado del tema**, junto a Reiniciar y por la misma razón: no son operaciones sobre las claves sino sobre la pantalla entera, y ahí están siempre a la vista sin alargar el panel lateral, que es el recurso escaso (§6.2). **Guardar aparece con la estructura**, porque sin ella no hay nada que guardar; Abrir está desde que se entra.
+**Las tres acciones sobre la estructura van juntas y a la derecha del encabezado**: `Cargar`, `Guardar` y `Vaciar` (decisión del usuario sobre maqueta, 2026-09-11). Sueltas junto al título parecían parte de él y quedaban flotando donde no hay nada más; agrupadas se leen como lo que son —lo que se puede hacer con la estructura entera— y no le quitan un píxel al panel lateral ni al lienzo, que son los que van justos (§6.2). **Guardar aparece con la estructura**, porque sin ella no hay nada que guardar; Cargar está desde que se entra.
+
+**Se llama «Cargar» y no «Abrir»** (pedido del usuario): lo que se trae es una estructura, no un documento.
 
 **El `<input type="file">` está oculto** y lo dispara el botón: abrir el explorador del sistema es lo único que sabe hacer, y su aspecto por omisión no se parece a nada de esta pantalla. Se limpia su valor en cada `change`, o elegir dos veces seguidas el mismo archivo no haría nada la segunda.
 
