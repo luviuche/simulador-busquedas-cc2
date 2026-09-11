@@ -863,8 +863,13 @@
         {
           id: 'densidad',
           etiqueta: 'Densidad de ocupación',
-          valor: ({ estructura }) => (
-            estructura ? `${(dominio.cubetas.densidadExpandir(estructura) * 100).toFixed(1)} %` : '0.0 %'
+          // Cuenta la clave que está esperando en la fila «Col»: en ese
+          // instante el taller escribe 8/9 y no 7/9, porque la densidad mide
+          // claves intentadas y esa ya se intentó (CLAUDE.md 5.7).
+          valor: ({ estructura, paso }) => (
+            estructura
+              ? `${(dominio.cubetas.densidadExpandir(estructura, paso && paso.rechazada ? 1 : 0) * 100).toFixed(1)} %`
+              : '0.0 %'
           )
         }
       ]

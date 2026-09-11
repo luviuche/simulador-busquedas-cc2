@@ -294,7 +294,7 @@
     // la cubeta—, así que se dibuja una columna de etiquetas a la izquierda,
     // alineada con el mismo `--espacio-1` que separa los renglones dentro de
     // cada cubeta.
-    function crearEtiquetasRenglones(segmentosDelAnidado) {
+    function crearEtiquetasRenglones(segmentosDelAnidado, hayRechazada) {
       const columna = document.createElement('div');
       columna.className = 'columna-casilla columna-etiquetas';
 
@@ -319,6 +319,15 @@
         etiqueta.className = 'renglon__marca';
         // Un tramo compacta varios renglones: no hay un número propio que darle.
         etiqueta.textContent = segmento.tipo === 'tramo' ? '⋯' : String(segmento.indice + 1);
+        columna.appendChild(etiqueta);
+      }
+      // La fila de la clave rechazada no es un renglón más de la cubeta: es
+      // donde espera lo que no cupo, y por eso se rotula «Col» y no con un
+      // número (así lo escribe el docente en el taller, CLAUDE.md 5.7).
+      if (hayRechazada) {
+        const etiqueta = document.createElement('span');
+        etiqueta.className = 'renglon__marca renglon__marca--col';
+        etiqueta.textContent = 'Col';
         columna.appendChild(etiqueta);
       }
       return columna;
@@ -611,7 +620,13 @@
         dom.estructuraEl.innerHTML = '';
         // Una sola columna de etiquetas para toda la matriz, no una por
         // cubeta: los renglones son los mismos en todas (CLAUDE.md 5.7).
-        if (esMatrizHorizontal) dom.estructuraEl.appendChild(crearEtiquetasRenglones(columnasDelAnidado));
+        // La clave que chocó vive en el paso, no en la estructura: no está
+        // colocada en ningún sitio, está esperando a que la expansión le haga
+        // hueco. Por eso se dibuja desde aquí y no desde `claves`.
+        const rechazada = (paso && paso.rechazada) || null;
+        if (esMatrizHorizontal) {
+          dom.estructuraEl.appendChild(crearEtiquetasRenglones(columnasDelAnidado, !!rechazada));
+        }
 
         for (const segmento of segmentos) {
           const grupo = document.createElement('div');
@@ -679,8 +694,29 @@
           // los secundarios debajo —`.columna-casilla` ya es un flex en
           // columna, así que apilarlos basta, sin pistas de grid—. Horizontal
           // sin matriz (secuencial, binaria) sigue con la marca al pie.
+          // Bajo la cubeta que la rechazó va la clave que no cupo; bajo las
+          // demás, un hueco del mismo alto, para que la fila «Col» quede a una
+          // sola altura y la escala siga rotulando lo que rotula.
+          const filaCol = [];
+          if (rechazada) {
+            const esLaSuya = rechazada.casilla === indice;
+            const celda = esLaSuya
+              ? vista.componentes.casilla.crearCasilla({
+                clave: rechazada.clave,
+                indice: `col-${indice}`,
+                estado: 'colision',
+                modificadores: ['anidada']
+              })
+              : document.createElement('span');
+            if (!esLaSuya) {
+              celda.className = 'casilla-hueca';
+              celda.setAttribute('aria-hidden', 'true');
+            }
+            filaCol.push(celda);
+          }
+
           grupo.append(...(vertical || esMatrizHorizontal
-            ? [marcaEl, casillaEl, ...secundarias]
+            ? [marcaEl, casillaEl, ...secundarias, ...filaCol]
             : [casillaEl, marcaEl]));
           dom.estructuraEl.appendChild(grupo);
           if (indice === indiceSeguido) grupoSeguido = grupo;

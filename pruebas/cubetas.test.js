@@ -172,3 +172,20 @@ test('buscar recorre la cubeta secuencialmente tras calcular la dirección', () 
   const ausente = cubetasAlg.buscar({ estructura, objetivo: 999 });
   assert.equal(ausente[ausente.length - 1].tipo, 'no-encontrada');
 });
+
+// La clave que chocó espera en la fila «Col» y cuenta para la densidad: en ese
+// instante el taller escribe D.O. = 8/9 = 88,89 %, no 7/9 (CLAUDE.md 5.7).
+test('la clave rechazada viaja en el paso y cuenta para la densidad', () => {
+  const estructura = crear({ n: 2, r: 3, modoExpansion: 'parcial' });
+  insertarTodas(estructura, [115, 96, 48, 79, 35, 26, 57]);
+  assert.equal(estructura.n, 3);
+  assert.equal(cubetasDom.densidadExpandir(estructura).toFixed(4), (7 / 9).toFixed(4));
+
+  const pasos = cubetasAlg.insertar({ estructura, clave: 81 });
+  const choque = pasos.find((paso) => paso.tipo === 'colision');
+  assert.deepEqual(choque.rechazada, { clave: 81, casilla: 1 });
+  assert.equal(
+    (cubetasDom.densidadExpandir(estructura, 1) * 100).toFixed(2),
+    '88.89'
+  );
+});

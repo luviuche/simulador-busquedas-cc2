@@ -638,6 +638,12 @@ Por dentro **nada cambia de base**: `estructura.claves[dirección − 1]` sigue 
 
 **Por eso no se reutiliza `hash/modulo.js`.** Esa función cierra con `residuo + 1` (CLAUDE.md 5.3), que es exactamente lo que aquí sobra: el residuo *es* la dirección que se muestra. `algoritmos/cubetas.js` trae su propio `calculoCubeta(clave, n)` —dos líneas, "Clave" y "Dirección" `= clave mod n`, sin la línea de "Residuo" intermedia que sí tienen los temas hash— y su propio `pasosDelCalculoCubeta`, que revela esas líneas igual que `pasosDelCalculo` pero **sin** derivar el índice interno del texto de la última línea: ese texto es la cubeta en base 0, y el índice que de verdad hace falta para indexar la estructura (base 1) se calcula aparte y viaja pegado al paso.
 
+**La clave que choca no desaparece: espera en la fila «Col»** (defecto visto por el usuario contra su propio taller, 2026-09-11). Cuando una cubeta está llena, el docente escribe la clave rechazada en una fila rotulada `Col` debajo de la cubeta que no la admitió, y ahí se queda hasta que la expansión la recoloca. Antes la aplicación la hacía desaparecer entre que chocaba y que reaparecía recolocada, y con ella desaparecía la explicación del número siguiente.
+
+La clave rechazada **viaja en el paso y no en la estructura** (`paso.rechazada`): no está colocada en ningún sitio, está esperando. Por eso la dibuja la vista desde el paso, y por eso retroceder la hace desaparecer sin deshacer nada.
+
+**Y la densidad la cuenta mientras espera.** Es la otra cara del mismo agujero: en ese instante el taller escribe `D.O. = 8/9 = 88,89 %` —siete claves colocadas más la que chocó— y la pantalla mostraba `7/9 = 77,8 %`. La regla siempre fue "claves intentadas" (abajo); lo que fallaba era que la métrica solo sabía contar las colocadas. `densidadExpandir` acepta ahora cuántas hay esperando.
+
 **Densidad para expandir** = `claves_intentadas / (n × r)`, revisada después de cada inserción — cuenta la clave recién procesada aunque haya chocado, porque chocar es justo el caso en que no llegó a entrar. Si la densidad llega al umbral, o si la cubeta de la clave está llena (eso solo, aparte de la densidad), se expande.
 
 **Densidad para reducir** = `claves_restantes / n` — **una fórmula distinta, sin multiplicar por `r`** (confirmado contra un taller resuelto del curso, comparando sus tablas casilla por casilla). Se revisa después de cada eliminación.

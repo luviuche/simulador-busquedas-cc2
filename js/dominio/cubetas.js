@@ -56,9 +56,14 @@
 
   // Densidad para decidir si expandir: claves ya intentadas —incluida la que
   // acaba de chocar, si chocó— sobre la capacidad total de la tabla (n × r).
-  function densidadExpandir(estructura) {
+  // `pendientes` son las claves que ya se intentaron pero todavía no están
+  // colocadas: la que chocó y espera en la fila «Col». Cuentan, porque la
+  // regla mide **claves intentadas** y chocar es justo el caso en que una no
+  // llegó a entrar. Sin contarla, la pantalla mostraría 7/9 = 77,8 % en el
+  // mismo instante en que el taller escribe 8/9 = 88,89 % (CLAUDE.md 5.7).
+  function densidadExpandir(estructura, pendientes = 0) {
     const r = estructura.parametros.r;
-    return estructuras.cantidadClaves(estructura) / (estructura.n * r);
+    return (estructuras.cantidadClaves(estructura) + pendientes) / (estructura.n * r);
   }
 
   // Densidad para decidir si reducir: es otra cuenta, no la misma dividida al

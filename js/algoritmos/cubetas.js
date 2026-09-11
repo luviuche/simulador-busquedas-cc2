@@ -201,6 +201,12 @@
           casilla: direccion,
           colision: direccion,
           recorridas: recorridas.slice(),
+          // La clave rechazada se queda a la vista, en la fila «Col» debajo de
+          // la cubeta que no la admitió, hasta que la expansión la recoloque
+          // (así la escribe el docente en el taller; CLAUDE.md 5.7). Viaja en
+          // el paso y no en la estructura: no está colocada en ningún sitio,
+          // está esperando.
+          rechazada: { clave, casilla: direccion },
           mensaje: `Cubeta ${mostrar(direccion)} llena: sus ${r} renglones están ocupados y la clave ${clave} no entra todavía.`
         })));
       }

@@ -1734,6 +1734,40 @@
         `reiniciar vuelve al n inicial y no al que la estructura alcanzó por expansión (reporta ${metricas()[2]})`
       );
 
+      // El momento de la colisión, tal como lo escribe el docente en el taller
+      // (CLAUDE.md 5.7): con n = 3 la clave 81 no cabe en la cubeta 0 y se
+      // queda esperando en la fila «Col», que es lo que hace legible el
+      // D.O. = 8/9 = 88,9 % de la línea siguiente.
+      enviar(formularios[0], {
+        n: 2, r: 3, modoExpansion: 'parcial', umbralExpandir: 82, umbralReducir: 125
+      });
+      for (const clave of [115, 96, 48, 79, 35, 26, 57]) {
+        operar(formularios, 'insertar', clave);
+        agotarTraza(80);
+      }
+      afirmar(metricas()[2] === '3', `antes de chocar, la estructura va por n = 3 (reporta ${metricas()[2]})`);
+
+      operar(formularios, 'insertar', 81);
+      for (let i = 0; i < 4; i++) control('siguiente').click();
+
+      const col = [...document.querySelectorAll('.columna-casilla')]
+        .map((c) => c.lastElementChild)
+        .filter((el) => el && el.classList.contains('casilla'));
+      registro.push('  fila Col: ' + col.map((c) => c.textContent).join(','));
+      afirmar(
+        col.length === 1 && col[0].textContent === '81',
+        `la clave que chocó espera en la fila «Col» (reporta ${col.map((c) => c.textContent).join(',') || 'nada'})`
+      );
+      afirmar(
+        [...document.querySelectorAll('.renglon__marca')].some((m) => m.textContent === 'Col'),
+        'la fila lleva su rótulo «Col», como en el taller'
+      );
+      registro.push('  densidad con la clave esperando: ' + metricas()[3]);
+      afirmar(
+        metricas()[3] === '88.9 %',
+        `la densidad cuenta la clave que espera: 8/9 = 88,9 % (reporta ${metricas()[3]})`
+      );
+
       document.querySelector('.pantalla-tema__volver').click();
     }
 

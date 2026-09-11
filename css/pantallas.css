@@ -440,6 +440,21 @@
   color: var(--tinta-suave);
 }
 
+/* Fila «Col» de otras búsquedas dinámicas (CLAUDE.md 5.7): donde espera la
+   clave que no cupo. Se rotula con la palabra y no con un número porque no es
+   un renglón más de la cubeta. */
+.renglon__marca--col {
+  font-size: 11px;
+  color: var(--estado-colision-borde);
+}
+
+/* El hueco que deja la fila «Col» bajo las cubetas que no rechazaron nada:
+   mide lo que una casilla para que la fila quede a una sola altura, y no se
+   dibuja. */
+.casilla-hueca {
+  height: var(--alto-casilla);
+}
+
 /* Búsquedas externas (CLAUDE.md 5.x): el archivo se dibuja como bloques
    verticales separados, con su rótulo arriba, que es como lo dibuja el docente
    (decisión del usuario sobre maqueta, 2026-09-11). Reutiliza la casilla y sus

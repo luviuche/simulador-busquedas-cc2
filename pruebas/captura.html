@@ -313,10 +313,14 @@
       const claves = parametros.has('claves')
         ? parametros.get('claves').split(',').filter(Boolean).map(Number)
         : [115, 96, 48, 79, 35, 26, 57, 81, 70, 64, 107, 45, 62, 98, 33, 28, 38];
-      for (const clave of claves) {
+      // Con `?paso=` la última clave se deja a medio reproducir, que es la
+      // única forma de fotografiar un momento intermedio —la colisión, antes
+      // de que la expansión lo tape— sin depender de que la traza se agote.
+      const aMedias = parametros.has('paso') && parametros.get('paso') !== 'fin';
+      claves.forEach((clave, indice) => {
         operar(formularios, 'insertar', clave);
-        avanzar(80);
-      }
+        avanzar(aMedias && indice === claves.length - 1 ? pasosAAvanzar() : 80);
+      });
       const operacion = parametros.get('operacion');
       if (!operacion) return;
       operar(formularios, operacion, Number(parametros.get('clave')) || 48);
