@@ -185,32 +185,18 @@
       'compactar-anidado': (efecto) => dominio.estructura.compactarAnidado(estado.estructura, efecto.casilla),
       // Otras búsquedas dinámicas (CLAUDE.md 5.x): una cubeta es una casilla
       // principal más su arreglo anidado, así que colocar y retirar son los
-      // mismos dos verbos de arriba —esto solo agrega el registro de en qué
-      // orden llegó cada clave, que hace falta para poder reconstruir la
-      // tabla completa cuando `n` cambia—. `redimensionar` es lo que ningún
-      // otro tema necesita: vacía la tabla al nuevo tamaño, y son los pasos
-      // de `insercion` que le siguen los que la vuelven a llenar en el mismo
-      // orden en que las claves llegaron.
-      'colocar-cubeta': (efecto) => {
-        const resultado = efecto.posicion === undefined
-          ? dominio.estructura.colocarEn(estado.estructura, efecto.casilla, efecto.clave)
-          : dominio.estructura.colocarEnAnidado(estado.estructura, efecto.casilla, efecto.posicion, efecto.clave);
-        if (resultado.exito) {
-          estado.estructura.ordenLlegada = estado.estructura.ordenLlegada || [];
-          estado.estructura.ordenLlegada.push(efecto.clave);
-        }
-        return resultado;
-      },
-      'retirar-cubeta': (efecto) => {
-        const resultado = efecto.posicion === undefined
-          ? dominio.estructura.retirarDe(estado.estructura, efecto.casilla)
-          : dominio.estructura.retirarDeAnidado(estado.estructura, efecto.casilla, efecto.posicion);
-        if (resultado.exito && estado.estructura.ordenLlegada) {
-          const indice = estado.estructura.ordenLlegada.indexOf(efecto.clave);
-          if (indice !== -1) estado.estructura.ordenLlegada.splice(indice, 1);
-        }
-        return resultado;
-      },
+      // mismos dos verbos de arriba. El orden de llegada lo lleva el dominio
+      // desde que hizo falta también para guardar en archivo (CLAUDE.md 10);
+      // este tema fue el primero en necesitarlo. `redimensionar` sigue siendo
+      // lo que ningún otro tema necesita: vacía la tabla al nuevo tamaño, y
+      // son los pasos de `insercion` que le siguen los que la vuelven a
+      // llenar en el mismo orden en que las claves llegaron.
+      'colocar-cubeta': (efecto) => (efecto.posicion === undefined
+        ? dominio.estructura.colocarEn(estado.estructura, efecto.casilla, efecto.clave)
+        : dominio.estructura.colocarEnAnidado(estado.estructura, efecto.casilla, efecto.posicion, efecto.clave)),
+      'retirar-cubeta': (efecto) => (efecto.posicion === undefined
+        ? dominio.estructura.retirarDe(estado.estructura, efecto.casilla)
+        : dominio.estructura.retirarDeAnidado(estado.estructura, efecto.casilla, efecto.posicion)),
       redimensionar: (efecto) => {
         estado.estructura.n = efecto.n;
         estado.estructura.claves = new Array(efecto.n);
@@ -1681,27 +1667,6 @@
       let insertadas = 0;
       let intentos = 0;
 
-      function colocar(candidato) {
-        if (!config.insertar) return dominio.estructura.insertar(estado.estructura, candidato);
-        // En una estructura dispersa la dirección la decide el algoritmo: se
-        // consulta su traza y se aplican los efectos que declare, si los hay.
-        // No basta con aplicar solo el paso `insercion` de la clave: en otras
-        // búsquedas dinámicas (CLAUDE.md 5.7) una sola inserción puede traer
-        // además una expansión completa, con su propio `redimensionar` y una
-        // reubicación por cada clave viva — perderse esos pasos dejaría la
-        // estructura a medio crecer.
-        if (dominio.estructura.casillaDe(estado.estructura, candidato) !== 0) {
-          return { exito: false };
-        }
-        const pasos = config.insertar({ estructura: estado.estructura, clave: candidato });
-        const huboColocacion = pasos.some((paso) => paso.efecto);
-        if (!huboColocacion) return { exito: false };
-        for (const paso of pasos) {
-          if (paso.efecto) APLICADORES[paso.efecto.tipo](paso.efecto);
-        }
-        return { exito: true };
-      }
-
       function insertarSiguiente() {
         if (insertadas >= objetivo || intentos >= objetivo * 50) {
           registrarBitacora(`Llenado automático: ${insertadas} claves insertadas.`);
@@ -1709,7 +1674,7 @@
         }
         intentos++;
         const candidato = Math.floor(Math.random() * (max - min + 1)) + min;
-        const resultado = colocar(candidato);
+        const resultado = colocarSinTraza(candidato);
         if (resultado.exito) {
           insertadas++;
           renderizarEstructura(null, -1, { duracionMs: MS_ANIMACION_LLENADO });
@@ -1927,9 +1892,125 @@
       const aviso = advertencia || resultado.advertencia;
       if (aviso) mostrarAlerta('advertencia', aviso);
       if (dom.reiniciar) dom.reiniciar.hidden = false;
+      // Guardar aparece con la estructura: sin ella no hay nada que guardar.
+      if (dom.guardar) dom.guardar.hidden = false;
       renderizarEstructura(null);
       actualizarMetricas(null);
       return resultado.estructura;
+    }
+
+    // Coloca una clave **sin reproducir su traza**. La usan las dos operaciones
+    // que preparan el escenario en vez de enseñarlo: el llenado automático y
+    // abrir un archivo (CLAUDE.md 6.5).
+    //
+    // No basta con aplicar el paso de `insercion` de la clave: en otras
+    // búsquedas dinámicas (CLAUDE.md 5.7) una sola inserción puede traer
+    // además una expansión entera, con su `redimensionar` y una reubicación
+    // por cada clave viva — perderse esos pasos dejaría la tabla a medio
+    // crecer. Por eso se aplican todos los efectos de la traza.
+    function colocarSinTraza(candidato) {
+      if (!config.insertar) return dominio.estructura.insertar(estado.estructura, candidato);
+      if (dominio.estructura.casillaDe(estado.estructura, candidato) !== 0) {
+        return { exito: false };
+      }
+      const pasos = config.insertar({ estructura: estado.estructura, clave: candidato });
+      const huboColocacion = pasos.some((paso) => paso.efecto);
+      if (!huboColocacion) return { exito: false };
+      for (const paso of pasos) {
+        if (paso.efecto) APLICADORES[paso.efecto.tipo](paso.efecto);
+      }
+      return { exito: true };
+    }
+
+    // Guardar y abrir archivos `.cc2` (CLAUDE.md 10). Lo que viaja son las
+    // claves en su orden de llegada; la tabla se rehace al abrir reinsertando
+    // en ese orden, que es lo único que reproduce las colisiones tal como
+    // quedaron.
+    function guardarArchivo() {
+      if (!requiereEstructura()) return;
+      const datos = persistencia.archivo.serializar({
+        tema: config.id,
+        estructura: estado.estructura,
+        titulo: config.titulo
+      });
+      const nombre = persistencia.archivo.nombreSugerido({ tema: config.id, estructura: estado.estructura });
+      persistencia.archivo.guardar({ datos, nombre }).then((resultado) => {
+        if (!resultado.exito) return;
+        const donde = resultado.via === 'dialogo'
+          ? `Estructura guardada en ${resultado.nombre}.`
+          : `Estructura descargada como ${resultado.nombre}. `
+            + 'Para elegir carpeta y nombre, active «preguntar dónde guardar cada archivo» en el navegador.';
+        mostrarAlerta('info', donde);
+        registrarBitacora(`Estructura guardada: ${datos.claves.length} clave(s) en ${resultado.nombre}.`);
+      });
+    }
+
+    function abrirArchivo(archivo) {
+      persistencia.archivo.leer(archivo).then((lectura) => {
+        if (!lectura.exito) {
+          mostrarAlerta('error', lectura.mensaje);
+          return;
+        }
+        const validacion = persistencia.archivo.validar(lectura.datos, config.id);
+        if (!validacion.valido) {
+          // Nada se toca si el archivo no cuadra: la estructura que está en
+          // pantalla se queda como está (CLAUDE.md 10.5).
+          mostrarAlerta('error', validacion.mensaje);
+          return;
+        }
+        cargarDatos(validacion.datos);
+      });
+    }
+
+    function reflejarEnConfiguracion(datos) {
+      if (!dom.configuracion) return;
+      const poner = (nombre, valor) => {
+        const campo = dom.configuracion.querySelector(`[name="${nombre}"]`);
+        if (campo && valor !== undefined && valor !== null) {
+          campo.value = valor;
+          campo.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      };
+      poner('n', datos.n);
+      poner('l', datos.l);
+      poner('tratamiento', datos.tratamiento);
+      for (const [nombre, valor] of Object.entries(datos.parametros || {})) poner(nombre, valor);
+    }
+
+    // Rehace la estructura y vuelve a meter las claves **en el orden en que
+    // llegaron**, sin traza: abrir un archivo es preparar el escenario, no la
+    // lección — el mismo criterio que el llenado automático (CLAUDE.md 6.5).
+    function cargarDatos(datos) {
+      invalidarReproduccion();
+      const estructura = establecerEstructura({
+        n: datos.n,
+        l: datos.l,
+        tratamiento: datos.tratamiento,
+        parametros: datos.parametros || {}
+      });
+      if (!estructura) return;
+
+      // El panel de configuración refleja lo que se acaba de abrir: si siguiera
+      // mostrando los valores anteriores, diría una cosa mientras el lienzo
+      // dibuja otra, y bastaría pulsar "Crear estructura" para tirar sin querer
+      // lo recién abierto.
+      reflejarEnConfiguracion(datos);
+
+      let colocadas = 0;
+      for (const clave of datos.claves) {
+        if (colocarSinTraza(clave).exito) colocadas++;
+      }
+      vista.componentes.bitacora.vaciar(dom.bitacora);
+      registrarBitacora(`Archivo abierto: n = ${datos.n}, ${colocadas} clave(s).`);
+      renderizarEstructura(null);
+      actualizarMetricas(null);
+      limpiarAlerta();
+      if (colocadas < datos.claves.length) {
+        mostrarAlerta('advertencia',
+          `Se colocaron ${colocadas} de ${datos.claves.length} claves: el resto no cupo o no era válido.`);
+      } else {
+        mostrarAlerta('info', `Estructura abierta: ${colocadas} clave(s) listas para operar.`);
+      }
     }
 
     // Crear: además de establecerla, la registra en la bitácora y en las
@@ -2202,7 +2283,45 @@
       dom.reiniciar.hidden = true;
       dom.reiniciar.addEventListener('click', reiniciarEstructura);
 
-      encabezado.append(botonVolver, tituloEl, subtituloEl, dom.reiniciar);
+      // Guardar y abrir viven en el encabezado, junto a reiniciar, por la
+      // misma razón: son operaciones sobre la pantalla entera y no sobre las
+      // claves, y ahí están siempre a la vista sin alargar el panel lateral,
+      // que es el recurso escaso (CLAUDE.md 6.2).
+      dom.abrir = document.createElement('button');
+      dom.abrir.type = 'button';
+      dom.abrir.className = 'boton';
+      dom.abrir.dataset.accion = 'abrir';
+      dom.abrir.textContent = 'Abrir';
+      dom.abrir.addEventListener('click', () => dom.selectorDeArchivo.click());
+
+      // El `input` de verdad no se ve: abrir el explorador del sistema es lo
+      // único que sabe hacer, y su aspecto por omisión no se parece a nada de
+      // esta pantalla.
+      dom.selectorDeArchivo = document.createElement('input');
+      dom.selectorDeArchivo.type = 'file';
+      dom.selectorDeArchivo.accept = persistencia.archivo.EXTENSION + ',application/json';
+      dom.selectorDeArchivo.hidden = true;
+      dom.selectorDeArchivo.addEventListener('change', () => {
+        const archivo = dom.selectorDeArchivo.files[0];
+        // Se limpia en el acto para que volver a elegir el mismo archivo
+        // dispare otro `change`: si no, abrir dos veces seguidas lo mismo no
+        // haría nada la segunda.
+        dom.selectorDeArchivo.value = '';
+        if (archivo) abrirArchivo(archivo);
+      });
+
+      dom.guardar = document.createElement('button');
+      dom.guardar.type = 'button';
+      dom.guardar.className = 'boton';
+      dom.guardar.dataset.accion = 'guardar';
+      dom.guardar.textContent = 'Guardar';
+      dom.guardar.hidden = true;
+      dom.guardar.addEventListener('click', guardarArchivo);
+
+      encabezado.append(
+        botonVolver, tituloEl, subtituloEl,
+        dom.abrir, dom.guardar, dom.reiniciar, dom.selectorDeArchivo
+      );
       return encabezado;
     }
 
@@ -2258,7 +2377,7 @@
     // 2026-08-29).
     panelLateral.append(
       dom.alertas,
-      ...(config.sinConfiguracion ? [] : [crearFormularioConfiguracion()]),
+      ...(config.sinConfiguracion ? [] : [(dom.configuracion = crearFormularioConfiguracion())]),
       crearPanelOperaciones(),
       crearPanelReproduccion(),
       crearPanelMetricas(),

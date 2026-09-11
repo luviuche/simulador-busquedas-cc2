@@ -31,6 +31,9 @@ require('../js/algoritmos/hash/operaciones.js');
 require('../js/algoritmos/cubetas.js');
 require('../js/algoritmos/secuencial-externa.js');
 require('../js/algoritmos/huffman.js');
+// Persistencia: serializar y validar son cálculo puro y sí se prueban aquí;
+// guardar y leer tocan el navegador y se comprueban en la prueba de humo.
+require('../js/persistencia/archivo.js');
 // elision.js vive en vista/ pero es cálculo puro: no toca el DOM.
 require('../js/vista/elision.js');
 

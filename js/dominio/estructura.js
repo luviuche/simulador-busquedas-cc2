@@ -47,12 +47,33 @@
         // declaran siempre para que dibujar y contar no dependan de qué
         // tratamiento se eligió, igual que `claves`.
         anidados: modo === MODOS.DISPERSA ? new Array(n) : [],
+        // En qué orden llegaron las claves, para poder rehacer la estructura.
+        ordenLlegada: [],
         // Cuánto cabe en la estructura secundaria de cada dirección. Cero es
         // "no hay", que es el caso de los otros tratamientos, e `Infinity` es
         // la cadena, que no tiene tope.
         tamanoAnidado: 0
       }
     };
+  }
+
+  // **El orden en que llegaron las claves es un dato de la estructura**, no un
+  // adorno: es lo que permite rehacerla colocándolas otra vez como cayeron.
+  // Hacía falta ya para expandir una tabla de cubetas (CLAUDE.md 5.7) y hace
+  // falta para abrir un archivo (CLAUDE.md 10), porque la estructura no lo
+  // sabe por sí sola: en un arreglo ordenado las claves están ordenadas y no
+  // en el orden en que entraron, y en uno disperso la posición la decide la
+  // función hash. Sin este registro, guardar y volver a abrir una tabla con
+  // colisiones daría otra tabla.
+  function anotarLlegada(estructura, valor) {
+    if (!estructura.ordenLlegada) estructura.ordenLlegada = [];
+    estructura.ordenLlegada.push(valor);
+  }
+
+  function olvidarLlegada(estructura, valor) {
+    if (!estructura.ordenLlegada) return;
+    const indice = estructura.ordenLlegada.indexOf(valor);
+    if (indice !== -1) estructura.ordenLlegada.splice(indice, 1);
   }
 
   // El arreglo anidado de una dirección, siempre como arreglo: quien dibuja o
@@ -152,6 +173,7 @@
     }
     const posicion = buscarPosicionInsercion(estructura.claves, valor);
     estructura.claves.splice(posicion, 0, valor);
+    anotarLlegada(estructura, valor);
     return { exito: true, indice: posicion + 1 };
   }
 
@@ -165,6 +187,7 @@
     } else {
       estructura.claves.splice(posicion, 1);
     }
+    olvidarLlegada(estructura, valor);
     return { exito: true, indice: posicion + 1 };
   }
 
@@ -183,6 +206,7 @@
       return { exito: false, mensaje: `Casilla ocupada: la casilla ${indice} ya contiene una clave.` };
     }
     estructura.claves[indice - 1] = valor;
+    anotarLlegada(estructura, valor);
     return { exito: true, indice };
   }
 
@@ -195,6 +219,7 @@
       return { exito: false, mensaje: `Casilla vacía: la casilla ${indice} no contiene ninguna clave.` };
     }
     delete estructura.claves[indice - 1];
+    olvidarLlegada(estructura, valor);
     return { exito: true, indice, valor };
   }
 
@@ -214,6 +239,7 @@
       return { exito: false, mensaje: `Casilla ocupada: la posición ${posicion} del arreglo anidado de ${indice} ya contiene una clave.` };
     }
     anidado[posicion - 1] = valor;
+    anotarLlegada(estructura, valor);
     return { exito: true, indice, posicion };
   }
 
@@ -224,6 +250,7 @@
       return { exito: false, mensaje: `Casilla vacía: la posición ${posicion} del arreglo anidado de ${indice} no contiene ninguna clave.` };
     }
     delete anidado[posicion - 1];
+    olvidarLlegada(estructura, valor);
     // Sin recortar la cola, sacar la última clave dejaría un hueco al final y
     // el mismo estado tendría dos representaciones: `[a]` y `[a, <hueco>]`.
     // No mueve ninguna clave —las de delante conservan su posición—, solo deja
@@ -254,6 +281,8 @@
   window.CC2.dominio = window.CC2.dominio || {};
   window.CC2.dominio.estructura = {
     MODOS,
+    anotarLlegada,
+    olvidarLlegada,
     crearEstructura,
     insertar,
     eliminar,

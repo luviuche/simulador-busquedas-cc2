@@ -902,6 +902,9 @@
       return;
     }
     const configDelTema = Object.assign({}, config, {
+      // La clave del tema viaja con su configuración: el archivo `.cc2` la
+      // guarda y al abrir se comprueba que corresponda (CLAUDE.md 10).
+      id: tema.tema,
       titulo: tema.titulo,
       descripcion: config.descripcion || tema.descripcion
     });

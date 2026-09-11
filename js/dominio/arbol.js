@@ -37,6 +37,7 @@
       return { exito: false, mensaje: `Posición ocupada: la posición ${indice} ya contiene la clave ${claveEn(estructura, indice)}.` };
     }
     estructura.claves[indice - 1] = clave;
+    window.CC2.dominio.estructura.anotarLlegada(estructura, clave);
     return { exito: true, indice };
   }
 
@@ -46,6 +47,7 @@
       return { exito: false, mensaje: `Posición vacía: la posición ${indice} no contiene ninguna clave.` };
     }
     delete estructura.claves[indice - 1];
+    window.CC2.dominio.estructura.olvidarLlegada(estructura, clave);
     return { exito: true, indice, clave };
   }
 

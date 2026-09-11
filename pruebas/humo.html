@@ -51,6 +51,7 @@
   <script src="../js/algoritmos/secuencial-externa.js"></script>
   <script src="../js/algoritmos/huffman.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
+  <script src="../js/persistencia/archivo.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
   <script src="../js/vista/componentes/panel.js"></script>
   <script src="../js/vista/componentes/bitacora.js"></script>
@@ -444,6 +445,7 @@
       secuencialExterna();
       arbolDeHuffman();
       controlDeElision();
+      archivos();
       controlDeVelocidad();
     }
 
@@ -2083,6 +2085,46 @@
         document.querySelector('.alerta--error') !== null,
         'una palabra de una sola letra distinta se rechaza con un aviso'
       );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
+
+
+    // Guardar y abrir (CLAUDE.md 10). Lo que se comprueba aquí es el cableado
+    // de la pantalla: que los botones estén donde tienen que estar y aparezcan
+    // cuando corresponde. La serialización es cálculo puro y vive en
+    // `archivo.test.js`; abrir un archivo de verdad es asíncrono y no cabe en
+    // esta prueba, que es síncrona — se fotografía con `vista=abrir-archivo`.
+    function archivos() {
+      registro.push('', '── Guardar y abrir ──');
+
+      entrarATema('Búsqueda secuencial');
+      const boton = (accion) => document.querySelector(`[data-accion="${accion}"]`);
+      afirmar(!!boton('abrir'), 'el botón de abrir está desde que se entra al tema');
+      afirmar(
+        boton('guardar') && boton('guardar').hidden,
+        'guardar no se ofrece mientras no hay estructura'
+      );
+      afirmar(
+        !!document.querySelector('input[type="file"]'),
+        'hay un selector de archivo, que es lo que abre el explorador del sistema'
+      );
+
+      const formularios = [...document.querySelectorAll('form.panel')];
+      enviar(formularios[0], { n: 12, l: 2 });
+      afirmar(!boton('guardar').hidden, 'con estructura, guardar aparece');
+
+      // El nombre propuesto dice de qué es el archivo sin abrirlo.
+      const nombre = CC2.persistencia.archivo.nombreSugerido({
+        tema: 'secuencial', estructura: { n: 12, l: 2 }
+      });
+      registro.push('  nombre sugerido: ' + nombre);
+      afirmar(nombre === 'secuencial-n12-l2.cc2', `el nombre propuesto describe la estructura (${nombre})`);
+
+      // Desde `file://` el diálogo de "Guardar como" no existe y se cae a la
+      // descarga; servida por http:// sí puede existir. La aplicación no elige
+      // de antemano: lo detecta.
+      registro.push('  diálogo de guardado disponible: ' + CC2.persistencia.archivo.hayDialogoDeGuardado());
 
       document.querySelector('.pantalla-tema__volver').click();
     }

@@ -1072,6 +1072,22 @@ O sea: **el nivel 2 no está disponible desde `file://`** —Chromium no expone 
 
 **Servir por `http://localhost` no es montar un servicio**, es publicar la carpeta, y hay varias formas según lo que haya instalado en la máquina: el servidor integrado de WebStorm (`http://localhost:63342/…`), `python3 -m http.server`, `npx serve`, o la extensión Live Server de VS Code. Lo que se gana es el diálogo real y el regrabado sobre el mismo archivo; lo que se pierde es abrir la aplicación con doble clic, que es la decisión de §4. **La aplicación tiene que seguir funcionando entera sin ninguna de esas cosas.**
 
+### Cómo quedó construido (2026-09-11)
+
+`persistencia/archivo.js` guarda, valida y lee; la pantalla pone los dos botones y el camino de vuelta.
+
+**Guardar y Abrir viven en el encabezado del tema**, junto a Reiniciar y por la misma razón: no son operaciones sobre las claves sino sobre la pantalla entera, y ahí están siempre a la vista sin alargar el panel lateral, que es el recurso escaso (§6.2). **Guardar aparece con la estructura**, porque sin ella no hay nada que guardar; Abrir está desde que se entra.
+
+**El `<input type="file">` está oculto** y lo dispara el botón: abrir el explorador del sistema es lo único que sabe hacer, y su aspecto por omisión no se parece a nada de esta pantalla. Se limpia su valor en cada `change`, o elegir dos veces seguidas el mismo archivo no haría nada la segunda.
+
+**Abrir rehace la estructura y reinserta las claves sin traza**, por la misma razón que el llenado automático (§6.5): abrir un archivo es preparar el escenario, no la lección. Reutiliza `colocarSinTraza`, que es la misma pieza que usa el llenado — y que aplica **todos** los efectos de la traza, no solo el de colocar, porque en cubetas una sola inserción puede traer una expansión entera.
+
+**El panel de configuración refleja lo que se abre.** Si siguiera mostrando los valores anteriores diría una cosa mientras el lienzo dibuja otra, y bastaría pulsar «Crear estructura» para tirar sin querer lo recién abierto.
+
+**El orden de llegada lo lleva ahora el dominio**, no la pantalla: `anotarLlegada`/`olvidarLlegada` en `estructura.js`, invocadas desde insertar, eliminar, colocar y retirar —y desde `arbol.js` para los árboles—. Lo estrenó cubetas para rehacer su tabla al expandir (§5.7) y hacía falta para esto; tenerlo en un solo sitio evita que cada tema lleve su propia cuenta.
+
+**Lo que se prueba y dónde**: serializar, validar y el nombre sugerido son cálculo puro y viven en `archivo.test.js` —incluida la prueba que justifica todo el diseño: en una tabla con colisiones, dos órdenes distintos del mismo conjunto dan tablas distintas—. El cableado de los botones va en la prueba de humo. **Abrir un archivo de verdad es asíncrono y no cabe en el humo, que es síncrono**: se comprueba con la captura `vista=abrir-archivo`, que arma un `.cc2` en memoria, se lo entrega al selector con un `DataTransfer` y fotografía la estructura ya cargada.
+
 ### Nombre de la estructura — retirado hasta que exista el guardado (2026-08-29)
 
 El diseño original le daba a la estructura un **nombre propio dentro de la aplicación**, editable en el panel de configuración, que servía como nombre por defecto del archivo `.cc2`.

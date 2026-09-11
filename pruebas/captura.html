@@ -69,6 +69,7 @@
   <script src="../js/algoritmos/secuencial-externa.js"></script>
   <script src="../js/algoritmos/huffman.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
+  <script src="../js/persistencia/archivo.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
   <script src="../js/vista/componentes/panel.js"></script>
   <script src="../js/vista/componentes/bitacora.js"></script>
@@ -358,6 +359,34 @@
       avanzar(pasosAAvanzar(20));
     }
 
+    // Abrir un archivo `.cc2` de verdad: se construye el JSON, se le entrega al
+    // `input type="file"` con un DataTransfer —que es la única forma de
+    // simular la elección de un archivo— y se dispara el `change`. La lectura
+    // es asíncrona, así que la captura la pilla ya cargada gracias al
+    // presupuesto de tiempo virtual.
+    function prepararAbrirArchivo() {
+      const formularios = entrarATema('Búsqueda secuencial');
+      enviar(formularios[0], { n: 24, l: 2 });
+      for (const clave of [11, 22, 33]) operar(formularios, 'insertar', clave);
+
+      const datos = {
+        version: 1,
+        tema: 'secuencial',
+        tipoClave: 'numerica',
+        n: Number(parametros.get('n')) || 12,
+        l: 2,
+        tratamiento: null,
+        parametros: {},
+        claves: (parametros.get('claves') || '50,10,30,90,70').split(',').map(Number),
+        creadaEn: new Date().toISOString()
+      };
+      const transferencia = new DataTransfer();
+      transferencia.items.add(new File([JSON.stringify(datos)], 'prueba.cc2', { type: 'application/json' }));
+      const selector = document.querySelector('input[type="file"]');
+      selector.files = transferencia.files;
+      selector.dispatchEvent(new Event('change'));
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const vista = parametros.get('vista') || 'menu';
       if (vista === 'menu') return;
@@ -372,6 +401,7 @@
       if (vista === 'cubetas') return prepararCubetas();
       if (vista === 'secuencial-externa') return prepararSecuencialExterna();
       if (vista === 'huffman') return prepararHuffman();
+      if (vista === 'abrir-archivo') return prepararAbrirArchivo();
       if (vista === 'eliminar-binaria') return prepararEliminacion('Búsqueda binaria');
       if (vista === 'eliminar-secuencial') return prepararEliminacion('Búsqueda secuencial');
       prepararBusqueda(vista === 'binaria' ? 'Búsqueda binaria' : 'Búsqueda secuencial');

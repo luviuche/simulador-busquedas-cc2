@@ -7,19 +7,17 @@ const cubetasDom = CC2.dominio.cubetas;
 const estructuras = CC2.dominio.estructura;
 
 // Los mismos aplicadores que usa la pantalla (tema-busqueda.js): la traza no
-// toca nada, y quien la reproduce aplica el `efecto` de cada paso.
+// toca nada, y quien la reproduce aplica el `efecto` de cada paso. El orden de
+// llegada no se lleva aquí: lo lleva el dominio al colocar y al retirar, desde
+// que hizo falta también para guardar en archivo (CLAUDE.md 10).
 const APLICADORES = {
   'colocar-cubeta': (estructura, efecto) => {
     if (efecto.posicion === undefined) estructuras.colocarEn(estructura, efecto.casilla, efecto.clave);
     else estructuras.colocarEnAnidado(estructura, efecto.casilla, efecto.posicion, efecto.clave);
-    estructura.ordenLlegada = estructura.ordenLlegada || [];
-    estructura.ordenLlegada.push(efecto.clave);
   },
   'retirar-cubeta': (estructura, efecto) => {
     if (efecto.posicion === undefined) estructuras.retirarDe(estructura, efecto.casilla);
     else estructuras.retirarDeAnidado(estructura, efecto.casilla, efecto.posicion);
-    const indice = (estructura.ordenLlegada || []).indexOf(efecto.clave);
-    if (indice !== -1) estructura.ordenLlegada.splice(indice, 1);
   },
   'compactar-anidado': (estructura, efecto) => estructuras.compactarAnidado(estructura, efecto.casilla),
   redimensionar: (estructura, efecto) => {
@@ -104,7 +102,7 @@ test('la traza no toca la estructura hasta que se aplica', () => {
   const estructura = crear({ n: 2, r: 3, modoExpansion: 'total' });
   cubetasAlg.insertar({ estructura, clave: 115 });
   assert.equal(estructuras.cantidadClaves(estructura), 0);
-  assert.equal(estructura.ordenLlegada, undefined);
+  assert.deepEqual(estructura.ordenLlegada, []);
 });
 
 test('expansión total: n pasa por 2, 4 y 8 en los puntos exactos del taller', () => {
