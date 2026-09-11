@@ -338,9 +338,16 @@
         // a caballo entre la fila de las casillas y la de la escala, y se
         // centraba entre las dos: quedaba 16 px por debajo de lo que nombra
         // (defecto visto por el usuario, 2026-09-11).
+        //
+        // **Se mide el texto y no la caja.** Centrada la caja, el texto todavía
+        // quedaba 6 px alto porque un relleno sobrante lo empujaba a su mitad
+        // superior: medir la caja daba por bueno lo que a ojo seguía torcido.
+        // Un `Range` sobre el contenido devuelve dónde están las letras.
         const filaDe = (el) => parseInt(el.style.gridRow, 10);
         const centroDeCaja = (el) => {
-          const r = el.getBoundingClientRect();
+          const rango = document.createRange();
+          rango.selectNodeContents(el);
+          const r = rango.getBoundingClientRect();
           return Math.round(r.top + r.height / 2);
         };
         const casillasApiladas = [...document.querySelectorAll('.estructura-apilada .casilla')];
