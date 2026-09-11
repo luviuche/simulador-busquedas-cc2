@@ -21,6 +21,10 @@
       tema,
       titulo,
       tipoClave: estructura.tipoClave,
+      // El modo dice cómo se colocaron las claves —ordenada, dispersa,
+      // árbol—, y es lo que permite saber, al abrir el archivo en otro tema,
+      // si la tabla va a salir igual o recolocada (CLAUDE.md 10.5).
+      modo: estructura.modo,
       n: estructura.n,
       l: estructura.l,
       tratamiento: estructura.tratamiento || null,
@@ -44,7 +48,7 @@
   // Qué tiene que traer un archivo para que se pueda abrir **en este tema**.
   // Se valida antes de tocar nada: si algo no cuadra, la estructura que está
   // en pantalla se queda como está (CLAUDE.md 10.5).
-  function validar(datos, tema) {
+  function validar(datos) {
     if (!datos || typeof datos !== 'object') {
       return { valido: false, mensaje: 'Archivo ilegible: no contiene una estructura.' };
     }
@@ -52,12 +56,6 @@
       return {
         valido: false,
         mensaje: `Versión no reconocida: el archivo dice ${datos.version} y esta versión lee ${VERSION}.`
-      };
-    }
-    if (datos.tema !== tema) {
-      return {
-        valido: false,
-        mensaje: `El archivo es de otro tema ("${datos.tema}"): ábralo desde ese tema.`
       };
     }
     if (!Number.isInteger(datos.n) || datos.n < 1) {
@@ -75,6 +73,42 @@
       };
     }
     return { valido: true, datos };
+  }
+
+  // **Un archivo se puede abrir en otro tema** (pedido del usuario,
+  // 2026-09-11): la gracia de tener las claves guardadas es poder ver las
+  // mismas en secuencial y en binaria, o en dos funciones hash distintas. Lo
+  // que decide si se puede no es el nombre del tema sino **qué clase de claves
+  // guarda**: numéricas a un tema de letras no van, y al revés tampoco.
+  //
+  // Y hay que distinguir dos casos, porque no significan lo mismo:
+  //
+  //   · **Sale igual** — el archivo viene de una estructura ordenada y el
+  //     destino también lo es. Secuencial, binaria y secuencial externa
+  //     colocan las claves exactamente igual: la tabla que aparece es la
+  //     misma que se guardó.
+  //   · **Se recoloca** — cualquier otro cruce. Las claves son las mismas,
+  //     pero la regla del destino las pone en otro sitio: es lo interesante
+  //     del asunto —las mismas doce claves por módulo y por plegamiento— pero
+  //     hay que avisarlo, o parecerá que el archivo se abrió mal.
+  function compatibilidad(datos, destino) {
+    if (datos.tema === destino.tema) {
+      return { abre: true, recoloca: false };
+    }
+    if (datos.tipoClave !== destino.tipoClave) {
+      const clases = { numerica: 'números', alfabetica: 'letras' };
+      return {
+        abre: false,
+        mensaje: `El archivo guarda claves de ${clases[datos.tipoClave] || datos.tipoClave}`
+          + ` y este tema trabaja con ${clases[destino.tipoClave] || destino.tipoClave}.`
+      };
+    }
+    // Un archivo guardado antes de que existiera este cruce no trae `modo`:
+    // sin él no se puede saber si la tabla saldrá igual, y se avisa de que
+    // puede cambiar, que es lo honesto. Se arregla solo en cuanto se vuelve a
+    // guardar.
+    const ordenadas = datos.modo === 'ordenada' && destino.modo === 'ordenada';
+    return { abre: true, recoloca: !ordenadas };
   }
 
   function comoTexto(datos) {
@@ -157,6 +191,7 @@
     serializar,
     nombreSugerido,
     validar,
+    compatibilidad,
     comoTexto,
     hayDialogoDeGuardado,
     guardar,

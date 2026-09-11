@@ -73,31 +73,53 @@ test('el nombre sugerido dice de qué es el archivo sin abrirlo', () => {
   );
 });
 
-test('validar acepta un archivo del mismo tema', () => {
+test('validar acepta un archivo íntegro', () => {
   const estructura = crearOrdenada({ n: 10, l: 2 });
   estructuras.insertar(estructura, 42);
-  const datos = archivo.serializar({ tema: 'binaria', estructura });
-  assert.equal(archivo.validar(datos, 'binaria').valido, true);
+  assert.equal(archivo.validar(archivo.serializar({ tema: 'binaria', estructura })).valido, true);
 });
 
-test('validar rechaza el archivo de otro tema sin tocar nada', () => {
+// Lo que el usuario pedía desde el principio: una estructura hecha en
+// secuencial se abre en binaria, y sale idéntica porque las dos colocan igual.
+test('un archivo de secuencial se abre en binaria y sale igual', () => {
   const estructura = crearOrdenada({ n: 10, l: 2 });
-  const datos = archivo.serializar({ tema: 'hash-modulo', estructura });
-  const resultado = archivo.validar(datos, 'binaria');
-  assert.equal(resultado.valido, false);
-  assert.match(resultado.mensaje, /otro tema/);
+  for (const clave of [50, 10, 30]) estructuras.insertar(estructura, clave);
+  const datos = archivo.serializar({ tema: 'secuencial', estructura });
+  const cruce = archivo.compatibilidad(datos, {
+    tema: 'binaria', modo: 'ordenada', tipoClave: 'numerica'
+  });
+  assert.deepEqual(cruce, { abre: true, recoloca: false });
+});
+
+test('el mismo archivo se abre en un tema hash, avisando de que se recoloca', () => {
+  const estructura = crearOrdenada({ n: 12, l: 4 });
+  estructuras.insertar(estructura, 1024);
+  const datos = archivo.serializar({ tema: 'secuencial', estructura });
+  const cruce = archivo.compatibilidad(datos, {
+    tema: 'hash-modulo', modo: 'dispersa', tipoClave: 'numerica'
+  });
+  assert.equal(cruce.abre, true);
+  assert.equal(cruce.recoloca, true);
+});
+
+test('un archivo de números no se abre en un tema de letras', () => {
+  const estructura = crearOrdenada({ n: 10, l: 2 });
+  const datos = archivo.serializar({ tema: 'secuencial', estructura });
+  const cruce = archivo.compatibilidad(datos, {
+    tema: 'residuos', modo: 'arbol', tipoClave: 'alfabetica'
+  });
+  assert.equal(cruce.abre, false);
+  assert.match(cruce.mensaje, /números.*letras/);
 });
 
 test('validar rechaza versiones que no sabe leer', () => {
-  const resultado = archivo.validar({ version: 99, tema: 'secuencial', n: 4, claves: [] }, 'secuencial');
+  const resultado = archivo.validar({ version: 99, tema: 'secuencial', n: 4, claves: [] });
   assert.equal(resultado.valido, false);
   assert.match(resultado.mensaje, /Versión no reconocida/);
 });
 
 test('validar rechaza un archivo con más claves de las que caben', () => {
-  const resultado = archivo.validar(
-    { version: 1, tema: 'secuencial', n: 2, claves: [1, 2, 3] }, 'secuencial'
-  );
+  const resultado = archivo.validar({ version: 1, tema: 'secuencial', n: 2, claves: [1, 2, 3] });
   assert.equal(resultado.valido, false);
   assert.match(resultado.mensaje, /3 claves para una estructura de 2/);
 });
@@ -110,7 +132,7 @@ test('una estructura a medio llenar se guarda y se valida igual', () => {
   const datos = archivo.serializar({ tema: 'secuencial', estructura });
   assert.equal(datos.claves.length, 2);
   assert.equal(datos.n, 24);
-  assert.equal(archivo.validar(datos, 'secuencial').valido, true);
+  assert.equal(archivo.validar(datos).valido, true);
 });
 
 test('lo que se escribe es JSON legible', () => {

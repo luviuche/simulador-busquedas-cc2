@@ -1826,17 +1826,13 @@
 
         // Los parámetros se validan contra n y l, así que no pueden validarse
         // antes de tenerlos: por eso ocurre aquí y no en el campo.
-        const parametros = {};
-        const advertenciasParametros = [];
-        for (const parametro of config.parametros || []) {
-          const validacion = parametro.validar(String(datos.get(parametro.nombre) || ''), { n: tamano.n, l: tamano.l });
-          if (!validacion.valido) {
-            mostrarAlerta('error', validacion.mensaje);
-            return;
-          }
-          parametros[parametro.nombre] = validacion.valor;
-          if (validacion.advertencia) advertenciasParametros.push(validacion.advertencia);
+        const lectura = leerParametros(datos, tamano);
+        if (!lectura.valido) {
+          mostrarAlerta('error', lectura.mensaje);
+          return;
         }
+        const parametros = lectura.parametros;
+        const advertenciasParametros = lectura.advertencias;
 
         crearYRegistrar({
           n: tamano.n,
@@ -1899,6 +1895,24 @@
       return resultado.estructura;
     }
 
+    // Los parámetros propios del tema, leídos de un `FormData` y validados
+    // contra `n` y `l`. Vive aparte porque lo necesitan dos caminos: crear la
+    // estructura desde el formulario, y abrir un archivo **de otro tema**, que
+    // no trae estos datos y tiene que tomarlos de lo que haya en pantalla.
+    function leerParametros(datos, tamano) {
+      const parametros = {};
+      const advertencias = [];
+      for (const parametro of config.parametros || []) {
+        const validacion = parametro.validar(
+          String(datos.get(parametro.nombre) || ''), { n: tamano.n, l: tamano.l }
+        );
+        if (!validacion.valido) return { valido: false, mensaje: validacion.mensaje };
+        parametros[parametro.nombre] = validacion.valor;
+        if (validacion.advertencia) advertencias.push(validacion.advertencia);
+      }
+      return { valido: true, parametros, advertencias };
+    }
+
     // Coloca una clave **sin reproducir su traza**. La usan las dos operaciones
     // que preparan el escenario en vez de enseñarlo: el llenado automático y
     // abrir un archivo (CLAUDE.md 6.5).
@@ -1951,14 +1965,25 @@
           mostrarAlerta('error', lectura.mensaje);
           return;
         }
-        const validacion = persistencia.archivo.validar(lectura.datos, config.id);
+        const validacion = persistencia.archivo.validar(lectura.datos);
         if (!validacion.valido) {
           // Nada se toca si el archivo no cuadra: la estructura que está en
           // pantalla se queda como está (CLAUDE.md 10.5).
           mostrarAlerta('error', validacion.mensaje);
           return;
         }
-        cargarDatos(validacion.datos);
+        // Un archivo de otro tema sí se abre, si sus claves valen aquí: es lo
+        // que permite ver las mismas claves en secuencial y en binaria.
+        const cruce = persistencia.archivo.compatibilidad(validacion.datos, {
+          tema: config.id,
+          modo: config.modo || dominio.estructura.MODOS.ORDENADA,
+          tipoClave: config.claveEsLetra ? 'alfabetica' : 'numerica'
+        });
+        if (!cruce.abre) {
+          mostrarAlerta('error', cruce.mensaje);
+          return;
+        }
+        cargarDatos(validacion.datos, cruce);
       });
     }
 
@@ -1980,13 +2005,41 @@
     // Rehace la estructura y vuelve a meter las claves **en el orden en que
     // llegaron**, sin traza: abrir un archivo es preparar el escenario, no la
     // lección — el mismo criterio que el llenado automático (CLAUDE.md 6.5).
-    function cargarDatos(datos) {
+    function cargarDatos(datos, cruce) {
       invalidarReproduccion();
+
+      // **Del archivo salen las claves; lo demás depende de quién lo abra.**
+      // Si es su propio tema, el archivo trae sus parámetros y se respetan.
+      // Si viene de otro, esos parámetros no significan nada aquí —un archivo
+      // de secuencial no sabe de `r` ni de umbrales— y se toman de lo que haya
+      // configurado en pantalla, validado igual que al crear.
+      const propio = datos.tema === config.id;
+      const tamano = config.sinTamano
+        ? config.tamano()
+        : { n: datos.n, l: config.sinLongitud ? undefined : datos.l };
+
+      let parametros = datos.parametros || {};
+      let tratamiento = datos.tratamiento || null;
+      if (!propio) {
+        const desdePantalla = dom.configuracion
+          ? leerParametros(new FormData(dom.configuracion), tamano)
+          : { valido: true, parametros: {} };
+        if (!desdePantalla.valido) {
+          mostrarAlerta('error',
+            `Complete la configuración de este tema antes de abrir el archivo: ${desdePantalla.mensaje}`);
+          return;
+        }
+        parametros = desdePantalla.parametros;
+        tratamiento = config.tratamientos && dom.configuracion
+          ? String(new FormData(dom.configuracion).get('tratamiento'))
+          : null;
+      }
+
       const estructura = establecerEstructura({
-        n: datos.n,
-        l: datos.l,
-        tratamiento: datos.tratamiento,
-        parametros: datos.parametros || {}
+        n: tamano.n,
+        l: tamano.l,
+        tratamiento,
+        parametros
       });
       if (!estructura) return;
 
@@ -1994,7 +2047,7 @@
       // mostrando los valores anteriores, diría una cosa mientras el lienzo
       // dibuja otra, y bastaría pulsar "Crear estructura" para tirar sin querer
       // lo recién abierto.
-      reflejarEnConfiguracion(datos);
+      reflejarEnConfiguracion({ n: tamano.n, l: tamano.l, tratamiento, parametros });
 
       let colocadas = 0;
       for (const clave of datos.claves) {
@@ -2008,6 +2061,11 @@
       if (colocadas < datos.claves.length) {
         mostrarAlerta('advertencia',
           `Se colocaron ${colocadas} de ${datos.claves.length} claves: el resto no cupo o no era válido.`);
+      } else if (cruce && cruce.recoloca) {
+        // Las claves son las mismas; su sitio no. Decirlo, o parecerá que el
+        // archivo se abrió mal.
+        mostrarAlerta('advertencia',
+          `Estructura abierta: ${colocadas} clave(s) del archivo, recolocadas con las reglas de este tema.`);
       } else {
         mostrarAlerta('info', `Estructura abierta: ${colocadas} clave(s) listas para operar.`);
       }

@@ -1104,7 +1104,21 @@ Hasta 5, en almacenamiento del navegador. **No son la copia real**: si el estudi
 
 ### Al cargar
 
-Validar integridad y correspondencia con el tema activo. Si no corresponde, informar sin cargar.
+Validar integridad antes de tocar nada: si el archivo no cuadra, la estructura que está en pantalla se queda como está.
+
+**Un archivo se abre también en otro tema** (pedido del usuario, 2026-09-11). Era el objetivo desde el principio —«poder usar una estructura creada en secuencial en binaria»— y la primera versión lo impedía, porque exigía que el archivo fuera del tema activo. Lo que decide si se puede no es el nombre del tema sino **qué clase de claves guarda**:
+
+| | Qué pasa | Aviso |
+|---|---|---|
+| **Sale igual** | El archivo viene de una estructura ordenada y el destino también: secuencial, binaria y secuencial externa colocan las claves exactamente igual | «listas para operar» |
+| **Se recoloca** | Mismo tipo de clave, otra regla de colocación: de secuencial a una función hash, entre dos funciones hash, a cubetas | «recolocadas con las reglas de este tema» |
+| **No se abre** | Distinto tipo de clave: números a un tema de letras, o al revés | «El archivo guarda claves de números y este tema trabaja con letras» |
+
+Avisar de la recolocación no es un detalle: las claves son las mismas pero su sitio no, y sin decirlo parecería que el archivo se abrió mal. Es además lo interesante del asunto —las mismas doce claves por módulo y por plegamiento—, y conviene que se lea como una posibilidad y no como un fallo.
+
+**Del archivo salen las claves; los parámetros propios dependen de quién lo abra.** Si es su propio tema, el archivo los trae y se respetan. Si viene de otro, no significan nada aquí —un archivo de secuencial no sabe de `r` ni de umbrales— y se toman de lo que haya configurado en pantalla, validado igual que al crear; si falta algo, se dice cuál y no se abre. Y en los temas que no piden tamaño —los árboles— se ignoran el `n` y el `l` del archivo y se usan los suyos.
+
+**El archivo guarda también el `modo`**, que es lo que permite distinguir «sale igual» de «se recoloca». Uno guardado antes de que esto existiera no lo trae: entonces se avisa de recolocación, que es lo honesto cuando no se puede saber, y se arregla solo en cuanto se vuelve a guardar.
 
 ### Bitácora
 

@@ -365,14 +365,19 @@
     // es asíncrona, así que la captura la pilla ya cargada gracias al
     // presupuesto de tiempo virtual.
     function prepararAbrirArchivo() {
-      const formularios = entrarATema('Búsqueda secuencial');
+      // Con `?tema=` se abre el mismo archivo en otro tema, que es la gracia:
+      // las claves de secuencial vistas en binaria, o en una tabla hash.
+      const formularios = entrarATema(parametros.get('tema') || 'Búsqueda secuencial');
       enviar(formularios[0], { n: 24, l: 2 });
+      // Insertar en una estructura ordenada es instantáneo: no hay traza que
+      // agotar antes de abrir el archivo.
       for (const clave of [11, 22, 33]) operar(formularios, 'insertar', clave);
 
       const datos = {
         version: 1,
         tema: 'secuencial',
         tipoClave: 'numerica',
+        modo: 'ordenada',
         n: Number(parametros.get('n')) || 12,
         l: 2,
         tratamiento: null,
