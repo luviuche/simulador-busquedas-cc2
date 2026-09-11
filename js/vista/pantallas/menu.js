@@ -153,7 +153,7 @@
     return aside;
   }
 
-  function crearPantallaMenu({ catalogo, recientes, alSeleccionarTema, alVerAlertas }) {
+  function crearPantallaMenu({ catalogo, recientes, alSeleccionarTema }) {
     const pantalla = document.createElement('div');
     pantalla.className = 'pantalla pantalla-menu-app';
 
@@ -170,13 +170,12 @@
     descripcionMarca.textContent = ' · Ciencias de la Computación II — Simulador de algoritmos de búsqueda';
     marca.append(sigla, descripcionMarca);
 
-    const botonAlertas = document.createElement('button');
-    botonAlertas.type = 'button';
-    botonAlertas.className = 'boton';
-    botonAlertas.textContent = 'Alertas del sistema';
-    botonAlertas.addEventListener('click', () => alVerAlertas && alVerAlertas());
-
-    barra.append(marca, botonAlertas);
+    // **Sin botón de alertas** (2026-09-11). Era un botón fijo para preguntar
+    // si había alertas, y casi siempre contestaba que no. Los avisos que sí
+    // importan —«tema en construcción»— no salían de ahí: salen solos al
+    // pulsar un tema pendiente, y se muestran debajo de esta barra, que es
+    // donde siguen saliendo.
+    barra.appendChild(marca);
 
     const cuerpo = document.createElement('div');
     cuerpo.className = 'pantalla-menu__cuerpo';

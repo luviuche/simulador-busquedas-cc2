@@ -219,7 +219,7 @@
     // Árbol de búsqueda digital: el ejercicio de clase es la palabra «prueba»,
     // que se inserta entera y deja el árbol con ramas a lado y lado.
     function prepararArbolDigital() {
-      const formularios = entrarATema('Árboles de búsqueda digital');
+      const formularios = entrarATema('Árbol de búsqueda digital');
       // Sin panel de configuración: el árbol se crea al entrar al tema.
       const panel = formularios[0];
       panel.querySelector('[name="palabra"]').value = parametros.get('palabra') || 'prueba';
@@ -239,7 +239,7 @@
     // Residuos: el mismo ejercicio de clase, pero con las claves solo en las
     // hojas y los nodos de en medio dibujados como punto de bifurcación.
     function prepararResiduos() {
-      const formularios = entrarATema('Búsqueda por residuos');
+      const formularios = entrarATema('Árbol de búsqueda por residuos');
       const panel = formularios[0];
       panel.querySelector('[name="palabra"]').value = parametros.get('palabra') || 'prueba';
       panel.querySelector('[data-accion="insertar-palabra"]').click();
@@ -256,7 +256,7 @@
     // Residuos múltiples: el esqueleto completo, como el tablero. Cada nodo
     // abre sus ramas lleven a una clave o no, y por eso se ve extenso.
     function prepararResiduosMultiples() {
-      const formularios = entrarATema('Residuos múltiples');
+      const formularios = entrarATema('Árbol de búsqueda por residuos múltiples');
       const panel = formularios[0];
       panel.querySelector('[name="palabra"]').value = parametros.get('palabra') || 'prueba';
       panel.querySelector('[data-accion="insertar-palabra"]').click();

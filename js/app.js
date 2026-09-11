@@ -47,12 +47,18 @@
             },
             {
               id: 'residuo',
-              titulo: 'Búsquedas por residuo',
+              // Nombres y orden del docente (traídos por el usuario,
+              // 2026-09-11). "Tries" es el sinónimo del libro y no parte del
+              // nombre, así que vive en la descripción, que es donde sirve:
+              // es la palabra con la que el tema se encuentra en cualquier
+              // otro sitio.
+              titulo: 'Árboles de búsqueda por residuo',
               descripcion: 'El camino de la clave se recorre bit a bit, o por bloques de bits',
               hijos: [
-                { id: 'residuos', titulo: 'Búsqueda por residuos', descripcion: 'Claves solo en las hojas', tema: 'residuos', disponible: true },
-                { id: 'arbol-digital', titulo: 'Árboles de búsqueda digital', descripcion: 'Inserción bit a bit', tema: 'arbol-digital', disponible: true },
-                { id: 'residuos-multiples', titulo: 'Residuos múltiples', descripcion: 'Ramificación por bloques de bits', tema: 'residuos-multiples', disponible: true }
+                { id: 'arbol-digital', titulo: 'Árbol de búsqueda digital', descripcion: 'Inserción bit a bit', tema: 'arbol-digital', disponible: true },
+                { id: 'residuos', titulo: 'Árbol de búsqueda por residuos', descripcion: 'Claves solo en las hojas · trie', tema: 'residuos', disponible: true },
+                { id: 'residuos-multiples', titulo: 'Árbol de búsqueda por residuos múltiples', descripcion: 'Ramificación por bloques de bits', tema: 'residuos-multiples', disponible: true },
+                { id: 'huffman', titulo: 'Árbol de Huffman', descripcion: 'La forma del árbol la dan las frecuencias', tema: null, disponible: false }
               ]
             }
           ]
@@ -135,7 +141,7 @@
   //                    se enseña, así que produce traza como una búsqueda.
   //   tratamientos   — las colisiones no son un tema aparte sino parte de
   //                    estos temas (pedido del docente); se eligen al crear.
-  function temaHash({ titulo, descripcion, direccionDe, parametros }) {
+  function temaHash({ direccionDe, parametros }) {
     const operar = (operacion) => ({ estructura, clave, objetivo }) => operacion({
       claves: estructura.claves,
       n: estructura.n,
@@ -149,8 +155,6 @@
     });
 
     return {
-      titulo,
-      descripcion,
       orientacion: 'vertical',
       modo: dominio.estructura.MODOS.DISPERSA,
       calculo: true,
@@ -246,8 +250,6 @@
   // para la elisión y en qué estado queda cada una en el paso actual.
   const TEMAS = {
     secuencial: {
-      titulo: 'BÚSQUEDA SECUENCIAL',
-      descripcion: 'Recorrido lineal, clave por clave',
       buscar: ({ estructura, objetivo }) => algoritmos.secuencial.buscarSecuencial(estructura.claves, objetivo),
       // Borrar en secuencial recorre desde la casilla 1, como buscar: la
       // eliminación no tiene camino propio, usa el del tema (CLAUDE.md 5.6).
@@ -269,8 +271,6 @@
     },
 
     binaria: {
-      titulo: 'BÚSQUEDA BINARIA',
-      descripcion: 'División sobre arreglo ordenado',
       buscar: ({ estructura, objetivo }) => algoritmos.binaria.buscarBinaria(estructura.claves, objetivo),
       // Borrar en binaria divide, como buscar: la clave se localiza con el
       // algoritmo del tema y solo entonces sale (CLAUDE.md 5.6).
@@ -352,7 +352,6 @@
       });
 
       return {
-        titulo: 'RESIDUOS MÚLTIPLES',
         descripcion: `Un bloque de ${arbol.BLOQUES.join(', ')} bits por nivel, y las claves solo en las hojas`,
         orientacion: 'arbol',
         modo: dominio.estructura.MODOS.ARBOL,
@@ -423,7 +422,6 @@
       });
 
       return {
-        titulo: 'BÚSQUEDA POR RESIDUOS',
         descripcion: 'Un bit por nivel, y las claves solo en las hojas',
         orientacion: 'arbol',
         modo: dominio.estructura.MODOS.ARBOL,
@@ -488,7 +486,6 @@
       });
 
       return {
-        titulo: 'ÁRBOLES DE BÚSQUEDA DIGITAL',
         descripcion: 'Un bit por nivel, 0 a la izquierda y 1 a la derecha',
         orientacion: 'arbol',
         modo: dominio.estructura.MODOS.ARBOL,
@@ -544,14 +541,10 @@
     })(),
 
     'hash-modulo': temaHash({
-      titulo: 'FUNCIÓN MÓDULO',
-      descripcion: 'Dirección por residuo de n',
       direccionDe: algoritmos.hash.modulo.direccionModulo
     }),
 
     'hash-cuadrado': temaHash({
-      titulo: 'FUNCIÓN CUADRADO',
-      descripcion: 'Cifras centrales del cuadrado',
       direccionDe: algoritmos.hash.cuadrado.direccionCuadrado
     }),
 
@@ -559,8 +552,6 @@
     // toda la estructura, no decididas por el simulador. Es lo que el docente
     // plantea en un ejercicio ("tome la primera y la tercera cifra").
     'hash-truncamiento': temaHash({
-      titulo: 'FUNCIÓN TRUNCAMIENTO',
-      descripcion: 'Selección de dígitos de la clave',
       direccionDe: algoritmos.hash.truncamiento.direccionTruncamiento,
       parametros: [
         {
@@ -582,8 +573,6 @@
     // del truncamiento: el docente plantea el ejercicio sumando los grupos o
     // multiplicándolos, y el resto del cálculo es el mismo.
     'hash-plegamiento': temaHash({
-      titulo: 'FUNCIÓN PLEGAMIENTO',
-      descripcion: 'Suma o producto de las particiones',
       direccionDe: algoritmos.hash.plegamiento.direccionPlegamiento,
       parametros: [
         {
@@ -604,8 +593,6 @@
     // bits, pero no muestra la clave en binario: lo binario del documento
     // quedó otra vez sin resolver.
     'hash-bases': temaHash({
-      titulo: 'CONVERSIÓN DE BASES',
-      descripcion: 'Las cifras de la clave leídas en otra base',
       direccionDe: algoritmos.hash.bases.direccionBases,
       parametros: [
         {
@@ -632,8 +619,6 @@
     // el FLIP sin traza propia. Lo único que este tema aporta es cómo se lee
     // el archivo —bloque por bloque— y cómo se dibuja.
     'secuencial-externa': {
-      titulo: 'BÚSQUEDA SECUENCIAL EXTERNA',
-      descripcion: 'El archivo se lee bloque por bloque',
       // Cuarta orientación de la pantalla (CLAUDE.md 6.1): ni fila, ni tabla,
       // ni niveles, sino columnas separadas con su rótulo arriba.
       orientacion: 'bloques',
@@ -721,8 +706,6 @@
     // reutiliza esa matriz para dibujar sin CSS nuevo; lo único propio del
     // tema es `algoritmos.cubetas`, que sabe cuándo expandir y reducir.
     cubetas: {
-      titulo: 'OTRAS BÚSQUEDAS DINÁMICAS',
-      descripcion: 'Cubetas con expansión y reducción dinámica de n',
       // Horizontal y no vertical (a diferencia de los temas hash, CLAUDE.md
       // 6.1): el docente dibuja las cubetas en columnas —n cubetas lado a
       // lado— con los renglones bajando dentro de cada una, y no al revés.
@@ -830,13 +813,28 @@
     raiz.appendChild(pantalla);
   }
 
+  // **El nombre de un tema vive en un solo sitio: el catálogo.** Antes estaba
+  // también en `TEMAS`, duplicado —y en tres temas las dos copias ya decían
+  // cosas distintas—. La pantalla recibe el nodo del catálogo fundido con su
+  // configuración, así que el menú y la cabecera no pueden volver a
+  // desincronizarse.
+  //
+  // La descripción se hereda del catálogo, y un tema **puede escribir la
+  // suya** cuando quiera decir algo más: en el menú la descripción sirve para
+  // escoger entre temas, y dentro de la pantalla para situarse en el que ya se
+  // escogió, que no siempre pide las mismas palabras. La diferencia deja de
+  // ser un descuido y pasa a estar declarada.
   function mostrarTema(tema) {
     const config = TEMAS[tema.tema];
     if (!tema.disponible || !config) {
       mostrarAlertaMenu('info', `Tema en construcción: "${tema.titulo}" aún no está implementado.`);
       return;
     }
-    montarPantalla(vista.pantallas.temaBusqueda.crearPantallaTema(config, mostrarMenu));
+    const configDelTema = Object.assign({}, config, {
+      titulo: tema.titulo,
+      descripcion: config.descripcion || tema.descripcion
+    });
+    montarPantalla(vista.pantallas.temaBusqueda.crearPantallaTema(configDelTema, mostrarMenu));
   }
 
   function mostrarAlertaMenu(tipo, mensaje) {
@@ -852,8 +850,7 @@
     const pantalla = vista.pantallas.menu.crearPantallaMenu({
       catalogo: CATALOGO,
       recientes: persistencia.recientes.obtener(),
-      alSeleccionarTema: mostrarTema,
-      alVerAlertas: () => mostrarAlertaMenu('info', 'Sin alertas activas en esta sesión.')
+      alSeleccionarTema: mostrarTema
     });
 
     const barra = pantalla.querySelector('.pantalla-menu__barra');

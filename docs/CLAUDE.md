@@ -258,6 +258,14 @@ El estado (`estructura`, `reproductor`, `pasoActual`) vive en el closure de cada
 
 Dos consecuencias para quien toque las pruebas: **se entra a un tema con un solo clic en su renglón** (`entrarATema`, en `humo.html` y `captura.html`, ya no recorre categorías y por eso desapareció el mapa `RUTA_TEMA`), y ese renglón **se busca por título exacto y no por `includes`**: en el índice conviven «Búsqueda secuencial» y «Búsqueda secuencial externa», y un `includes` entraría siempre al primero.
 
+### El nombre de un tema vive en un solo sitio (2026-09-11)
+
+**El título y la descripción de cada tema los pone el catálogo, y `TEMAS` no los repite.** Antes estaban en los dos —doce pares— y en los tres temas de árbol las dos copias ya decían cosas distintas: el menú «Claves solo en las hojas» y la pantalla «Un bit por nivel, y las claves solo en las hojas». `mostrarTema` funde el nodo del catálogo con la configuración del tema, así que el menú y la cabecera no pueden volver a desincronizarse.
+
+**La descripción sí puede diferir, pero declarándolo**: un tema escribe la suya solo cuando quiere decir algo más, y si no la escribe hereda la del catálogo. Las dos descripciones tienen trabajos distintos —una para escoger entre temas desde el índice, otra para situarse dentro del que ya se escogió— y eso no es un descuido; el descuido era que los otros nueve pudieran divergir sin que nadie se enterara.
+
+**El título se guarda en capitalización normal.** Las mayúsculas las pone la escala tipográfica (§8.3), no el dato: guardarlas dentro era meter estilo en el contenido, y obligaba a editar doce cadenas para cambiar una regla de presentación.
+
 ### Organización de archivos
 
 ```
@@ -484,7 +492,7 @@ El tema lo declara con `anidados: { tamano(estructura), columnas(estructura) }`,
 
 Por eso la cadena ocupa **una sola columna del grid de la fila** y se ordena por dentro (`.cadena`, un flex), en vez de una pista por posición.
 
-### 5.5 Otras búsquedas internas
+### 5.5 Árboles de búsqueda por residuo
 
 Por residuos, árboles de búsqueda digital, residuos múltiples. Mismo contrato: producen traza. En el catálogo del menú viven agrupados bajo "Búsqueda por residuo" (§4). **Método de la rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06): no se van a cubrir. **Tablas de índices** no es de esta familia —se cubre junto a las búsquedas externas (§12), no aquí.
 
@@ -1032,7 +1040,7 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 
-**«Otras búsquedas internas» está completa: árboles de búsqueda digital, búsqueda por residuos y residuos múltiples** (§5.5). El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima aportando una sola regla —las claves solo en las hojas—; y residuos múltiples entró sobre residuos cambiando solo la forma del árbol, que dejó de estar cableada en la pantalla y ahora viaja en `config.arbol`. Los tres comparten la letra y su código de cinco bits. **Rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06); **tablas de índices** pasó a cubrirse junto a las búsquedas externas, más abajo.
+**«Árboles de búsqueda por residuo» tiene tres de sus cuatro temas construidos: árbol de búsqueda digital, árbol de búsqueda por residuos (trie) y árbol de búsqueda por residuos múltiples** (§5.5). **Falta el árbol de Huffman**, que el docente incluye en esta misma familia (traído por el usuario, 2026-09-11) y que ya aparece en el catálogo marcado «En desarrollo». El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima aportando una sola regla —las claves solo en las hojas—; y residuos múltiples entró sobre residuos cambiando solo la forma del árbol, que dejó de estar cableada en la pantalla y ahora viaja en `config.arbol`. Los tres comparten la letra y su código de cinco bits. **Rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06); **tablas de índices** pasó a cubrirse junto a las búsquedas externas, más abajo.
 
 **Los cuatro tratamientos de colisión están construidos: `ninguno`, `reasignación` (prueba lineal), `arreglos anidados` y `encadenamiento secuencial` (§5.4).** Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el encadenamiento entró sobre él: comparte almacenamiento, aplicadores y rama de eliminación, y lo único propio suyo es que su estructura secundaria no tiene tope.
 
@@ -1051,6 +1059,8 @@ Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al 
 Búsquedas externas —binaria externa, **tablas de índices** (el docente la está viendo en clase, 2026-09-06), índices primarios/secundarios/multinivel— (salvo otras búsquedas dinámicas, §5.7, ya construida) y la categoría de grafos completa. Se muestran en el catálogo del menú, marcadas "En desarrollo", y responden al clic con un aviso de "en construcción" en vez de quedar mudas. Su presencia comunica el alcance del curso.
 
 **Búsqueda secuencial externa está construida** (§5.8, 2026-09-11): el docente confirmó la forma del archivo —`B = √N` truncado, `r = N/√N` redondeado al más cercano, un bloque más si no alcanza, y el último con el sobrante— y que el llenado es ordenado. Queda una sola duda abierta, que solo afecta al contador: si recorrer el bloque que contiene la clave suma **otro** acceso o si ya estaba contado por la comparación contra su último registro.
+
+**El árbol de Huffman no tiene algoritmo confirmado** (2026-09-11). El docente lo agrupa con los otros tres árboles por residuo, y comparte con ellos la bajada —bit a bit hasta una hoja—, pero se aparta en lo esencial: **la forma del árbol no la dicta la clave sino la frecuencia**, así que lo que hay que enseñar es la construcción y no solo el recorrido. Antes de construirlo hay que saber de dónde salen las frecuencias, cómo se rompen los empates entre nodos del mismo peso —que es lo que decide la forma final—, si 0 va a la izquierda como en los demás, y si se evalúa construir, codificar, decodificar o las tres.
 
 **Binaria externa y hashing externo siguen sin algoritmo confirmado.** La forma del archivo probablemente les sirva igual, pero su recorrido no se le ha preguntado al docente. No construir esto por iniciativa propia mientras esa duda siga abierta.
 
