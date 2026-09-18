@@ -30,6 +30,7 @@
   <script src="../js/dominio/cubetas.js"></script>
   <script src="../js/dominio/externa.js"></script>
   <script src="../js/dominio/huffman.js"></script>
+  <script src="../js/dominio/indices.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
@@ -50,6 +51,7 @@
   <script src="../js/algoritmos/cubetas.js"></script>
   <script src="../js/algoritmos/secuencial-externa.js"></script>
   <script src="../js/algoritmos/huffman.js"></script>
+  <script src="../js/algoritmos/indices.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/persistencia/archivo.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
@@ -458,6 +460,7 @@
       cubetas();
       secuencialExterna();
       arbolDeHuffman();
+      indices();
       controlDeElision();
       archivos();
       controlDeVelocidad();
@@ -2103,6 +2106,159 @@
       document.querySelector('.pantalla-tema__volver').click();
     }
 
+
+
+    // Índices (CLAUDE.md 5.x). Lo que solo se ve entrando por el DOM: que el
+    // tema **no ofrece panel de operaciones** —no hay clave que insertar—, que
+    // crear la estructura arranca la derivación por sí sola, que las columnas
+    // se dibujan todas desde el primer paso —las pendientes apagadas— y que
+    // las flechas existen y apuntan de una columna a la siguiente. La
+    // aritmética está probada contra la hoja del docente en `indices.test.js`.
+    function indices() {
+      registro.push('', '── Índices ──');
+
+      entrarATema('Índices primarios, secundarios y multinivel');
+      const formularios = [...document.querySelectorAll('form.panel')];
+      afirmar(
+        formularios.length === 1,
+        `solo está el panel de configuración: en este tema no hay clave que operar (hay ${formularios.length} formularios)`
+      );
+      afirmar(
+        !document.querySelector('[name="clave"]'),
+        'el panel no pide clave: la estructura sale de los parámetros, no de inserciones'
+      );
+      // Guardar y abrir sí valen aquí, aunque no haya claves: lo que el archivo
+      // lleva son los parámetros, y con ellos se recupera la misma estructura
+      // (pedido del usuario, 2026-09-17). Lo que no hace es cruzar de tema.
+      afirmar(
+        !!document.querySelector('[data-accion="cargar"]') && !!document.querySelector('[data-accion="vaciar"]'),
+        'ofrece cargar y vaciar desde que se entra al tema'
+      );
+
+      enviar(formularios[0], { r: 500000, B: 4096, R: 120, Ri: 15, tipo: 'primario', niveles: 'un-nivel' });
+
+      afirmar(
+        !document.querySelector('[data-accion="guardar"]').hidden,
+        'y guardar aparece en cuanto hay estructura que guardar'
+      );
+
+      // Crear es la operación: la derivación tiene que estar en marcha sin que
+      // nadie pulse nada más.
+      afirmar(
+        !document.querySelector('[data-seccion="reproduccion"]').hidden,
+        'crear la estructura arranca la derivación: el reproductor aparece solo'
+      );
+
+      const columnas = () => [...document.querySelectorAll('.columna-indice')];
+      afirmar(columnas().length === 2, `el índice primario de un nivel dibuja dos columnas (dibuja ${columnas().length})`);
+      afirmar(
+        columnas().filter((c) => c.classList.contains('columna-indice--pendiente')).length > 0,
+        'en el primer paso hay columnas todavía sin calcular, y se dibujan apagadas'
+      );
+
+      agotarTraza(12);
+      afirmar(
+        columnas().every((c) => !c.classList.contains('columna-indice--pendiente')),
+        'al terminar la derivación ninguna columna queda pendiente'
+      );
+
+      const rotulos = [...document.querySelectorAll('.columna-indice__rotulo')].map((el) => el.textContent);
+      registro.push('  bloques dibujados: ' + rotulos.join(' '));
+      afirmar(rotulos.includes('B54'), 'el índice llega hasta su último bloque, B54');
+      afirmar(rotulos.includes('B14706'), 'el archivo llega hasta su último bloque, B14706');
+      // La frontera: un bloque de índice de 273 entradas abarca 273 bloques de
+      // datos, y ese bloque se dibuja con nombre propio porque es el que lo
+      // enseña (CLAUDE.md 6.2).
+      afirmar(rotulos.includes('B273'), 'el bloque frontera —el 273— se dibuja con nombre propio');
+
+      const escala = [...document.querySelectorAll('.columna-indice__rango')].map((el) => el.textContent);
+      registro.push('  escala: ' + escala.join(' | '));
+      afirmar(
+        escala.some((t) => t.includes('500.004')),
+        'la escala del archivo cierra en la capacidad, 500.004, y no en los 500.000 registros'
+      );
+
+      const flechas = document.querySelectorAll('.indices__flechas path[d]');
+      afirmar(flechas.length >= 3, `las columnas se unen con flechas (hay ${flechas.length})`);
+
+      const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+      registro.push('  métricas: ' + metricas.join(' · '));
+      afirmar(
+        metricas.join(' ') === '7 54 14.706 1',
+        `las métricas reportan 7 accesos, 54 bloques de índice, 14.706 de archivo y 1 nivel (reporta ${metricas.join(' ')})`
+      );
+
+      // El multinivel con secundarios es el caso ancho: cuatro columnas que no
+      // caben en el lienzo, y por eso la estructura se desplaza en horizontal
+      // (decisión con el usuario, 2026-09-17). Que desborde es lo correcto;
+      // lo que no puede es desbordar **sin poder desplazarse**.
+      enviar(formularios[0], { r: 500000, B: 4096, R: 120, Ri: 15, tipo: 'secundario', niveles: 'multinivel' });
+      agotarTraza(14);
+      afirmar(columnas().length === 4, `el multinivel con secundarios dibuja cuatro columnas (dibuja ${columnas().length})`);
+
+      // Los títulos, todos a la misma línea de base. Sin esto cada uno colgaba
+      // del pie de su propia columna —«Nivel 3» tiene un bloque y «Nivel 2»
+      // siete— y las flechas hacia una columna corta atravesaban el título de
+      // la siguiente (defecto que el usuario vio en la aplicación, 2026-09-17).
+      //
+      // Se mide con `offsetTop` y con la altura de la caja, no con la posición
+      // en pantalla: el FLIP deja un `transform` en vuelo que falsearía un
+      // `getBoundingClientRect().top`, pero no toca ni el uno ni la otra.
+      const altos = columnas().map((c) => Math.round(c.getBoundingClientRect().height));
+      registro.push('  alto de cada columna: ' + altos.join(' · '));
+      afirmar(
+        new Set(altos).size === 1,
+        `las cuatro columnas miden lo mismo de alto, que es lo que alinea sus pies (miden ${altos.join(', ')})`
+      );
+      const pies = [...document.querySelectorAll('.columna-indice__titulo')].map((t) => t.offsetTop);
+      afirmar(
+        new Set(pies).size === 1,
+        `los títulos de las columnas caen todos a la misma altura (caen en ${pies.join(', ')})`
+      );
+
+      // Y cada bloque, a la altura de sus números y de su rótulo. Las tres
+      // columnas —escala, bloques, rótulos— llevan una celda por segmento y en
+      // el mismo orden, así que basta comparar la i-ésima de cada una. Un
+      // desfase de un píxel por bloque no se ve en el primero y sí en el
+      // séptimo, que es como apareció (2026-09-17).
+      let desfase = 0;
+      for (const col of columnas()) {
+        const filas = (clase) => [...col.querySelector(clase).children];
+        const escalas = filas('.columna-indice__escala');
+        const pilas = filas('.columna-indice__bloques');
+        const marcas = filas('.columna-indice__rotulos');
+        for (let i = 0; i < pilas.length; i++) {
+          desfase = Math.max(
+            desfase,
+            Math.abs(pilas[i].offsetTop - escalas[i].offsetTop),
+            Math.abs(pilas[i].offsetTop - marcas[i].offsetTop)
+          );
+        }
+      }
+      registro.push(`  desfase máximo entre bloque, escala y rótulo: ${desfase} px`);
+      afirmar(
+        desfase <= 1,
+        `cada bloque queda a la altura de sus números y de su rótulo (se desvía ${desfase} px)`
+      );
+
+      // El tramo elidido, dentro del ancho de la columna que parte: «⋯ 14.432 ⋯»
+      // se salía por los dos lados y se montaba sobre la escala y los rótulos.
+      const tramos = [...document.querySelectorAll('.tramo-indices')];
+      const anchoBloque = document.querySelector('.columna-indice__bloque').getBoundingClientRect().width;
+      afirmar(
+        tramos.length > 0 && tramos.every((t) => t.getBoundingClientRect().width <= anchoBloque + 1),
+        'ningún tramo elidido se sale del ancho de su bloque'
+      );
+
+      const caja = document.querySelector('.estructura-indices');
+      registro.push(`  ancho: contenido ${caja.scrollWidth} px en un lienzo de ${caja.clientWidth} px`);
+      afirmar(
+        caja.scrollWidth <= caja.clientWidth || getComputedStyle(caja).overflowX !== 'visible',
+        'si las cuatro columnas no caben, la estructura se puede desplazar en horizontal'
+      );
+
+      document.querySelector('.pantalla-tema__volver').click();
+    }
 
     // Guardar y abrir (CLAUDE.md 10). Lo que se comprueba aquí es el cableado
     // de la pantalla: que los botones estén donde tienen que estar y aparezcan

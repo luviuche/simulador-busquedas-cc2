@@ -728,6 +728,58 @@ El primero de cada pareja va a la izquierda. Con CIENCIAS da `c=00, i=01, e=100,
 
 ---
 
+### 5.10 Índices primarios, secundarios y multinivel (2026-09-17)
+
+**El tema que más se sale del molde: aquí no hay claves.** No se inserta, no se busca y no se elimina. De cuatro parámetros —`r` registros del archivo, `R` bytes por registro de datos, `Ri` bytes por registro índice y `B` bytes por bloque— sale una estructura, y **construirla bien es el ejercicio** (pedido del usuario, 2026-09-17). Por eso el tema no tiene panel de operaciones (`sinOperaciones`) y **crear la estructura arranca su traza** (`alCrear`): no queda nada que pedir después.
+
+**La fuente es la hoja manuscrita del docente**, tres páginas en `docs/WhatsApp Image 2026-09-04 at 9.47.37 AM*.jpeg`. Está verificada número a número en `pruebas/indices.test.js`. `docs/Primer Parcial…pdf` es la solución de dos estudiantes: coincide en todo salvo en que **omite los accesos del índice primario**, que él sí calcula (7). No tomarla como fuente.
+
+**El redondeo va en dos direcciones y es la trampa del tema** —él escribe el mismo corchete para las dos—:
+
+- El **factor de bloqueo trunca**: un registro no se parte entre dos bloques, así que `bfr = ⌊4096/120⌋ = 34` y no 34,13.
+- El **número de bloques va al techo**: el último bloque va a medias pero existe, `b = ⌈500000/34⌉ = 14.706`.
+
+**Y de ahí sale lo que este tema tiene y búsqueda secuencial externa no (§5.8): la capacidad excede a la ocupación, y el docente escribe las dos.** 14.706 × 34 = **500.004** posiciones para 500.000 registros, con 4 libres en el último bloque; 54 × 273 = **14.742** entradas de índice para 14.706. Allá la capacidad del archivo era exactamente `N`. **La escala que se dibuja a la izquierda de cada columna cierra en la capacidad**, no en la ocupación: esas posiciones existen aunque estén vacías.
+
+**Primario contra secundario es una sola cosa: de qué se hace una entrada.**
+
+| | El archivo está… | Una entrada por… | Entradas | Bloques |
+|---|---|---|---|---|
+| **Primario** — disperso | ordenado por ese campo, que es clave única | **bloque** (el ancla: su primer registro) | `b` = 14.706 | 54 |
+| **Secundario** — denso | ordenado por otro campo, así que no hay anclas | **registro** | `r` = 500.000 | 1.832 |
+
+**Accesos.** Con un nivel, búsqueda binaria sobre los bloques del índice más el bloque de datos: `⌈log₂ bi⌉ + 1` — 7 con primarios, 12 con secundarios. Con multinivel no se busca, se **baja**: un bloque por nivel más el de datos, `niveles + 1` — 3 y 4.
+
+**Los niveles: él los escribe como `log_bfri(entradas)`, pero lo que se cuenta es la cascada.** Cada nivel indexa los *bloques* del anterior y se para cuando uno cabe en un solo bloque. Dan lo mismo en sus dos ejercicios (14.706 → 54 → 1 son 2 niveles; 500.000 → 1.832 → 7 → 1 son 3), pero **con una sola entrada el logaritmo daría 0 niveles y la estructura igual necesita un bloque**. La fórmula se muestra en el panel porque es como él la escribe; `nivelesDelIndice` itera.
+
+**Cómo se dibuja** (§6.1, sexta orientación; decidido sobre maqueta con el usuario, 2026-09-17, calcando su hoja):
+
+- **Cada estructura es una columna de bloques apilados, y las estructuras van una al lado de otra**, de la raíz del índice al archivo de datos, que queda siempre a la derecha. El multinivel con secundarios son cuatro columnas.
+- A la izquierda de cada columna, **la numeración acumulada** que abre y cierra cada bloque (1/273, 274/546, …, 14.470/14.742); a la derecha, el **rótulo** `B1…B54`; arriba, el primer bloque **partido en sus registros** con su tamaño en bytes.
+- **Flechas de la entrada del índice al bloque que señala**, tres por unión: la primera entrada al primer bloque, la última entrada del primer bloque al **bloque frontera** —el B273 de su hoja, que es el que enseña cuánto abarca un solo bloque de índice— y el último bloque al último. Por eso la frontera se marca como bloque relevante y siempre se dibuja.
+- **Las columnas se dibujan todas desde el primer paso**, apagadas las que la derivación aún no definió. Ir añadiéndolas cambiaría el ancho a cada paso y, con el lienzo desplazándose, sería imposible de seguir.
+- **El SVG de las flechas vive dentro de la pista**, no del contenedor que scrollea: fuera, las flechas se quedarían quietas mientras las columnas se mueven por debajo. Y va **por debajo** de las columnas, con la escala opaca, o la flecha tacha el número al que llega.
+
+**El ancho no alcanza, y está resuelto a propósito y no por descuido (decisión del usuario, 2026-09-17: «estrechar y desplazar»).** La columna se estrecha todo lo que aguanta —los cinco tokens `--…-indice`— y aun así las cuatro columnas miden 768 px contra los 612 del lienzo, medido por la prueba de humo. La otra mitad es que **el lienzo se desplaza en horizontal y la vista centra la columna del paso**, igual que lleva a la vista la casilla evaluada cuando una tabla dispersa no cabe (§6.2). La barra va reservada y a la vista (`scrollbar-gutter: stable`): con la barra flotante de Chromium, una columna cortada por el borde se lee como un defecto de dibujo y no como «hay más a la derecha».
+
+**Cuatro defectos que solo se vieron con la aplicación delante** (el usuario mandó una captura, 2026-09-17), y que ahora vigila la prueba de humo:
+
+- **Los títulos colgaban del pie de su propia columna**, así que el de «Nivel 3» —un bloque— quedaba doscientos píxeles por encima del de «Nivel 2» —siete—, y las flechas que bajaban hacia una columna corta **atravesaban el título de la siguiente**. Se arregla estirando las columnas (`align-items: stretch` en la pista) y dándole a la pila la fila `1fr`, que empuja el pie hasta abajo del todo. El humo compara los altos y los `offsetTop` de los títulos, con `offsetTop` y no con la posición en pantalla porque el FLIP deja un `transform` en vuelo que falsearía la medida (§verificar).
+- **Y el pie tiene que caber en un renglón**: cada columna es su propia rejilla, así que un pie que se parte en dos —«14.706 bloq. · 34 registros»— sube el título de esa columna y rompe la línea de base recién conseguida. De ahí que las unidades vayan abreviadas (`entr.`, `reg.`) y `white-space: nowrap`.
+- **El tramo elidido se salía de su columna.** «⋯ 14.432 ⋯» es más ancho que los 64 px del bloque y se montaba sobre la escala y los rótulos: va acotado al ancho del bloque, con `overflow: hidden`.
+- **Los bloques eran demasiado bajos.** Con 38 px el hueco de la elisión y los bloques de al lado pesaban lo mismo y la pila dejaba de leerse como pila. El bloque sube a 48 px —más que una casilla normal— y el tramo a 30.
+- **Y la pila se desalineaba un píxel por bloque.** Los bloques se pegaban con `margin-top: -1px` para compartir el borde, así que **cada uno avanzaba 47 px mientras su renglón de escala y su rótulo avanzaban 48**. En el primero no se nota; en el séptimo son 8 px y la columna parece irse cayendo (defecto visto por el usuario, 2026-09-17). El borde compartido se hace **quitándole el borde de arriba al bloque que sigue a otro**, no subiéndolo: con `box-sizing: border-box` la caja sigue midiendo lo que dice y las tres columnas avanzan al mismo paso. El humo compara, celda a celda, el `offsetTop` de cada bloque con el de su escala y su rótulo.
+
+**Y el lienzo hay que repartirlo diciendo quién cede.** El cálculo de este tema es una fórmula entera por línea —el texto más ancho de la aplicación— y por proporciones naturales se llevaba el lienzo, dejando la estructura en dos columnas cortadas a media palabra. `.lienzo__escenario--indices` le pone al cálculo un tope **en píxeles y no en porcentaje** —con el 48 % de una ventana ancha crecía sin necesitarlo—, y además **apila el rótulo sobre la fórmula**: en tres columnas, «Factor de bloqueo del archivo» dejaba a `⌊4.096 / 120⌋` un canal tan estrecho que se partía en cuatro renglones. Es el mismo criterio que con el árbol de residuos (§6.7), al revés de como lo repartían las proporciones.
+
+**Se guarda y se abre como cualquier otra estructura, pero lo que el archivo lleva son los parámetros** (pedido del usuario, 2026-09-17: no se cruza con otros temas, pero sí se quiere recuperar la misma estructura). El `.cc2` marca `sinClaves: true` y de ahí salen tres diferencias con §10:
+
+- **No cruza de tema, en ninguna de las dos direcciones.** Los parámetros de índices no significan nada fuera de él, y un archivo de claves abierto aquí no traería nada que colocar. El cruce existe para ver las mismas claves con otras reglas, y aquí no hay claves que ver.
+- **Abrir vuelve a correr la derivación**, en vez de reinsertar claves: la estructura ya queda definida al establecer sus parámetros, y lo que falta es volver a contar de dónde sale.
+- **El nombre del archivo lo da `config.nombreArchivo`**, porque `indices-n1-l1.cc2` no diría nada — `n` y `l` son de mentira en este tema.
+
+**El orden de los parámetros importa**: `B` va declarado antes que `R` y `Ri` porque esos dos se validan **contra él** —un registro que no cabe en un bloque daría factor de bloqueo cero y no habría estructura— y `leerParametros` los lee en el orden en que el tema los declara. Para eso `parametro.validar` recibe ahora, además de `n` y `l`, **los parámetros ya leídos**; los temas que no lo necesitan ignoran ese dato.
+
 ## 6. Visualización
 
 ### 6.1 Orientación
@@ -737,6 +789,7 @@ El primero de cada pareja va a la izquierda. Con CIENCIAS da `c=00, i=01, e=100,
 - Árboles de búsqueda por bits: por **niveles** (§6.7).
 - Búsquedas externas: en **bloques** —columnas separadas, con su rótulo arriba— (§5.8).
 - Árbol de Huffman: en **bosque** —los árboles que aún no se han unido, en fila— (§5.9).
+- Índices: **columnas una al lado de otra**, unidas por flechas, de la raíz del índice al archivo de datos (§5.10).
 
 ### 6.2 Regla de elisión
 

@@ -71,7 +71,7 @@
             { id: 'externa-secuencial', titulo: 'Búsqueda secuencial externa', descripcion: 'El archivo se lee bloque por bloque', tema: 'secuencial-externa', disponible: true },
             { id: 'externa-binaria', titulo: 'Búsqueda binaria externa', descripcion: '', tema: null, disponible: false },
             { id: 'tablas-indices', titulo: 'Tablas de índices', descripcion: '', tema: null, disponible: false },
-            { id: 'indices', titulo: 'Índices primarios, secundarios y multinivel', descripcion: '', tema: null, disponible: false },
+            { id: 'indices', titulo: 'Índices primarios, secundarios y multinivel', descripcion: 'La estructura sale de los parámetros del archivo', tema: 'indices', disponible: true },
             { id: 'cubetas', titulo: 'Otras búsquedas dinámicas', descripcion: 'Cubetas con expansión y reducción dinámica de n', tema: 'cubetas', disponible: true }
           ]
         }
@@ -760,6 +760,147 @@
           valor: ({ estructura }) => (
             estructura ? String(dominio.externa.formaDelArchivo(estructura.n).registrosPorBloque) : '0'
           )
+        }
+      ]
+    },
+
+    // Índices primarios, secundarios y multinivel (CLAUDE.md 5.x). El tema que
+    // más se sale del molde del catálogo: **no se inserta ni se busca ninguna
+    // clave**. De cuatro parámetros —cuántos registros tiene el archivo y
+    // cuánto miden un registro, un registro índice y un bloque— sale una
+    // estructura, y construirla bien *es* el ejercicio (pedido del usuario,
+    // 2026-09-17, sobre la hoja manuscrita del docente que dejó en `docs/`).
+    //
+    // De ahí las tres cosas que ningún otro tema necesita:
+    //
+    //   · `sinOperaciones` — no hay panel de clave, porque no hay clave.
+    //   · `alCrear` — crear la estructura arranca la derivación, que es la
+    //     única traza del tema. Los demás temas crean primero y operan después;
+    //     aquí no queda nada que pedir.
+    //   · El orden de los parámetros importa: `B` va antes que `R` y `Ri`,
+    //     porque esos dos se validan contra él —un registro que no cabe en un
+    //     bloque no da estructura— y `leerParametros` los lee en orden.
+    indices: {
+      orientacion: 'indices',
+      calculo: true,
+      tituloCalculo: 'Derivación',
+      sinTamano: true,
+      sinLongitud: true,
+      sinOperaciones: true,
+      sinClaves: true,
+      tamano: () => ({ n: 1, l: 1 }),
+      nombreEstructura: 'estructura',
+      mensajeReinicio: 'Estructura vaciada: sin parámetros.',
+      mensajeLienzoVacio: 'Dé los parámetros del archivo para construir la estructura: '
+        + 'elija sus medidas en el panel de la derecha.',
+      mensajeDerivacion: 'Derivación iniciada: de los parámetros a la estructura.',
+      mensajeCreacion: (estructura) => {
+        const p = estructura.parametros;
+        return `Estructura creada: r = ${p.r}, B = ${p.B}, R = ${p.R}, Ri = ${p.Ri}, `
+          + `índice ${p.tipo}${p.niveles === dominio.indices.NIVELES.MULTINIVEL ? ' multinivel' : ''}.`;
+      },
+      detalleReciente: (estructura) => {
+        const p = estructura.parametros;
+        return `r = ${p.r} · índice ${p.tipo}`
+          + (p.niveles === dominio.indices.NIVELES.MULTINIVEL ? ' multinivel' : '');
+      },
+      alCrear: ({ estructura }) => algoritmos.indices.derivar(estructura.parametros),
+      // El archivo se llamaría `indices-n1-l1.cc2`, que no dice nada: `n` y `l`
+      // son de mentira en este tema. Lo que lo distingue en la carpeta de
+      // descargas es con qué archivo y qué índice se construyó.
+      nombreArchivo: (estructura) => {
+        const p = estructura.parametros;
+        return `r${p.r}-B${p.B}-${p.tipo}${p.niveles === dominio.indices.NIVELES.MULTINIVEL ? '-multinivel' : ''}`;
+      },
+      parametros: [
+        {
+          nombre: 'r',
+          etiqueta: 'Registros del archivo (r)',
+          tipo: 'numero',
+          marcador: '500000',
+          ayuda: 'Cuántos registros guarda el archivo de datos.',
+          validar: (entrada) => dominio.indices.validarRegistros(entrada)
+        },
+        {
+          nombre: 'B',
+          etiqueta: 'Tamaño del bloque (B)',
+          tipo: 'numero',
+          marcador: '4096',
+          ayuda: 'En bytes. Es lo que se lee del disco de una vez, y de ahí salen los dos factores de bloqueo.',
+          validar: (entrada) => dominio.indices.validarBloque(entrada)
+        },
+        {
+          nombre: 'R',
+          etiqueta: 'Longitud del registro de datos (R)',
+          tipo: 'numero',
+          marcador: '120',
+          ayuda: 'En bytes. Con B da cuántos registros caben en un bloque.',
+          validar: (entrada, { parametros }) => dominio.indices.validarLongitud(entrada, {
+            etiqueta: 'Longitud del registro de datos (R)', B: parametros.B
+          })
+        },
+        {
+          nombre: 'Ri',
+          etiqueta: 'Longitud del registro índice (Ri)',
+          tipo: 'numero',
+          marcador: '15',
+          ayuda: 'En bytes. Es menor que R —solo lleva el valor y un puntero—, y por eso el índice cunde más.',
+          validar: (entrada, { parametros }) => dominio.indices.validarLongitud(entrada, {
+            etiqueta: 'Longitud del registro índice (Ri)', B: parametros.B
+          })
+        },
+        {
+          nombre: 'tipo',
+          etiqueta: 'Tipo de índice',
+          opciones: [
+            { valor: 'primario', etiqueta: 'Primario — una entrada por bloque' },
+            { valor: 'secundario', etiqueta: 'Secundario — una entrada por registro' }
+          ],
+          ayuda: 'El primario es disperso porque el archivo está ordenado por ese campo; el secundario, denso.',
+          validar: (entrada) => dominio.indices.validarTipo(entrada)
+        },
+        {
+          nombre: 'niveles',
+          etiqueta: 'Niveles',
+          opciones: [
+            { valor: 'un-nivel', etiqueta: 'Un nivel' },
+            { valor: 'multinivel', etiqueta: 'Multinivel' }
+          ],
+          ayuda: 'El multinivel indexa el índice, y otra vez, hasta que un nivel cabe en un solo bloque.',
+          validar: (entrada) => dominio.indices.validarNiveles(entrada)
+        }
+      ],
+      // No hay casillas que describir: la estructura de este tema no guarda
+      // claves. Se declaran igual porque la pantalla las pide para todos.
+      casillasRelevantes: () => [],
+      describirCasilla: ({ ocupada }) => ({ estado: ocupada ? 'ocupada' : 'vacia' }),
+      metricas: [
+        {
+          // La conclusión del tema, y la que se compara entre las cuatro
+          // combinaciones: 7 con primarios de un nivel, 12 con secundarios,
+          // 3 y 4 con sus multiniveles.
+          id: 'accesos',
+          etiqueta: 'Accesos por búsqueda',
+          valor: ({ paso }) => (paso && paso.estructura ? String(paso.estructura.accesos) : '—')
+        },
+        {
+          id: 'bloques-indice',
+          etiqueta: 'Bloques del índice',
+          valor: ({ paso }) => (paso && paso.estructura
+            ? dominio.indices.mil(paso.estructura.escalones[0].bloques)
+            : '—')
+        },
+        {
+          id: 'bloques-datos',
+          etiqueta: 'Bloques del archivo',
+          valor: ({ paso }) => (paso && paso.estructura
+            ? dominio.indices.mil(paso.estructura.archivo.bloques)
+            : '—')
+        },
+        {
+          id: 'niveles',
+          etiqueta: 'Niveles del índice',
+          valor: ({ paso }) => (paso && paso.estructura ? String(paso.estructura.escalones.length) : '—')
         }
       ]
     },

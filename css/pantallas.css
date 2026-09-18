@@ -1005,3 +1005,274 @@
   border-width: 2px;
   font-weight: 500;
 }
+
+
+/* Índices primarios, secundarios y multinivel (CLAUDE.md 5.x): sexta
+   orientación de la pantalla. Es la única donde no se dibuja ni una clave —el
+   tema no inserta nada—, sino **estructuras enteras una al lado de otra**, de
+   la raíz del índice al archivo de datos, unidas por flechas. Así lo dibuja el
+   docente a mano y así lo pidió el usuario (2026-09-17).
+
+   El desplazamiento es deliberado y no un descuido de medidas: cuatro columnas
+   estrechadas miden unos 750 px y el lienzo de proyección unos 640. La vista
+   centra la columna del paso, igual que lleva a la vista la casilla evaluada
+   cuando una tabla dispersa no cabe (CLAUDE.md 6.2). */
+.estructura-indices {
+  /* `safe center`: centrada mientras quepa y pegada al principio cuando no,
+     que es lo que impide que al desbordar se recorte la primera columna —el
+     `center` a secas la deja fuera del área desplazable—. */
+  display: flex;
+  justify-content: safe center;
+  align-self: center;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  /* La barra siempre reservada y a la vista: con la barra flotante de Chromium
+     una columna cortada por el borde se lee como un defecto de dibujo y no
+     como «hay más a la derecha», que es justo lo que pasa con el multinivel de
+     cuatro columnas. */
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
+/* Reparto del lienzo cuando el tema es índices. Aquí el cálculo es una fórmula
+   entera por línea —el texto más ancho de la aplicación— y la estructura es el
+   punto del tema: sin decir quién cede, el cálculo se lleva el lienzo y la
+   estructura se queda en dos columnas recortadas a media palabra. Es el mismo
+   criterio que con el árbol de residuos (ver `.calculo`), al revés de cómo lo
+   repartían las proporciones naturales. */
+.lienzo__escenario--indices .estructura-indices {
+  /* Pide lo que mide y no más. Con `1 1 auto` se quedaba todo el sitio libre y
+     empujaba el panel del cálculo contra el borde derecho, dejando un vacío
+     enorme entre los dos en una ventana ancha; así los dos se agrupan en el
+     centro del lienzo y siguen encogiendo cuando no caben. */
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.lienzo__escenario--indices .calculo {
+  flex: 0 1 auto;
+  /* Acotado en píxeles y no en porcentaje: con el 48 % de una ventana ancha el
+     panel crecía con ella sin necesitarlo, y se comía el sitio de la
+     estructura, que es el punto del tema (dicho por el usuario al verlo,
+     2026-09-17). Son once líneas de fórmula; más ancho no añade nada. */
+  max-width: 440px;
+  padding: var(--espacio-3);
+}
+
+/* Y apretado en vertical: once líneas a dos renglones cada una llenaban el
+   lienzo de arriba abajo. */
+.lienzo__escenario--indices .calculo__lineas {
+  gap: var(--espacio-2);
+}
+
+.lienzo__escenario--indices .calculo__titulo {
+  margin-bottom: var(--espacio-2);
+}
+
+/* Y dentro del cálculo, el rótulo a su propio renglón. Los nombres de este
+   tema son largos —«Factor de bloqueo del archivo»— y en tres columnas le
+   dejaban a la fórmula un canal tan estrecho que «⌊4.096 / 120⌋» se partía en
+   cuatro renglones. Apilado, la fórmula se lee de corrido. */
+.lienzo__escenario--indices .calculo__linea {
+  grid-template-columns: 1fr auto;
+  row-gap: 2px;
+}
+
+.lienzo__escenario--indices .calculo__etiqueta {
+  grid-column: 1 / -1;
+}
+
+/* La pista es lo que se desplaza, y lo que las flechas miden. El SVG va dentro
+   de ella y no del contenedor que scrollea: puesto fuera, las flechas se
+   quedarían quietas mientras las columnas se mueven por debajo. */
+.indices__pista {
+  position: relative;
+  display: flex;
+  /* Estiradas y no alineadas arriba: es lo que pone **todos los títulos a la
+     misma altura**, la del pie de la columna más larga. Alineadas arriba, cada
+     título colgaba del fondo de su propia columna —el de «Nivel 3», con un
+     bloque, quedaba doscientos píxeles por encima del de «Nivel 2», con
+     siete— y las flechas que bajaban hacia una columna corta atravesaban el
+     título de la siguiente (defecto visto por el usuario, 2026-09-17). Es la
+     misma razón por la que los bloques de búsqueda externa van estirados. */
+  align-items: stretch;
+  gap: var(--canal-indices);
+  padding: var(--espacio-2) var(--espacio-2) 0;
+  width: max-content;
+}
+
+/* Sin viewBox: así una unidad del SVG es un píxel de CSS y las flechas se
+   pueden trazar con las medidas que devuelve getBoundingClientRect. */
+.indices__flechas {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  /* Por debajo de las columnas. Un SVG posicionado pinta encima de lo que no
+     lo está, y las flechas tachaban los números de la escala justo donde
+     llegan —«9.249» ilegible—. Pasando por detrás, la flecha se ve entrar y
+     salir y el número se lee entero. */
+  z-index: 0;
+}
+
+.columna-indice {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns:
+    var(--ancho-escala-indice) var(--ancho-bloque-indice) var(--ancho-rotulo-indice);
+  /* La regla arriba, la pila ocupando lo que sobre, y el título y su detalle
+     al pie. El `1fr` de la pila es lo que empuja el título hasta abajo del
+     todo en las columnas cortas. */
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  flex: none;
+}
+
+/* Una columna que la derivación todavía no ha definido se dibuja igual pero
+   apagada. Dibujarla desde el primer paso —en vez de irlas añadiendo— es lo
+   que mantiene el ancho quieto: con el lienzo desplazándose, una estructura
+   que crece por la izquierda a cada paso sería imposible de seguir. */
+.columna-indice--pendiente { opacity: .38; }
+
+/* El primer bloque se dibuja partido en sus registros, con su tamaño al lado:
+   es como el docente enseña de qué está hecho un bloque. */
+.columna-indice__regla {
+  grid-column: 2;
+  display: flex;
+  height: 12px;
+  border: 1px solid var(--tinta);
+  border-bottom: none;
+}
+
+.columna-indice__regla span {
+  flex: 1;
+  border-right: 1px solid var(--borde-fuerte);
+}
+
+.columna-indice__regla span:last-child { border-right: none; }
+
+.columna-indice__bytes {
+  grid-column: 3;
+  padding-left: var(--espacio-2);
+  font-family: var(--fuente-mono);
+  font-size: 11px;
+  color: var(--tinta-suave);
+  white-space: nowrap;
+}
+
+/* La numeración acumulada que abre y cierra cada bloque (1/273, 274/546…).
+   Comparte el alto del bloque para no tener que escribirlo dos veces, igual
+   que la escala de registros de búsquedas externas. */
+.columna-indice__escala,
+.columna-indice__bloques,
+.columna-indice__rotulos {
+  display: flex;
+  flex-direction: column;
+}
+
+.columna-indice__escala { grid-column: 1; }
+.columna-indice__bloques { grid-column: 2; }
+.columna-indice__rotulos { grid-column: 3; }
+
+.columna-indice__rango {
+  height: var(--alto-bloque-indice);
+  /* Opaca sobre el lienzo: la columna ya pinta por encima de las flechas, pero
+     sin fondo la flecha se veía **entre** las cifras y «9.249» quedaba tachado.
+     Con fondo, la flecha entra por detrás del número y sale hacia el bloque. */
+  background: var(--superficie-hundida);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 1px var(--espacio-2) 1px 0;
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: var(--tinta-suave);
+}
+
+.columna-indice__bloque {
+  height: var(--alto-bloque-indice);
+  border: 1px solid var(--tinta);
+  background: var(--superficie);
+}
+
+/* Los bloques van pegados, como una pila, y el borde entre dos es uno solo: el
+   de abajo del primero. **Se quita el borde de arriba del segundo, no se suben
+   con `margin-top: -1px`** (defecto visto por el usuario, 2026-09-17). Con el
+   margen negativo cada bloque avanzaba 47 px mientras su renglón de escala y su
+   rótulo avanzaban 48, así que el desfase se acumulaba: en la columna de siete
+   bloques el último quedaba 8 px por encima de sus números y la pila parecía
+   irse cayendo. Quitando el borde, el bloque sigue ocupando exactamente el alto
+   que dice —la caja mide por el borde (`box-sizing: border-box`)— y las tres
+   columnas avanzan al mismo paso. */
+.columna-indice__bloque + .columna-indice__bloque {
+  border-top: none;
+}
+
+.columna-indice__bloque--indice {
+  background: var(--estado-rango-relleno);
+  border-color: var(--estado-rango-borde);
+}
+
+/* La columna que el paso acaba de definir, en el mismo color de evaluación que
+   la casilla en curso del resto de la aplicación (CLAUDE.md 8.1). */
+.columna-indice__bloque--en-curso {
+  border-color: var(--estado-evaluacion-borde);
+  background: var(--estado-evaluacion-relleno);
+}
+
+.columna-indice__rotulo {
+  height: var(--alto-bloque-indice);
+  display: flex;
+  align-items: center;
+  padding-left: var(--espacio-2);
+  font-family: var(--fuente-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* El tramo elidido mide lo mismo en las tres columnas, o la escala dejaría de
+   rotular lo que rotula. */
+.columna-indice__hueco {
+  height: var(--alto-tramo-indice);
+}
+
+.tramo-indices {
+  height: var(--alto-tramo-indice);
+  /* Encerrado en el ancho del bloque: «⋯ 14.432 ⋯» se salía por los dos lados
+     y se montaba encima de la escala y de los rótulos. */
+  width: var(--ancho-bloque-indice);
+  overflow: hidden;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px dashed var(--borde-fuerte);
+  border-bottom: 1px dashed var(--borde-fuerte);
+  color: var(--tinta-suave);
+  font-family: var(--fuente-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 9px;
+}
+
+.columna-indice__titulo {
+  grid-column: 1 / -1;
+  padding-top: var(--espacio-3);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.columna-indice__detalle {
+  grid-column: 1 / -1;
+  text-align: center;
+  /* En un solo renglón siempre. Cada columna es su propia rejilla, así que un
+     pie que se parte en dos empuja hacia arriba el título de esa columna y
+     rompe la línea de base que `align-items: stretch` acaba de conseguir. */
+  white-space: nowrap;
+  font-family: var(--fuente-mono);
+  font-size: 10px;
+  color: var(--tinta-suave);
+}

@@ -1236,6 +1236,256 @@
       }, opciones);
     }
 
+    // Índices primarios, secundarios y multinivel (CLAUDE.md 5.x): sexta
+    // orientación de la pantalla, y la única que no dibuja ni una casilla con
+    // clave dentro. Lo que se dibuja son **estructuras enteras una al lado de
+    // otra** —de la raíz del índice al archivo de datos— unidas por flechas,
+    // que es como el docente las dibuja a mano y como lo pidió el usuario
+    // (2026-09-17).
+    //
+    // Tres decisiones que conviene no deshacer sin saber por qué están:
+    //
+    //   · **Las columnas se dibujan todas desde el primer paso**, apagadas las
+    //     que la derivación aún no definió. Ir añadiéndolas cambiaría el ancho
+    //     a cada paso, y con el lienzo desplazándose eso es imposible de
+    //     seguir.
+    //   · **El SVG de las flechas vive dentro de la pista**, no del contenedor
+    //     que scrollea: fuera, las flechas se quedarían quietas mientras las
+    //     columnas se mueven por debajo.
+    //   · **No lleva viewBox**, para que una unidad del SVG sea un píxel de
+    //     CSS y las flechas se puedan trazar con lo que mide el DOM.
+    const NS_SVG = 'http://www.w3.org/2000/svg';
+    // B1 y B2 siempre a la vista: con uno solo no se lee que es una pila.
+    const BLOQUES_CABECERA = 2;
+
+    function esIndices() {
+      return config.orientacion === 'indices';
+    }
+
+    // La estructura que toca dibujar. Durante la derivación viaja en el paso;
+    // fuera de ella se recalcula de los parámetros, que es lo que hay recién
+    // creada la estructura y al retroceder hasta antes del primer paso.
+    function estructuraDeIndices(paso) {
+      if (paso && paso.estructura) return paso.estructura;
+      const p = (estado.estructura && estado.estructura.parametros) || {};
+      if (p.r === undefined) return null;
+      return dominio.indices.estructuraDeIndices({
+        r: p.r, R: p.R, Ri: p.Ri, B: p.B, tipo: p.tipo, niveles: p.niveles
+      });
+    }
+
+    // Qué bloques de una columna se dibujan. Los dos primeros y el último
+    // siempre, y además **la frontera**: cuántos bloques de esta columna
+    // abarca un bloque de la anterior. Ese es el bloque que el docente dibuja
+    // con nombre propio —el B273 de su hoja— porque es el que enseña cuánto
+    // cubre un solo bloque de índice.
+    function segmentosDeColumna(columna) {
+      const relevantes = [1, BLOQUES_CABECERA, columna.bloques];
+      if (columna.frontera) relevantes.push(columna.frontera);
+      return vista.elision.calcularSegmentos({
+        n: columna.bloques,
+        relevantes: relevantes.filter((i) => i >= 1 && i <= columna.bloques),
+        orientacion: 'vertical',
+        mostrarCompleta: estado.mostrarCompleta,
+        vecinas: false
+      });
+    }
+
+    function crearColumnaDeIndice(columna, definida, activa) {
+      const mil = dominio.indices.mil;
+      const el = document.createElement('div');
+      el.className = `columna-indice${definida ? '' : ' columna-indice--pendiente'}`;
+
+      const regla = document.createElement('div');
+      regla.className = 'columna-indice__regla';
+      for (let i = 0; i < 6; i++) regla.appendChild(document.createElement('span'));
+      const bytes = document.createElement('div');
+      bytes.className = 'columna-indice__bytes';
+      bytes.textContent = `${columna.longitudRegistro} B`;
+
+      const escala = document.createElement('div');
+      escala.className = 'columna-indice__escala';
+      const bloques = document.createElement('div');
+      bloques.className = 'columna-indice__bloques';
+      const rotulos = document.createElement('div');
+      rotulos.className = 'columna-indice__rotulos';
+
+      const puestos = new Map();
+      for (const segmento of segmentosDeColumna(columna)) {
+        if (segmento.tipo === 'tramo') {
+          const hueco = () => {
+            const div = document.createElement('div');
+            div.className = 'columna-indice__hueco';
+            return div;
+          };
+          escala.appendChild(hueco());
+          const tramo = document.createElement('div');
+          tramo.className = 'tramo-indices';
+          tramo.textContent = `⋯ ${mil(segmento.cantidad)} ⋯`;
+          bloques.appendChild(tramo);
+          rotulos.appendChild(hueco());
+          continue;
+        }
+
+        const rango = dominio.indices.rangoDelBloque(columna, segmento.indice);
+        const par = document.createElement('div');
+        par.className = 'columna-indice__rango';
+        const desde = document.createElement('span');
+        desde.textContent = mil(rango.primero);
+        const hasta = document.createElement('span');
+        hasta.textContent = mil(rango.ultimo);
+        par.append(desde, hasta);
+        escala.appendChild(par);
+
+        const bloque = document.createElement('div');
+        bloque.className = `columna-indice__bloque columna-indice__bloque--${columna.clase}`
+          + (activa ? ' columna-indice__bloque--en-curso' : '');
+        bloques.appendChild(bloque);
+        puestos.set(segmento.indice, bloque);
+
+        const rotulo = document.createElement('div');
+        rotulo.className = 'columna-indice__rotulo';
+        rotulo.textContent = `B${segmento.indice}`;
+        rotulos.appendChild(rotulo);
+      }
+
+      const titulo = document.createElement('div');
+      titulo.className = 'columna-indice__titulo';
+      titulo.textContent = columna.titulo;
+      const detalle = document.createElement('div');
+      detalle.className = 'columna-indice__detalle';
+      // Definida dice sus números; pendiente no finge saberlos todavía.
+      detalle.textContent = definida
+        ? `${mil(columna.bloques)} bloq. · ${mil(columna.porBloque)} ${columna.unidad}`
+        : 'sin calcular';
+
+      el.append(regla, bytes, escala, bloques, rotulos, titulo, detalle);
+      return { el, columna, puestos };
+    }
+
+    // Las flechas van de la entrada del índice al bloque que señala. Tres por
+    // unión, y las tres son verdad sin depender de qué bloques quedaron
+    // dibujados tras elidir:
+    //
+    //   · la primera entrada, al primer bloque;
+    //   · la última entrada del primer bloque, al bloque `frontera` —el B273
+    //     del ejercicio—, que es la que enseña cuánto abarca un bloque;
+    //   · el último bloque, al último bloque.
+    //
+    // Salen del borde derecho de la columna y no del bloque: por el medio está
+    // el rótulo, y una flecha que lo atraviesa lo vuelve ilegible.
+    function trazarFlechas(svg, pista, dibujadas, definidas) {
+      svg.innerHTML = '';
+      const base = pista.getBoundingClientRect();
+      const caja = (el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          izq: r.left - base.left,
+          der: r.right - base.left,
+          centro: r.top - base.top + r.height / 2,
+          alto: r.top - base.top + 5,
+          bajo: r.bottom - base.top - 5
+        };
+      };
+
+      const defs = document.createElementNS(NS_SVG, 'defs');
+      const marca = document.createElementNS(NS_SVG, 'marker');
+      marca.setAttribute('id', 'punta-indices');
+      marca.setAttribute('markerWidth', '7');
+      marca.setAttribute('markerHeight', '7');
+      marca.setAttribute('refX', '6');
+      marca.setAttribute('refY', '3.5');
+      marca.setAttribute('orient', 'auto');
+      const punta = document.createElementNS(NS_SVG, 'path');
+      punta.setAttribute('d', 'M0,0 L7,3.5 L0,7 z');
+      punta.setAttribute('fill', 'currentColor');
+      marca.appendChild(punta);
+      defs.appendChild(marca);
+      svg.appendChild(defs);
+
+      const grupo = document.createElementNS(NS_SVG, 'g');
+      grupo.setAttribute('fill', 'none');
+      grupo.setAttribute('stroke', 'currentColor');
+      grupo.setAttribute('stroke-width', '1.2');
+      grupo.setAttribute('marker-end', 'url(#punta-indices)');
+      svg.appendChild(grupo);
+
+      const flecha = (x1, y1, x2, y2) => {
+        const medio = x1 + (x2 - x1) / 2;
+        const linea = document.createElementNS(NS_SVG, 'path');
+        linea.setAttribute('d', `M ${x1} ${y1} C ${medio} ${y1} ${medio} ${y2} ${x2} ${y2}`);
+        grupo.appendChild(linea);
+      };
+
+      for (let i = 0; i < dibujadas.length - 1; i++) {
+        const origen = dibujadas[i];
+        const destino = dibujadas[i + 1];
+        // Una unión solo se dibuja cuando sus dos extremos están definidos: una
+        // flecha hacia una columna que aún no se ha calculado afirmaría algo
+        // que la derivación todavía no dijo.
+        if (!definidas.includes(origen.columna.id) || !definidas.includes(destino.columna.id)) continue;
+
+        const salida = caja(origen.el).der;
+        const primeroOrigen = origen.puestos.get(1);
+        const ultimoOrigen = origen.puestos.get(origen.columna.bloques);
+        const primeroDestino = destino.puestos.get(1);
+        const ultimoDestino = destino.puestos.get(destino.columna.bloques);
+        const fronteraDestino = destino.puestos.get(destino.columna.frontera);
+        const entrada = primeroDestino ? caja(primeroDestino).izq : caja(destino.el).izq;
+
+        if (primeroOrigen && primeroDestino) {
+          flecha(salida, caja(primeroOrigen).alto, entrada, caja(primeroDestino).centro);
+        }
+        if (primeroOrigen && fronteraDestino && destino.columna.frontera > 1) {
+          flecha(salida, caja(primeroOrigen).bajo, entrada, caja(fronteraDestino).centro);
+        }
+        if (ultimoOrigen && ultimoDestino && origen.columna.bloques > 1) {
+          flecha(salida, caja(ultimoOrigen).centro, entrada, caja(ultimoDestino).centro);
+        }
+      }
+    }
+
+    function renderizarIndices(paso, opciones) {
+      const estructura = estructuraDeIndices(paso);
+      if (!estructura) {
+        renderizarLienzoVacio();
+        return;
+      }
+      // Sin paso —recién creada la estructura, o retrocediendo hasta antes del
+      // primer paso— se dibuja entera: es el resultado, no la derivación.
+      const definidas = paso ? paso.definidas : estructura.columnas.map((c) => c.id);
+      const activa = paso ? paso.columnaActiva : null;
+
+      let seguida = null;
+      vista.animacion.animarFlip(dom.estructuraEl, () => {
+        dom.estructuraEl.className = 'estructura-indices';
+        dom.estructuraEl.removeAttribute('style');
+        dom.estructuraEl.innerHTML = '';
+
+        const pista = document.createElement('div');
+        pista.className = 'indices__pista';
+        const svg = document.createElementNS(NS_SVG, 'svg');
+        svg.setAttribute('class', 'indices__flechas');
+        pista.appendChild(svg);
+
+        const dibujadas = estructura.columnas.map((columna) => {
+          const dibujada = crearColumnaDeIndice(
+            columna, definidas.includes(columna.id), columna.id === activa
+          );
+          pista.appendChild(dibujada.el);
+          if (columna.id === activa) seguida = dibujada.el;
+          return dibujada;
+        });
+        dom.estructuraEl.appendChild(pista);
+
+        // Después de insertar, no antes: las flechas se trazan con lo que el
+        // DOM mide de verdad, y hasta que la pista no está en el documento no
+        // mide nada.
+        trazarFlechas(svg, pista, dibujadas, definidas);
+        llevarALaVista(seguida);
+      }, opciones);
+    }
+
     // Árbol de Huffman (CLAUDE.md 5.x): quinta orientación de la pantalla. No
     // es un árbol —todavía—, sino **un bosque que se va uniendo**: la lista de
     // nodos tal como está en cada paso, las letras sueltas y los arbolitos ya
@@ -1499,6 +1749,10 @@
       }
       if (esBosque()) {
         renderizarBosque(paso, opciones);
+        return;
+      }
+      if (esIndices()) {
+        renderizarIndices(paso, opciones);
         return;
       }
       const aplicaApilado = !config.apilada || !config.apilada.aplicaA || !paso
@@ -1903,8 +2157,12 @@
       const parametros = {};
       const advertencias = [];
       for (const parametro of config.parametros || []) {
+        // `parametros` lleva los ya leídos, en el orden en que el tema los
+        // declara: es lo que permite validar un campo contra otro —en índices,
+        // que el registro quepa en el bloque— sin sacar la comprobación del
+        // formulario. Los temas que no lo necesitan ignoran el tercer dato.
         const validacion = parametro.validar(
-          String(datos.get(parametro.nombre) || ''), { n: tamano.n, l: tamano.l }
+          String(datos.get(parametro.nombre) || ''), { n: tamano.n, l: tamano.l, parametros }
         );
         if (!validacion.valido) return { valido: false, mensaje: validacion.mensaje };
         parametros[parametro.nombre] = validacion.valor;
@@ -1945,9 +2203,14 @@
       const datos = persistencia.archivo.serializar({
         tema: config.id,
         estructura: estado.estructura,
-        titulo: config.titulo
+        titulo: config.titulo,
+        sinClaves: !!config.sinClaves
       });
-      const nombre = persistencia.archivo.nombreSugerido({ tema: config.id, estructura: estado.estructura });
+      const nombre = persistencia.archivo.nombreSugerido({
+        tema: config.id,
+        estructura: estado.estructura,
+        detalle: config.nombreArchivo ? config.nombreArchivo(estado.estructura) : null
+      });
       persistencia.archivo.guardar({ datos, nombre }).then((resultado) => {
         if (!resultado.exito) return;
         const donde = resultado.via === 'dialogo'
@@ -1955,7 +2218,11 @@
           : `Estructura descargada como ${resultado.nombre}. `
             + 'Para elegir carpeta y nombre, active «preguntar dónde guardar cada archivo» en el navegador.';
         mostrarAlerta('info', donde);
-        registrarBitacora(`Estructura guardada: ${datos.claves.length} clave(s) en ${resultado.nombre}.`);
+        // Decir "0 clave(s)" en un tema que no tiene claves sería contar lo que
+        // no hay: ahí lo que se guardó son los parámetros.
+        registrarBitacora(config.sinClaves
+          ? `Estructura guardada: sus parámetros, en ${resultado.nombre}.`
+          : `Estructura guardada: ${datos.claves.length} clave(s) en ${resultado.nombre}.`);
       });
     }
 
@@ -1977,7 +2244,8 @@
         const cruce = persistencia.archivo.compatibilidad(validacion.datos, {
           tema: config.id,
           modo: config.modo || dominio.estructura.MODOS.ORDENADA,
-          tipoClave: config.claveEsLetra ? 'alfabetica' : 'numerica'
+          tipoClave: config.claveEsLetra ? 'alfabetica' : 'numerica',
+          sinClaves: !!config.sinClaves
         });
         if (!cruce.abre) {
           mostrarAlerta('error', cruce.mensaje);
@@ -2049,6 +2317,23 @@
       // lo recién abierto.
       reflejarEnConfiguracion({ n: tamano.n, l: tamano.l, tratamiento, parametros });
 
+      // En un tema sin claves no hay nada que reinsertar: la estructura ya
+      // quedó definida al establecerla con sus parámetros. Lo que falta es
+      // volver a contar de dónde sale, que es lo que el tema enseña — la misma
+      // derivación que dispara crearla.
+      if (config.sinClaves) {
+        vista.componentes.bitacora.vaciar(dom.bitacora);
+        registrarBitacora(`Archivo abierto: ${config.detalleReciente
+          ? config.detalleReciente(estructura)
+          : `n = ${datos.n}`}.`);
+        limpiarAlerta();
+        mostrarAlerta('info', 'Estructura abierta: sus parámetros, listos para recorrer la derivación.');
+        if (config.alCrear) {
+          reproducirOperacion(config.alCrear({ estructura }), config.mensajeDerivacion || 'Derivación iniciada.');
+        }
+        return;
+      }
+
       let colocadas = 0;
       for (const clave of datos.claves) {
         if (colocarSinTraza(clave).exito) colocadas++;
@@ -2102,6 +2387,12 @@
         temaTitulo: config.titulo,
         detalle: config.detalleReciente ? config.detalleReciente(estructura) : `n = ${n} · l = ${l}`
       });
+      // En índices no hay ninguna operación que pedir después: los parámetros
+      // ya determinan la estructura entera, y lo que queda por enseñar es la
+      // cuenta que lleva hasta ella. Crear la estructura arranca su traza.
+      if (config.alCrear) {
+        reproducirOperacion(config.alCrear({ estructura }), config.mensajeDerivacion || 'Derivación iniciada.');
+      }
       return estructura;
     }
 
@@ -2315,7 +2606,7 @@
     // La segunda condición es la que hace que se pueda volver: con la casilla
     // marcada no queda ni un tramo, y sin ella el control desaparecería justo
     // cuando hace falta para desmarcarla.
-    const TRAMOS = '.tramo-elidido, .tramo-registros, .tramo-bloques';
+    const TRAMOS = '.tramo-elidido, .tramo-registros, .tramo-bloques, .tramo-indices';
 
     function actualizarControlElision() {
       if (!dom.controlElision) return;
@@ -2431,12 +2722,13 @@
     dom.estructuraEl.className = esArbol() ? 'estructura-arbol'
       : esBosque() ? 'estructura-bosque'
       : esBloques() ? 'estructura-bloques'
+      : esIndices() ? 'estructura-indices'
       : esVertical() ? 'estructura-vertical' : 'estructura-horizontal';
 
     // El cálculo se dibuja al lado de la estructura porque lo que se enseña es
     // la correspondencia entre la cuenta y la casilla que resulta de ella.
     const escenario = document.createElement('div');
-    escenario.className = 'lienzo__escenario';
+    escenario.className = `lienzo__escenario${esIndices() ? ' lienzo__escenario--indices' : ''}`;
     dom.escenario = escenario;
     escenario.appendChild(dom.estructuraEl);
     if (config.calculo) {
@@ -2475,7 +2767,10 @@
     panelLateral.append(
       dom.alertas,
       ...(config.sinConfiguracion ? [] : [(dom.configuracion = crearFormularioConfiguracion())]),
-      crearPanelOperaciones(),
+      // Índices no inserta, ni busca, ni elimina: su panel sería un campo de
+      // clave que no opera sobre nada (CLAUDE.md 5.x). Crear la estructura
+      // *es* la operación, y la derivación arranca con ella.
+      ...(config.sinOperaciones ? [] : [crearPanelOperaciones()]),
       crearPanelReproduccion(),
       crearPanelMetricas(),
       vista.componentes.panel.crearPanel({ titulo: 'Bitácora', contenido: dom.bitacora })

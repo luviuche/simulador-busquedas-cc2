@@ -15,11 +15,16 @@
   const VERSION = 1;
   const EXTENSION = '.cc2';
 
-  function serializar({ tema, estructura, titulo }) {
+  // `sinClaves` marca los temas cuya estructura **no sale de claves sino de
+  // parámetros** —índices (CLAUDE.md 5.10)—. El archivo se guarda y se abre
+  // igual, pero lo que lleva dentro y vale es `parametros`, y por eso no se
+  // puede cruzar con los demás temas: ver `compatibilidad`.
+  function serializar({ tema, estructura, titulo, sinClaves = false }) {
     return {
       version: VERSION,
       tema,
       titulo,
+      sinClaves,
       tipoClave: estructura.tipoClave,
       // El modo dice cómo se colocaron las claves —ordenada, dispersa,
       // árbol—, y es lo que permite saber, al abrir el archivo en otro tema,
@@ -39,7 +44,10 @@
   // de descargas va a estar junto a otros quince: tema y los datos con que se
   // creó, que es lo mismo con lo que se reconoce una estructura reciente
   // (CLAUDE.md 10.3).
-  function nombreSugerido({ tema, estructura }) {
+  function nombreSugerido({ tema, estructura, detalle }) {
+    // Un tema sin claves nombra su archivo por lo que de verdad lo distingue.
+    // `n1-l1` —lo que índices guarda como tamaño— no dice nada de nada.
+    if (detalle) return `${tema}-${detalle}${EXTENSION}`;
     const partes = [tema, `n${estructura.n}`];
     if (estructura.l !== undefined) partes.push(`l${estructura.l}`);
     return partes.join('-') + EXTENSION;
@@ -94,6 +102,20 @@
   function compatibilidad(datos, destino) {
     if (datos.tema === destino.tema) {
       return { abre: true, recoloca: false };
+    }
+    // **Un archivo sin claves no cruza de tema, en ninguna de las dos
+    // direcciones.** Lo que lo define son los parámetros de su tema —`r`, `B`,
+    // `R`, `Ri`— y fuera de él no significan nada; y al revés, un archivo de
+    // claves abierto en un tema que no las tiene no traería nada que colocar.
+    // El cruce existe para ver las mismas claves con otras reglas, y aquí no
+    // hay claves que ver.
+    if (datos.sinClaves || destino.sinClaves) {
+      const cual = datos.sinClaves ? 'El archivo' : 'Este tema';
+      return {
+        abre: false,
+        mensaje: `${cual} guarda una estructura que sale de parámetros y no de claves,`
+          + ' así que solo se abre en el tema que la creó.'
+      };
     }
     if (datos.tipoClave !== destino.tipoClave) {
       const clases = { numerica: 'números', alfabetica: 'letras' };

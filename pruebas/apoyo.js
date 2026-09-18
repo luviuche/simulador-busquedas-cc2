@@ -11,6 +11,7 @@ require('../js/dominio/arbol-multiple.js');
 require('../js/dominio/cubetas.js');
 require('../js/dominio/externa.js');
 require('../js/dominio/huffman.js');
+require('../js/dominio/indices.js');
 require('../js/algoritmos/traza.js');
 require('../js/algoritmos/secuencial.js');
 require('../js/algoritmos/binaria.js');
@@ -31,6 +32,7 @@ require('../js/algoritmos/hash/operaciones.js');
 require('../js/algoritmos/cubetas.js');
 require('../js/algoritmos/secuencial-externa.js');
 require('../js/algoritmos/huffman.js');
+require('../js/algoritmos/indices.js');
 // Persistencia: serializar y validar son cálculo puro y sí se prueban aquí;
 // guardar y leer tocan el navegador y se comprueban en la prueba de humo.
 require('../js/persistencia/archivo.js');

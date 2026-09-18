@@ -55,6 +55,23 @@
      cambia, el otro tiene que seguirlo. */
   --diametro-nodo: 44px;
 
+  /* Índices (CLAUDE.md 5.x). La columna se estrecha todo lo que aguanta, que
+     es la mitad de la decisión «estrechar y desplazar» (con el usuario,
+     2026-09-17): el multinivel con secundarios son cuatro columnas seguidas y
+     con las medidas de una casilla normal no cabrían ni de lejos. Aun
+     estrechadas miden unos 750 px contra los ~640 del lienzo de proyección,
+     y de ahí la otra mitad — el lienzo se desplaza. */
+  --ancho-bloque-indice: 64px;
+  --ancho-escala-indice: 52px;
+  --ancho-rotulo-indice: 46px;
+  /* Más alto que una casilla normal (40 px) y no menos: el tramo elidido vive
+     **entre** dos bloques, y con bloques bajos el hueco y lo que hay a cada
+     lado pesaban lo mismo, así que la pila dejaba de leerse como pila
+     (defecto visto por el usuario en la aplicación, 2026-09-17). */
+  --alto-bloque-indice: 48px;
+  --alto-tramo-indice: 30px;
+  --canal-indices: 52px;
+
   /* Radios */
   --radio-casilla: 3px;
   --radio-control: 6px;

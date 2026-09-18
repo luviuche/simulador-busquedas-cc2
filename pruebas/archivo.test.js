@@ -112,6 +112,53 @@ test('un archivo de números no se abre en un tema de letras', () => {
   assert.match(cruce.mensaje, /números.*letras/);
 });
 
+// Índices (CLAUDE.md 5.10) guarda una estructura que sale de parámetros y no
+// de claves. Se guarda y se vuelve a abrir como cualquier otra —era lo que el
+// usuario quería (2026-09-17)— pero no cruza de tema: sus parámetros no
+// significan nada fuera de él, y no trae claves que ver con otras reglas.
+test('un archivo sin claves se abre en su propio tema', () => {
+  const estructura = crearOrdenada({ n: 1, l: 1 });
+  estructura.parametros = { r: 500000, B: 4096, R: 120, Ri: 15, tipo: 'primario', niveles: 'un-nivel' };
+  const datos = archivo.serializar({ tema: 'indices', estructura, sinClaves: true });
+  assert.equal(datos.sinClaves, true);
+  assert.deepEqual(datos.parametros.tipo, 'primario');
+  assert.equal(archivo.validar(datos).valido, true, 'sin claves sigue siendo un archivo íntegro');
+
+  const cruce = archivo.compatibilidad(datos, {
+    tema: 'indices', modo: 'ordenada', tipoClave: 'numerica', sinClaves: true
+  });
+  assert.deepEqual(cruce, { abre: true, recoloca: false });
+});
+
+test('un archivo sin claves no cruza de tema, ni en una dirección ni en la otra', () => {
+  const sinClaves = crearOrdenada({ n: 1, l: 1 });
+  sinClaves.parametros = { r: 500000 };
+  const deIndices = archivo.serializar({ tema: 'indices', estructura: sinClaves, sinClaves: true });
+  const haciaSecuencial = archivo.compatibilidad(deIndices, {
+    tema: 'secuencial', modo: 'ordenada', tipoClave: 'numerica'
+  });
+  assert.equal(haciaSecuencial.abre, false);
+  assert.match(haciaSecuencial.mensaje, /parámetros y no de claves/);
+
+  const conClaves = crearOrdenada({ n: 10, l: 2 });
+  estructuras.insertar(conClaves, 42);
+  const deSecuencial = archivo.serializar({ tema: 'secuencial', estructura: conClaves });
+  const haciaIndices = archivo.compatibilidad(deSecuencial, {
+    tema: 'indices', modo: 'ordenada', tipoClave: 'numerica', sinClaves: true
+  });
+  assert.equal(haciaIndices.abre, false);
+  assert.match(haciaIndices.mensaje, /Este tema/);
+});
+
+test('el archivo de un tema sin claves se nombra por lo que lo distingue', () => {
+  const estructura = crearOrdenada({ n: 1, l: 1 });
+  assert.equal(
+    archivo.nombreSugerido({ tema: 'indices', estructura, detalle: 'r500000-B4096-primario' }),
+    'indices-r500000-B4096-primario.cc2',
+    'y no «indices-n1-l1», que no dice nada'
+  );
+});
+
 test('validar rechaza versiones que no sabe leer', () => {
   const resultado = archivo.validar({ version: 99, tema: 'secuencial', n: 4, claves: [] });
   assert.equal(resultado.valido, false);

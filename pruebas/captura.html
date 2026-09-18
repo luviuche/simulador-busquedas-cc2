@@ -48,6 +48,7 @@
   <script src="../js/dominio/cubetas.js"></script>
   <script src="../js/dominio/externa.js"></script>
   <script src="../js/dominio/huffman.js"></script>
+  <script src="../js/dominio/indices.js"></script>
   <script src="../js/algoritmos/traza.js"></script>
   <script src="../js/algoritmos/secuencial.js"></script>
   <script src="../js/algoritmos/binaria.js"></script>
@@ -68,6 +69,7 @@
   <script src="../js/algoritmos/cubetas.js"></script>
   <script src="../js/algoritmos/secuencial-externa.js"></script>
   <script src="../js/algoritmos/huffman.js"></script>
+  <script src="../js/algoritmos/indices.js"></script>
   <script src="../js/persistencia/recientes.js"></script>
   <script src="../js/persistencia/archivo.js"></script>
   <script src="../js/vista/componentes/casilla.js"></script>
@@ -359,6 +361,23 @@
       avanzar(pasosAAvanzar(20));
     }
 
+    // Índices: el ejercicio de la hoja del docente, que es el que hay que poder
+    // comparar contra su letra. `?tipo=` y `?niveles=` dan las cuatro
+    // combinaciones; `multinivel` con `secundario` es la de cuatro columnas,
+    // que es la que obliga al lienzo a desplazarse.
+    function prepararIndices() {
+      const formularios = entrarATema('Índices primarios, secundarios y multinivel');
+      enviar(formularios[0], {
+        r: Number(parametros.get('r')) || 500000,
+        B: Number(parametros.get('B')) || 4096,
+        R: Number(parametros.get('R')) || 120,
+        Ri: Number(parametros.get('Ri')) || 15,
+        tipo: parametros.get('tipo') || 'primario',
+        niveles: parametros.get('niveles') || 'un-nivel'
+      });
+      avanzar(pasosAAvanzar(10));
+    }
+
     // Abrir un archivo `.cc2` de verdad: se construye el JSON, se le entrega al
     // `input type="file"` con un DataTransfer —que es la única forma de
     // simular la elección de un archivo— y se dispara el `change`. La lectura
@@ -406,6 +425,7 @@
       if (vista === 'cubetas') return prepararCubetas();
       if (vista === 'secuencial-externa') return prepararSecuencialExterna();
       if (vista === 'huffman') return prepararHuffman();
+      if (vista === 'indices') return prepararIndices();
       if (vista === 'abrir-archivo') return prepararAbrirArchivo();
       if (vista === 'eliminar-binaria') return prepararEliminacion('Búsqueda binaria');
       if (vista === 'eliminar-secuencial') return prepararEliminacion('Búsqueda secuencial');
