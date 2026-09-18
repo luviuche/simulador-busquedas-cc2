@@ -70,7 +70,6 @@
           hijos: [
             { id: 'externa-secuencial', titulo: 'Búsqueda secuencial externa', descripcion: 'El archivo se lee bloque por bloque', tema: 'secuencial-externa', disponible: true },
             { id: 'externa-binaria', titulo: 'Búsqueda binaria externa', descripcion: '', tema: null, disponible: false },
-            { id: 'tablas-indices', titulo: 'Tablas de índices', descripcion: '', tema: null, disponible: false },
             { id: 'indices', titulo: 'Índices primarios, secundarios y multinivel', descripcion: 'La estructura sale de los parámetros del archivo', tema: 'indices', disponible: true },
             { id: 'cubetas', titulo: 'Otras búsquedas dinámicas', descripcion: 'Cubetas con expansión y reducción dinámica de n', tema: 'cubetas', disponible: true }
           ]

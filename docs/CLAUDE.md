@@ -498,7 +498,7 @@ Por eso la cadena ocupa **una sola columna del grid de la fila** y se ordena por
 
 ### 5.5 Árboles de búsqueda por residuo
 
-Por residuos, árboles de búsqueda digital, residuos múltiples. Mismo contrato: producen traza. En el catálogo del menú viven agrupados bajo "Búsqueda por residuo" (§4). **Método de la rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06): no se van a cubrir. **Tablas de índices** no es de esta familia —se cubre junto a las búsquedas externas (§12), no aquí.
+Por residuos, árboles de búsqueda digital, residuos múltiples. Mismo contrato: producen traza. En el catálogo del menú viven agrupados bajo "Búsqueda por residuo" (§4). **Método de la rejilla, árboles 2D y tablas de índices salieron del temario**: los dos primeros el 2026-09-06 y las tablas de índices el 2026-09-17 (§12). No se van a cubrir.
 
 **Los tres primeros trabajan con letras, no con números** (pedido del usuario, 2026-08-29): el ejercicio de clase es la palabra `prueba`, cuyas letras se insertan en orden.
 
@@ -1213,7 +1213,7 @@ Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamien
 
 La función módulo dejó lista la maquinaria de transformación de claves —modo disperso (§3.2), cálculo reproducible (§6.5), tratamiento de colisiones al crear (§5.4)— y las otras cuatro entraron **declarando su `direccionDe` y una entrada en `TEMAS`**, sin tocar la pantalla. La única pieza que hubo que agregar fue `config.parametros`, para los dos temas que necesitan un dato del estudiante (las posiciones del truncamiento, la base de la conversión). Si en adelante una función obliga a cambiar la pantalla, es señal de que el contrato de `{ direccion, calculo }` se quedó corto.
 
-**«Árboles de búsqueda por residuo» está completa, con sus cuatro temas: árbol de búsqueda digital, árbol de búsqueda por residuos (trie), árbol de búsqueda por residuos múltiples y árbol de Huffman** (§5.5 y §5.9). El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima aportando una sola regla —las claves solo en las hojas—; y residuos múltiples entró sobre residuos cambiando solo la forma del árbol, que dejó de estar cableada en la pantalla y ahora viaja en `config.arbol`. Los tres comparten la letra y su código de cinco bits. **Rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06); **tablas de índices** pasó a cubrirse junto a las búsquedas externas, más abajo.
+**«Árboles de búsqueda por residuo» está completa, con sus cuatro temas: árbol de búsqueda digital, árbol de búsqueda por residuos (trie), árbol de búsqueda por residuos múltiples y árbol de Huffman** (§5.5 y §5.9). El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima aportando una sola regla —las claves solo en las hojas—; y residuos múltiples entró sobre residuos cambiando solo la forma del árbol, que dejó de estar cableada en la pantalla y ahora viaja en `config.arbol`. Los tres comparten la letra y su código de cinco bits. **Rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06), y **tablas de índices** también, más abajo.
 
 **Los cuatro tratamientos de colisión están construidos: `ninguno`, `reasignación` (prueba lineal), `arreglos anidados` y `encadenamiento secuencial` (§5.4).** Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el encadenamiento entró sobre él: comparte almacenamiento, aplicadores y rama de eliminación, y lo único propio suyo es que su estructura secundaria no tiene tope.
 
@@ -1229,9 +1229,15 @@ Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al 
 
 ### Fase 2 — solo visible en el menú, sin implementar
 
-Búsquedas externas —binaria externa, **tablas de índices** (el docente la está viendo en clase, 2026-09-06), índices primarios/secundarios/multinivel— (salvo otras búsquedas dinámicas, §5.7, ya construida) y la categoría de grafos completa. Se muestran en el catálogo del menú, marcadas "En desarrollo", y responden al clic con un aviso de "en construcción" en vez de quedar mudas. Su presencia comunica el alcance del curso.
+Búsquedas externas —binaria externa— (salvo otras búsquedas dinámicas, §5.7, e índices, §5.10, ya construidas) y la categoría de grafos completa. Se muestran en el catálogo del menú, marcadas "En desarrollo", y responden al clic con un aviso de "en construcción" en vez de quedar mudas. Su presencia comunica el alcance del curso.
 
 **Búsqueda secuencial externa está construida** (§5.8, 2026-09-11): el docente confirmó la forma del archivo —`B = √N` truncado, `r = N/√N` redondeado al más cercano, un bloque más si no alcanza, y el último con el sobrante— y que el llenado es ordenado. Queda una sola duda abierta, que solo afecta al contador: si recorrer el bloque que contiene la clave suma **otro** acceso o si ya estaba contado por la comparación contra su último registro.
+
+**Tablas de índices salió del temario y del menú** (decisión del usuario, 2026-09-17). Se deja escrito aquí porque el catálogo ya no lo dice y conviene no volver a proponerlo:
+
+- Entró al catálogo el **2026-09-06**, apuntado como «el docente la está viendo en clase». Se lo situó primero entre los árboles de búsqueda por residuo y después, al ver que no era de esa familia, junto a las búsquedas externas.
+- **Nunca llegó a verse en clase, y el usuario no espera que se vea.** En once días no apareció ni un enunciado, ni un ejercicio, ni una regla que implementar, mientras el tema vecino —índices primarios, secundarios y multinivel (§5.10)— sí llegó con la hoja del docente y quedó construido.
+- **Nunca tuvo código**: era una entrada del catálogo con `tema: null` y `disponible: false`, así que quitarla no deja nada huérfano. Si el docente lo retoma, vuelve con una línea en `CATALOGO` y lo que se aprenda de él.
 
 **Binaria externa y hashing externo siguen sin algoritmo confirmado.** La forma del archivo probablemente les sirva igual, pero su recorrido no se le ha preguntado al docente. No construir esto por iniciativa propia mientras esa duda siga abierta.
 
