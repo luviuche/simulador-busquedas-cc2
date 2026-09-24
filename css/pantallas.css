@@ -972,6 +972,44 @@
   text-align: right;
 }
 
+/* Sección de los saltos de la reasignación (CLAUDE.md 5.4): aparte del
+   cálculo de la función hash, bajo una línea punteada con el nombre de la
+   prueba. */
+.calculo__saltos {
+  margin-top: var(--espacio-3);
+  padding-top: var(--espacio-2);
+  border-top: 1px dashed var(--borde-fuerte);
+}
+
+.calculo__saltos[hidden] {
+  display: none;
+}
+
+.calculo__saltos-titulo {
+  margin: 0 0 var(--espacio-2);
+  font-size: 12px;
+  color: var(--tinta-suave);
+}
+
+/* Salto que no sirvió: el resultado se tacha y debajo de la cuenta se dice
+   por qué. El tachado es el refuerzo no cromático de la nota (CLAUDE.md 8.1). */
+.calculo__linea--descartada .calculo__resultado {
+  color: var(--tinta-suave);
+  text-decoration: line-through;
+}
+
+.calculo__nota {
+  display: block;
+  font-size: 11px;
+  color: var(--estado-colision-borde);
+}
+
+.calculo__elision {
+  list-style: none;
+  text-align: center;
+  color: var(--tinta-suave);
+}
+
 .calculo__vacio {
   list-style: none;
   color: var(--tinta-suave);

@@ -158,7 +158,8 @@
       parametros: estructura.parametros,
       tratamiento: estructura.tratamiento,
       anidados: estructura.anidados,
-      tamanoAnidado: estructura.tamanoAnidado
+      tamanoAnidado: estructura.tamanoAnidado,
+      ordenLlegada: estructura.ordenLlegada
     });
 
     return {
@@ -169,6 +170,8 @@
       tratamientos: [
         { valor: hashOperaciones.TRATAMIENTOS.NINGUNO, etiqueta: 'Sin tratamiento' },
         { valor: hashOperaciones.TRATAMIENTOS.REASIGNACION, etiqueta: 'Reasignación (prueba lineal)' },
+        { valor: hashOperaciones.TRATAMIENTOS.CUADRATICA, etiqueta: 'Reasignación (prueba cuadrática)' },
+        { valor: hashOperaciones.TRATAMIENTOS.DOBLE_HASH, etiqueta: 'Reasignación (doble función hash)' },
         { valor: hashOperaciones.TRATAMIENTOS.ANIDADOS, etiqueta: 'Arreglos anidados' },
         { valor: hashOperaciones.TRATAMIENTOS.ENCADENAMIENTO, etiqueta: 'Encadenamiento secuencial' }
       ],

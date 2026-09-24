@@ -432,7 +432,7 @@ El documento original pedía soportarlas «en decimal y en binario». **Descarta
 
 ### 5.4 Tratamiento de colisiones internas
 
-- **Reasignación** — prueba lineal desde la dirección ocupada.
+- **Reasignación** — la clave busca otra casilla en la misma tabla. Tres pruebas, que solo se distinguen en el salto (abajo): **lineal**, **cuadrática** y **doble función hash**.
 - **Arreglos anidados** — estructura secundaria por dirección.
 - **Encadenamiento secuencial** — lista enlazada por dirección.
 
@@ -443,6 +443,19 @@ La traza debe registrar **cada casilla recorrida** por el tratamiento, no solo e
 Se elige al crear y no después porque el tratamiento cambia la **forma** de la estructura y no solo su comportamiento: arreglos anidados y encadenamiento necesitan estructuras secundarias por dirección, así que cambiarlo con claves ya colocadas obligaría a redispersar la tabla entera. Como efecto secundario, comparar dos tratamientos es crear dos estructuras con las mismas claves y ponerlas lado a lado, que es como se explica en clase.
 
 `ninguno` es un tratamiento más, y el que deja ver la función hash pura: al chocar, la clave **no entra** y la casilla se marca como colisión. Es el estado inicial del selector.
+
+#### Prueba cuadrática y doble función hash (2026-09-23)
+
+Confirmadas por el docente a través del usuario. Son **reasignación**, como la lineal: comparten con ella parar, buscar, contar y dibujar, y lo único que cambia es a qué casilla se salta (`SONDEOS` en `hash/operaciones.js`, sondeos en `colisiones/reasignacion.js`). Con `D` la dirección que dio la función hash:
+
+- **Cuadrática:** el intento `i` va a `D + i²`. **Lo que se pasa de `n` da la vuelta con módulo y sigue contando** —`((D − 1 + i²) mod n) + 1`—, no se reinicia en la casilla 1 como en otras versiones del libro.
+- **Doble función hash:** la segunda función **se aplica a la dirección anterior, no a la clave**: `D' = H'(D)`, `D'' = H'(D')`…, con `H'(D) = ((D + 1) mod n) + 1`. En direcciones `1..n` eso avanza **de a dos casillas**, así que con `n` par solo recorre las de la paridad de `D`. No es el doble hashing clásico (`D + i·H₂(k)`), que se descartó al preguntarlo.
+
+**Las dos pueden agotarse con casillas libres**, y entonces la clave **no entra** (decisión del usuario, sin confirmar con el docente). La doble función hash se corta al volver a una casilla ya visitada: como la siguiente depende solo de la actual, eso es el ciclo sin fin. La cuadrática se corta tras `n − 1` intentos, porque ahí los cuadrados se repiten enteros; en el camino no vuelve a mirar casillas que ya miró. El paso es `rechazada` y dice cuántas casillas libres quedaron sin alcanzar; si la tabla sí está llena, es `saturada` como en la lineal.
+
+**Eliminación:** *todas las claves que llegaron por colisión vuelven a pasar por la función hash* (así lo explica el docente). Con saltos no hay un grupo contiguo «detrás del hueco» como en la lineal —que sigue igual—, así que se levantan **todas** las claves que no están en su dirección y después se recolocan **en su orden de llegada**. Primero todas y luego la recolocación, no de a una: una clave recolocada podría quedar con su recorrido pasando por la casilla de otra que aún no se levantó, y al levantarla se le abriría un hueco en el camino. Por eso `eliminar` recibe `ordenLlegada`.
+
+**Los saltos se ven en el panel del cálculo** (maqueta elegida por el usuario, 2026-09-23, opción «sección aparte»), en las **tres** pruebas, lineal incluida. Debajo del cálculo de la función hash, que queda intacto, una línea punteada abre una sección con el nombre de la prueba —«Prueba cuadrática · la 9 está ocupada»; al buscar, «· 55 no está en la 6»— y un renglón por salto: `i = 1  9 + 1²  10` en la lineal y la cuadrática, `D' = H'(9)  (9 + 1) mod 12 + 1  11` en la doble. El salto que no sirvió se tacha y dice debajo qué había (`ocupada por 1016`, `contiene 35`, `vacía`); el último revelado es el activo. **Lo que se pasa de `n` se escribe sumando y restando las vueltas**: `9 + 2² = 13 − 12`. Con más de cinco saltos la sección elide: el primero, los tres últimos y `⋯ N saltos más ⋯`. Viaja en cada paso como `paso.saltos = { titulo, lineas }`, con lo revelado hasta él, igual que `calculo`.
 
 #### Arreglos anidados (2026-08-29)
 
@@ -605,7 +618,7 @@ Consecuencia directa: **que la clave no esté no se comprueba por adelantado.** 
 
 **En las estructuras ordenadas —secuencial y binaria— son dos pasos y no uno.** Primero se marca la casilla que sale, con su clave todavía dentro; después se cierra el hueco y las siguientes se desplazan. Con un solo paso la clave desaparece y las demás se corren a la vez, y no se alcanza a ver de cuál casilla salió, que es justo lo que la animación de eliminación existe para mostrar (§7).
 
-**En una tabla dispersa con reasignación hay que redispersar el grupo.** Borrar en medio de un sondeo deja un hueco que corta la cadena: una clave que se corrió más allá deja de ser alcanzable, porque la búsqueda se detiene en la primera casilla vacía que encuentra. Así lo explica el docente y así se implementa: **las claves que siguen al hueco vuelven a pasar por la función hash**, se levantan una a una y se vuelven a dispersar, con su cálculo y su sondeo a la vista.
+**En una tabla dispersa con reasignación hay que redispersar el grupo.** Borrar en medio de un sondeo deja un hueco que corta la cadena: una clave que se corrió más allá deja de ser alcanzable, porque la búsqueda se detiene en la primera casilla vacía que encuentra. Así lo explica el docente y así se implementa: **las claves que siguen al hueco vuelven a pasar por la función hash**, se levantan una a una y se vuelven a dispersar, con su cálculo y su sondeo a la vista. Eso vale para la prueba lineal; la cuadrática y la doble función hash reorganizan todas las claves desplazadas (§5.4).
 
 ```
 7412 → dirección 3          3 [7412]        3 [7412]        3 [7412]
@@ -1205,7 +1218,7 @@ El documento incluye: encabezado con datos de la asignatura, configuración de l
 
 ### Fase 1 — implementar
 
-Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamiento, plegamiento, conversión de bases) **solo en decimal**, ya que lo binario quedó descartado (§5.3) · tratamiento de colisiones (reasignación, arreglos anidados, encadenamiento secuencial) · otras búsquedas internas (residuos, árboles de búsqueda digital, residuos múltiples).
+Búsqueda secuencial · binaria · funciones hash (módulo, cuadrado, truncamiento, plegamiento, conversión de bases) **solo en decimal**, ya que lo binario quedó descartado (§5.3) · tratamiento de colisiones (reasignación lineal, cuadrática y por doble función hash, arreglos anidados, encadenamiento secuencial) · otras búsquedas internas (residuos, árboles de búsqueda digital, residuos múltiples).
 
 **Orden de construcción confirmado: primero búsqueda secuencial, luego binaria.** Secuencial es el tema anterior a binaria en el orden de la asignatura, y sirve como la primera plantilla end-to-end (dominio → traza → elisión → animación → bitácora); binaria reutiliza ese mismo patrón, no al revés.
 
@@ -1215,7 +1228,7 @@ La función módulo dejó lista la maquinaria de transformación de claves —mo
 
 **«Árboles de búsqueda por residuo» está completa, con sus cuatro temas: árbol de búsqueda digital, árbol de búsqueda por residuos (trie), árbol de búsqueda por residuos múltiples y árbol de Huffman** (§5.5 y §5.9). El digital estrenó las claves alfabéticas, el modo `arbol` y el dibujo por niveles; residuos entró encima aportando una sola regla —las claves solo en las hojas—; y residuos múltiples entró sobre residuos cambiando solo la forma del árbol, que dejó de estar cableada en la pantalla y ahora viaja en `config.arbol`. Los tres comparten la letra y su código de cinco bits. **Rejilla y árboles 2D salieron del temario** (decisión del usuario, 2026-09-06), y **tablas de índices** también, más abajo.
 
-**Los cuatro tratamientos de colisión están construidos: `ninguno`, `reasignación` (prueba lineal), `arreglos anidados` y `encadenamiento secuencial` (§5.4).** Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el encadenamiento entró sobre él: comparte almacenamiento, aplicadores y rama de eliminación, y lo único propio suyo es que su estructura secundaria no tiene tope.
+**Los seis tratamientos de colisión están construidos: `ninguno`, `reasignación` (prueba lineal, cuadrática y doble función hash — las dos últimas desde el 2026-09-23), `arreglos anidados` y `encadenamiento secuencial` (§5.4).** Los anidados trajeron el modelo de estructuras secundarias por dirección —`estructura.anidados`, con sus tres operaciones en el dominio— y el encadenamiento entró sobre él: comparte almacenamiento, aplicadores y rama de eliminación, y lo único propio suyo es que su estructura secundaria no tiene tope.
 
 Pendientes conocidos, no bloqueantes: faltan los `.woff2` en `fuentes/` (cae al stack de respaldo), y ni `css/impresion.css` ni `persistencia/archivo.js` (.cc2) están construidos.
 

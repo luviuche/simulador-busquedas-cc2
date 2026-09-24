@@ -1,6 +1,6 @@
 (function () {
   const { TIPOS_PASO, crearPaso } = window.CC2.algoritmos.traza;
-  const { sondearLineal } = window.CC2.algoritmos.colisiones.reasignacion;
+  const { sondearLineal, sondearCuadratico, sondearDobleHash } = window.CC2.algoritmos.colisiones.reasignacion;
   const { recorrerAnidado } = window.CC2.algoritmos.colisiones.anidados;
   const { recorrerCadena } = window.CC2.algoritmos.colisiones.encadenamiento;
 
@@ -10,6 +10,8 @@
   const TRATAMIENTOS = Object.freeze({
     NINGUNO: 'ninguno',
     REASIGNACION: 'reasignacion',
+    CUADRATICA: 'cuadratica',
+    DOBLE_HASH: 'doble-hash',
     ANIDADOS: 'anidados',
     ENCADENAMIENTO: 'encadenamiento'
   });
@@ -17,9 +19,35 @@
   const NOMBRE_TRATAMIENTO = Object.freeze({
     ninguno: 'ninguno',
     reasignacion: 'reasignación',
+    cuadratica: 'reasignación (prueba cuadrática)',
+    'doble-hash': 'reasignación (doble función hash)',
     anidados: 'arreglos anidados',
     encadenamiento: 'encadenamiento secuencial'
   });
+
+  // Las tres reasignaciones comparten todo menos el salto: parar en la primera
+  // casilla libre, buscar hasta la clave o un hueco, y el mismo dibujo. Por eso
+  // basta con saber qué sondeo usa cada una y cómo se llama en la bitácora.
+  const SONDEOS = Object.freeze({
+    reasignacion: { sondear: sondearLineal, prueba: 'Prueba lineal' },
+    cuadratica: { sondear: sondearCuadratico, prueba: 'Prueba cuadrática' },
+    'doble-hash': { sondear: sondearDobleHash, prueba: 'Doble función hash' }
+  });
+
+  // Los renglones de los saltos, para el panel del cálculo: debajo de la
+  // dirección que dio la función hash, una sección con el nombre de la prueba y
+  // un renglón por casilla recorrida. Como `calculo`, cada paso lleva todo lo
+  // revelado hasta él y el panel no recuerda nada. `nota` dice por qué el
+  // salto no sirvió; sin nota, es el salto donde el recorrido terminó.
+  function crearSaltos(titulo) {
+    const lineas = [];
+    return {
+      anotar(visita, nota = null) {
+        lineas.push({ etiqueta: visita.etiqueta, expresion: visita.expresion, resultado: String(visita.casilla), nota });
+      },
+      foto: () => ({ titulo, lineas: lineas.slice() })
+    };
+  }
 
   // Ni insertar ni buscar tocan la estructura: producen la traza completa y la
   // vista la reproduce (CLAUDE.md 4). Es lo que permite retroceder un paso.
@@ -81,7 +109,12 @@
       // sobre lo que va a pasar. Se dice qué se encontró y ya.
       mensaje: tratamiento === TRATAMIENTOS.NINGUNO
         ? `Colisión en la dirección ${direccion}: la casilla ya contiene la clave ${claves[direccion - 1]}.`
-        : `Colisión en la dirección ${direccion}: se aplica tratamiento por ${NOMBRE_TRATAMIENTO[tratamiento]}.`
+        : `Colisión en la dirección ${direccion}: se aplica tratamiento por ${NOMBRE_TRATAMIENTO[tratamiento]}.`,
+      // La sección de saltos abre aquí, todavía vacía: la dirección está
+      // ocupada y lo que sigue es la reasignación.
+      saltos: SONDEOS[tratamiento]
+        ? crearSaltos(`${SONDEOS[tratamiento].prueba} · la ${direccion} está ocupada`).foto()
+        : undefined
     })));
 
     // Sin tratamiento la colisión es el final: la clave no entra. Es el
@@ -186,7 +219,9 @@
       return pasos;
     }
 
-    const sondeo = sondearLineal({
+    const { sondear, prueba } = SONDEOS[tratamiento];
+    const saltos = crearSaltos(`${prueba} · la ${direccion} está ocupada`);
+    const sondeo = sondear({
       claves,
       n,
       desde: direccion,
@@ -198,30 +233,47 @@
       contadores.accesos++;
       if (!visita.detener) {
         sondeadas.push(visita.casilla);
+        saltos.anotar(visita, `ocupada por ${visita.clave}`);
         pasos.push(crearPaso(TIPOS_PASO.SONDEO, Object.assign(comun(), {
           casilla: visita.casilla,
           colision: direccion,
           sondeadas: sondeadas.slice(),
-          mensaje: `Prueba lineal: la casilla ${visita.casilla} contiene la clave ${visita.clave}; se avanza.`
+          saltos: saltos.foto(),
+          mensaje: `${prueba}: la casilla ${visita.casilla} (${visita.detalle}) contiene la clave ${visita.clave}; se avanza.`
         })));
         continue;
       }
+      saltos.anotar(visita);
       pasos.push(crearPaso(TIPOS_PASO.INSERCION, Object.assign(comun(), {
         casilla: visita.casilla,
         colision: direccion,
         sondeadas: sondeadas.slice(),
+        saltos: saltos.foto(),
         clave,
         efecto: { tipo: 'colocar', casilla: visita.casilla, clave },
-        mensaje: `Clave insertada: ${clave} en la casilla ${visita.casilla} tras ${sondeadas.length + 1} sondeos.`
+        mensaje: `Clave insertada: ${clave} en la casilla ${visita.casilla} (${visita.detalle}) tras ${sondeadas.length + 1} sondeos.`
       })));
     }
 
     if (sondeo.agotado) {
-      pasos.push(crearPaso(TIPOS_PASO.SATURADA, Object.assign(comun(), {
-        colision: direccion,
-        sondeadas: sondeadas.slice(),
-        mensaje: `Estructura saturada: capacidad máxima de ${n} casillas alcanzada.`
-      })));
+      // La lineal solo se agota con la tabla llena. La cuadrática y la doble
+      // función hash pueden agotarse antes: su recorrido entra en ciclo sin
+      // pasar por las casillas libres que quedan, y la clave no entra.
+      const libres = Array.from({ length: n }, (_, i) => claves[i]).filter((k) => k === undefined).length;
+      pasos.push(libres === 0
+        ? crearPaso(TIPOS_PASO.SATURADA, Object.assign(comun(), {
+          colision: direccion,
+          sondeadas: sondeadas.slice(),
+          saltos: saltos.foto(),
+          mensaje: `Estructura saturada: capacidad máxima de ${n} casillas alcanzada.`
+        }))
+        : crearPaso(TIPOS_PASO.RECHAZADA, Object.assign(comun(), {
+          colision: direccion,
+          sondeadas: sondeadas.slice(),
+          saltos: saltos.foto(),
+          mensaje: `Clave no insertada: la ${prueba.toLowerCase()} volvió a una casilla ya visitada y entraría en ciclo. `
+            + `Quedan ${libres === 1 ? 'una casilla libre' : `${libres} casillas libres`} que su recorrido no alcanza.`
+        })));
     }
     return pasos;
   }
@@ -269,7 +321,10 @@
 
     pasos.push(crearPaso(TIPOS_PASO.COMPARACION, Object.assign(comun(), {
       casilla: direccion,
-      mensaje: `Se compara la clave objetivo con la casilla ${direccion}: ${objetivo} no coincide con ${ocupante}.`
+      mensaje: `Se compara la clave objetivo con la casilla ${direccion}: ${objetivo} no coincide con ${ocupante}.`,
+      saltos: SONDEOS[tratamiento]
+        ? crearSaltos(`${SONDEOS[tratamiento].prueba} · ${objetivo} no está en la ${direccion}`).foto()
+        : undefined
     })));
 
     if (tratamiento === TRATAMIENTOS.NINGUNO) {
@@ -365,7 +420,9 @@
 
     // Con reasignación la búsqueda repite el mismo recorrido que hizo la
     // inserción, y para por la misma razón: halla la clave o halla un hueco.
-    const sondeo = sondearLineal({
+    const { sondear, prueba } = SONDEOS[tratamiento];
+    const saltos = crearSaltos(`${prueba} · ${objetivo} no está en la ${direccion}`);
+    const sondeo = sondear({
       claves,
       n,
       desde: direccion,
@@ -374,29 +431,37 @@
 
     for (const visita of sondeo.recorrido) {
       const hallado = examinar(visita.casilla);
+      if (hallado === objetivo) saltos.anotar(visita);
+      else saltos.anotar(visita, hallado === undefined ? 'vacía' : `contiene ${hallado}`);
       if (!visita.detener) {
         pasos.push(crearPaso(TIPOS_PASO.COMPARACION, Object.assign(comun(), {
           casilla: visita.casilla,
-          mensaje: `Prueba lineal: ${objetivo} no coincide con ${hallado} en la casilla ${visita.casilla}; se avanza.`
+          saltos: saltos.foto(),
+          mensaje: `${prueba}: ${objetivo} no coincide con ${hallado} en la casilla ${visita.casilla} (${visita.detalle}); se avanza.`
         })));
         continue;
       }
       if (hallado === objetivo) {
         pasos.push(crearPaso(TIPOS_PASO.ENCONTRADA, Object.assign(comun(), {
           casilla: visita.casilla,
+          saltos: saltos.foto(),
           mensaje: `Clave localizada en la casilla ${visita.casilla} tras ${contadores.comparaciones} comparaciones.`
         })));
       } else {
         pasos.push(crearPaso(TIPOS_PASO.NO_ENCONTRADA, Object.assign(comun(), {
           casilla: visita.casilla,
-          mensaje: `Clave no localizada en la estructura: la prueba lineal halló vacía la casilla ${visita.casilla} tras ${contadores.comparaciones} comparaciones.`
+          saltos: saltos.foto(),
+          mensaje: `Clave no localizada en la estructura: la ${prueba.toLowerCase()} halló vacía la casilla ${visita.casilla} tras ${contadores.comparaciones} comparaciones.`
         })));
       }
     }
 
     if (sondeo.agotado) {
       pasos.push(crearPaso(TIPOS_PASO.NO_ENCONTRADA, Object.assign(comun(), {
-        mensaje: `Clave no localizada en la estructura tras ${contadores.comparaciones} comparaciones.`
+        saltos: saltos.foto(),
+        mensaje: sondear === sondearLineal
+          ? `Clave no localizada en la estructura tras ${contadores.comparaciones} comparaciones.`
+          : `Clave no localizada en la estructura tras ${contadores.comparaciones} comparaciones: la ${prueba.toLowerCase()} volvió a una casilla ya visitada.`
       })));
     }
     return pasos;
@@ -415,10 +480,12 @@
   // función hash** (así lo explica el docente): se levantan una a una y se
   // vuelven a dispersar, con su cálculo y su sondeo a la vista.
   //
-  // El grupo se recorre hasta la primera casilla vacía y no más allá: si hay
-  // una vacía, ninguna clave posterior pudo haberse corrido cruzándola, así
-  // que su cadena nunca pasó por aquí y nada de lo que sigue está en riesgo.
-  function eliminar({ claves, n, clave, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO, anidados = [], tamanoAnidado = 0 }) {
+  // En la prueba lineal el grupo se recorre hasta la primera casilla vacía y
+  // no más allá: si hay una vacía, ninguna clave posterior pudo haberse corrido
+  // cruzándola, así que su cadena nunca pasó por aquí y nada de lo que sigue
+  // está en riesgo. La cuadrática y la doble función hash no tienen ese atajo
+  // (ver abajo).
+  function eliminar({ claves, n, clave, direccionDe, parametros, tratamiento = TRATAMIENTOS.NINGUNO, anidados = [], tamanoAnidado = 0, ordenLlegada = [] }) {
     const pasos = buscar({
       claves, n, objetivo: clave, direccionDe, parametros, tratamiento, anidados, tamanoAnidado
     });
@@ -503,13 +570,12 @@
       mensaje: `Clave ${clave} eliminada de la casilla ${casilla}.`
     }));
 
-    if (tratamiento !== TRATAMIENTOS.REASIGNACION) return pasos;
+    if (!SONDEOS[tratamiento]) return pasos;
+    const { sondear, prueba } = SONDEOS[tratamiento];
 
-    for (let salto = 1; salto <= n - 1; salto++) {
-      const origen = ((casilla - 1 + salto) % n) + 1;
-      const reubicada = simulacion[origen - 1];
-      if (reubicada === undefined) break;
-
+    // Levanta una clave de su casilla para volver a dispersarla. Solo la
+    // retira: dónde vuelve a caer lo decide `recolocar`.
+    function levantar(reubicada, origen, motivo) {
       contadores.accesos++;
       delete simulacion[origen - 1];
       pasos.push(crearPaso(TIPOS_PASO.EXTRACCION, {
@@ -518,9 +584,14 @@
         efecto: { tipo: 'retirar', casilla: origen },
         comparaciones: contadores.comparaciones,
         accesos: contadores.accesos,
-        mensaje: `Se retira la clave ${reubicada} de la casilla ${origen}: colisionó en su momento y hay que volver a dispersarla.`
+        mensaje: `Se retira la clave ${reubicada} de la casilla ${origen}: ${motivo}`
       }));
+    }
 
+    // Vuelve a pasar la clave por la función hash, con su cálculo a la vista,
+    // y la coloca en su dirección o, si sigue ocupada, donde la deje el mismo
+    // sondeo con que se insertó la primera vez.
+    function recolocar(reubicada, origen) {
       const nueva = direccionDe(reubicada, n, parametros);
       pasos.push(...pasosDelCalculo(nueva.calculo, contadores));
 
@@ -542,13 +613,11 @@
             ? `La clave ${reubicada} vuelve a la casilla ${origen}: su dirección quedó libre.`
             : `La clave ${reubicada} se recoloca en la casilla ${nueva.direccion}, su dirección.`
         })));
-        continue;
+        return;
       }
 
-      // Su dirección sigue ocupada: vuelve a sondear, igual que al insertarla
-      // la primera vez. Siempre encuentra sitio —se acaba de liberar al menos
-      // una casilla— así que el sondeo no puede agotarse.
-      const sondeo = sondearLineal({
+      const saltos = crearSaltos(`${prueba} · la ${nueva.direccion} está ocupada`);
+      const sondeo = sondear({
         claves: simulacion,
         n,
         desde: nueva.direccion,
@@ -560,19 +629,23 @@
         contadores.accesos++;
         if (!visita.detener) {
           sondeadas.push(visita.casilla);
+          saltos.anotar(visita, `ocupada por ${visita.clave}`);
           pasos.push(crearPaso(TIPOS_PASO.SONDEO, Object.assign(comunReubicada(), {
             casilla: visita.casilla,
             colision: nueva.direccion,
             sondeadas: sondeadas.slice(),
-            mensaje: `Prueba lineal: la casilla ${visita.casilla} contiene la clave ${visita.clave}; se avanza.`
+            saltos: saltos.foto(),
+            mensaje: `${prueba}: la casilla ${visita.casilla} (${visita.detalle}) contiene la clave ${visita.clave}; se avanza.`
           })));
           continue;
         }
         simulacion[visita.casilla - 1] = reubicada;
+        saltos.anotar(visita);
         pasos.push(crearPaso(TIPOS_PASO.INSERCION, Object.assign(comunReubicada(), {
           casilla: visita.casilla,
           colision: nueva.direccion,
           sondeadas: sondeadas.slice(),
+          saltos: saltos.foto(),
           clave: reubicada,
           efecto: { tipo: 'colocar', casilla: visita.casilla, clave: reubicada },
           mensaje: visita.casilla === origen
@@ -580,6 +653,62 @@
             : `La clave ${reubicada} se recoloca en la casilla ${visita.casilla} tras ${sondeadas.length + 1} sondeos.`
         })));
       }
+
+      // Solo la cuadrática y la doble función hash pueden llegar aquí: con
+      // otras claves ya recolocadas, su recorrido puede cerrarse sin pasar
+      // por ninguna casilla libre. No hay dónde ponerla, y se dice.
+      if (sondeo.agotado) {
+        pasos.push(crearPaso(TIPOS_PASO.RECHAZADA, Object.assign(comunReubicada(), {
+          colision: nueva.direccion,
+          sondeadas: sondeadas.slice(),
+          saltos: saltos.foto(),
+          mensaje: `La clave ${reubicada} no se puede recolocar: la ${prueba.toLowerCase()} entra en ciclo sin hallar casilla libre, y queda fuera de la estructura.`
+        })));
+      }
+    }
+
+    // Prueba lineal: las claves que siguen al hueco, una a una, hasta la
+    // primera casilla vacía. Cada una se levanta y se recoloca antes de pasar
+    // a la siguiente, porque su grupo está contiguo y nada de lo que queda
+    // detrás de ella puede depender de dónde caiga.
+    if (sondear === sondearLineal) {
+      for (let salto = 1; salto <= n - 1; salto++) {
+        const origen = ((casilla - 1 + salto) % n) + 1;
+        const reubicada = simulacion[origen - 1];
+        if (reubicada === undefined) break;
+        levantar(reubicada, origen, 'colisionó en su momento y hay que volver a dispersarla.');
+        recolocar(reubicada, origen);
+      }
+      return pasos;
+    }
+
+    // Cuadrática y doble función hash: **todas las claves que llegaron por
+    // colisión vuelven a pasar por la función hash** (así lo explica el
+    // docente, 2026-09-23). Con saltos, las claves de un recorrido no quedan
+    // contiguas, así que no hay un grupo "detrás del hueco" que acotar.
+    //
+    // Primero se levantan todas y después se recolocan, en su orden de
+    // llegada. Hacerlo de a una no sirve aquí: una clave recolocada podría
+    // quedar con su recorrido pasando por la casilla de otra que todavía no
+    // se ha levantado, y al levantarla le abriría un hueco en el camino.
+    const desplazadas = [];
+    for (let i = 1; i <= n; i++) {
+      const ocupante = simulacion[i - 1];
+      if (ocupante === undefined) continue;
+      const propia = direccionDe(ocupante, n, parametros).direccion;
+      if (propia !== i) desplazadas.push({ clave: ocupante, origen: i, propia });
+    }
+    const llegada = (clave) => {
+      const posicion = ordenLlegada.indexOf(clave);
+      return posicion === -1 ? Infinity : posicion;
+    };
+    desplazadas.sort((x, y) => llegada(x.clave) - llegada(y.clave));
+
+    for (const { clave: reubicada, origen, propia } of desplazadas) {
+      levantar(reubicada, origen, `no está en su dirección (${propia}), llegó ahí por colisión y hay que volver a dispersarla.`);
+    }
+    for (const { clave: reubicada, origen } of desplazadas) {
+      recolocar(reubicada, origen);
     }
 
     return pasos;

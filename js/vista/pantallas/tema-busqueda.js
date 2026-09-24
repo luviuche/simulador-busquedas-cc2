@@ -1808,7 +1808,7 @@
           estado.pasoActual = paso;
           estado.indicePaso = indice;
           sincronizarEfectos(indice);
-          if (dom.calculo) dom.calculo.actualizar(paso ? paso.calculo : null);
+          if (dom.calculo) dom.calculo.actualizar(paso ? paso.calculo : null, paso ? paso.saltos : null);
           renderizarEstructura(paso, indice);
           actualizarMetricas(paso);
           sincronizarAviso(indice);
