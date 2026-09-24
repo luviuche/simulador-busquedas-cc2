@@ -732,7 +732,7 @@ El primero de cada pareja va a la izquierda. Con CIENCIAS da `c=00, i=01, e=100,
 
 **El tema que más se sale del molde: aquí no hay claves.** No se inserta, no se busca y no se elimina. De cuatro parámetros —`r` registros del archivo, `R` bytes por registro de datos, `Ri` bytes por registro índice y `B` bytes por bloque— sale una estructura, y **construirla bien es el ejercicio** (pedido del usuario, 2026-09-17). Por eso el tema no tiene panel de operaciones (`sinOperaciones`) y **crear la estructura arranca su traza** (`alCrear`): no queda nada que pedir después.
 
-**La fuente es la hoja manuscrita del docente**, tres páginas en `docs/WhatsApp Image 2026-09-04 at 9.47.37 AM*.jpeg`. Está verificada número a número en `pruebas/indices.test.js`. `docs/Primer Parcial…pdf` es la solución de dos estudiantes: coincide en todo salvo en que **omite los accesos del índice primario**, que él sí calcula (7). No tomarla como fuente.
+**La fuente fue la hoja manuscrita del docente** (tres fotos, retiradas del repositorio el 2026-09-23 porque ya no hacen falta). Quedó verificada número a número en `pruebas/indices.test.js`, que es ahora donde vive. Una solución de dos estudiantes coincidía en todo salvo en que **omitía los accesos del índice primario**, que él sí calcula (7).
 
 **El redondeo va en dos direcciones y es la trampa del tema** —él escribe el mismo corchete para las dos—:
 
