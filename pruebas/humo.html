@@ -221,6 +221,16 @@
       return retratarEstructura();
     }
 
+    // Toda operación cierra con un paso sin resaltados, la estructura como
+    // queda (2026-09-24): lo que el algoritmo marcó se mira un paso antes.
+    // Se avanza de más a propósito —pasado el final, avanzar no hace nada—
+    // para que retroceder caiga siempre en el último paso del algoritmo.
+    function hastaElUltimoPasoDelAlgoritmo() {
+      agotarTraza(60);
+      control('anterior').click();
+      return retratarEstructura();
+    }
+
     // En la vista apilada cada paso deja su propia fila: se retrata una cadena
     // por fila, leyendo la fila del grid a la que pertenece cada casilla.
     function retratarApilado() {
@@ -321,7 +331,8 @@
       let retrato = retratarEstructura();
       while (retrato !== anterior && paso <= 40) {
         registro.push(`  paso ${paso}: ${retrato}`);
-        if (apilada) {
+        // El paso final ya no apila: dibuja la estructura entera.
+        if (apilada && document.querySelector('.estructura-apilada')) {
           afirmar(filas() === paso, `el paso ${paso} deja ${paso} estructura(s) a la vista`);
         }
         anterior = retrato;
@@ -329,6 +340,25 @@
         retrato = retratarEstructura();
         paso++;
       }
+
+      // Aquí la traza ya está en su paso final: la estructura como queda.
+      // Una búsqueda que halló la clave la deja marcada; lo demás se apaga.
+      afirmar(
+        !/en-evaluacion|rango-activo|descartada/.test(retrato),
+        `el paso final deja la estructura sin rango ni recorrido (${retrato})`
+      );
+      afirmar(
+        (retrato.match(/encontrada/g) || []).length === 1,
+        `el paso final de una búsqueda deja marcada la clave hallada (${retrato})`
+      );
+      if (apilada) {
+        afirmar(
+          !document.querySelector('.estructura-apilada'),
+          'el paso final dibuja la estructura entera y no otra fila del apilado'
+        );
+      }
+      anteriorBoton.click();
+      retrato = retratarEstructura();
 
       afirmar(retrato.includes('encontrada'), `localiza la clave ${objetivo}`);
       // Con la clave hallada a la vista: su marca ✓ es de las que ensanchaban
@@ -387,9 +417,17 @@
         `usa ${comparacionesEsperadas} comparaciones (reporta ${metricas[0]})`
       );
 
+      // Al paso final, y una vez más: insistir pasado el final no es un paso.
+      agotarTraza(3);
+      const filasAntes = document.querySelectorAll('.bitacora__fila').length;
+      siguiente.click();
       const filasBitacora = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
-      const ultimas = filasBitacora.slice(-2);
-      afirmar(ultimas[0] !== ultimas[1], 'la bitácora no repite el último mensaje al agotar la traza');
+      afirmar(filasBitacora.length === filasAntes, 'la bitácora no repite el último mensaje al agotar la traza');
+      const metricasFinales = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
+      afirmar(
+        metricasFinales[0] === String(comparacionesEsperadas),
+        `el paso final conserva las comparaciones de la operación (reporta ${metricasFinales[0]})`
+      );
       registro.push('  bitácora final: ' + filasBitacora[filasBitacora.length - 1]);
 
       // Reiniciar vacía la estructura sin salir del tema y conserva sus datos:
@@ -482,6 +520,20 @@
         operar(formularios, 'insertar', clave);
         agotarTraza();
       }
+      // En el paso final la clave recién puesta ya no lleva marca, pero la
+      // vista no tiene por qué haberse ido de ella: sin casilla que seguir,
+      // el desplazamiento se queda donde estaba.
+      {
+        const lienzo = document.querySelector('.estructura-vertical').getBoundingClientRect();
+        const ultima = [...document.querySelectorAll('.casilla')]
+          .find((c) => c.textContent.includes(String(claves[claves.length - 1])))
+          .getBoundingClientRect();
+        afirmar(
+          ultima.top >= lienzo.top && ultima.bottom <= lienzo.bottom,
+          'en el paso final la última clave insertada sigue a la vista'
+        );
+      }
+      control('anterior').click();
 
       const marcas = [...document.querySelectorAll('.fila-casilla')]
         .map((fila) => (fila.querySelector('.escala__marca') || fila.querySelector('.tramo-elidido')).textContent.trim());
@@ -516,7 +568,7 @@
       // Buscar una clave colocada al principio obliga a volver atrás: si el
       // desplazamiento solo supiera avanzar, la casilla quedaría por encima.
       operar(formularios, 'buscar', claves[0]);
-      agotarTraza();
+      hastaElUltimoPasoDelAlgoritmo();
       const cajaBusqueda = verticalEl.getBoundingClientRect();
       const encontrada = document.querySelector('.casilla--encontrada').getBoundingClientRect();
       afirmar(
@@ -555,7 +607,7 @@
 
       // 7412 con n = 12 → grupos de 2 → 74 + 12 = 86 → 86 + 1 = 87 → 3.
       operar(formularios, 'insertar', 7412);
-      agotarTraza();
+      hastaElUltimoPasoDelAlgoritmo();
       registro.push('  suma: ' + lineasCalculo().join(' | '));
       afirmar(lineasCalculo()[2].includes('74 + 12'), 'el desarrollo muestra la suma de los grupos');
       afirmar(
@@ -568,7 +620,7 @@
       enviar(formularios[0], { n: 12, l: 4, operacion: 'multiplicar', tratamiento: 'reasignacion'
       });
       operar(formularios, 'insertar', 7412);
-      agotarTraza();
+      hastaElUltimoPasoDelAlgoritmo();
       registro.push('  producto: ' + lineasCalculo().join(' | '));
       afirmar(lineasCalculo()[2].includes('74 × 12'), 'con la otra operación el desarrollo muestra el producto');
       afirmar(
@@ -597,7 +649,7 @@
       const formularios = entrarATemaHash('Conversión de bases', { n: 100, l: 4, base: '6', tratamiento: 'reasignacion'
       });
       operar(formularios, 'insertar', 1836);
-      agotarTraza();
+      hastaElUltimoPasoDelAlgoritmo();
       registro.push('  base 6: ' + lineasCalculo().join(' | '));
       afirmar(
         lineasCalculo()[1].includes('8×6²'),
@@ -616,7 +668,7 @@
       // las dos últimas cifras son 14 y con el + 1 la dirección es 15.
       enviar(formularios[0], { n: 100, l: 4, base: '', tratamiento: 'reasignacion' });
       operar(formularios, 'insertar', 7412);
-      agotarTraza();
+      hastaElUltimoPasoDelAlgoritmo();
       registro.push('  base 11: ' + lineasCalculo().join(' | '));
       afirmar(lineasCalculo()[1].includes('9814'), 'sin base indicada se usa la de clase, 11');
       afirmar(
@@ -628,7 +680,7 @@
       // 7×2³ + 4×2² + 1×2¹ + 2×2⁰ = 56 + 16 + 2 + 2 = 76.
       enviar(formularios[0], { n: 100, l: 4, base: '2', tratamiento: 'reasignacion' });
       operar(formularios, 'insertar', 7412);
-      agotarTraza();
+      hastaElUltimoPasoDelAlgoritmo();
       registro.push('  base 2: ' + lineasCalculo().join(' | '));
       afirmar(lineasCalculo()[1].includes('76'), 'con base 2 las cifras de la clave pesan como bits');
 
@@ -670,7 +722,7 @@
       // 7412 con posiciones 1 y 3 → cifras 7 y 1 → 71 + 1 → 72 no cabe en 1..12 → 12.
       enviar(formularios[0], { n: 12, l: 4, posiciones: '1,3', tratamiento: 'reasignacion' });
       operar(formularios, 'insertar', 7412);
-      agotarTraza();
+      hastaElUltimoPasoDelAlgoritmo();
       registro.push('  cálculo: ' + lineasCalculo().join(' | '));
       afirmar(
         lineasCalculo()[1].includes('[7] 4 [1] 2'),
@@ -701,7 +753,7 @@
 
       // 1004² = 1008016 → centrales "08" → 8 + 1 → dirección 9.
       operar(formularios, 'insertar', 1004);
-      agotarTraza();
+      hastaElUltimoPasoDelAlgoritmo();
       registro.push('  cálculo: ' + lineasCalculo().join(' | '));
       afirmar(
         lineasCalculo()[1].includes('1008016'),
@@ -715,7 +767,7 @@
       // 1010² = 1020100 → centrales "20" → 21 no cabe en 1..12 y se ajusta a 9,
       // así que choca con la anterior y la reasignación la manda a la 10.
       operar(formularios, 'insertar', 1010);
-      const retrato = agotarTraza();
+      const retrato = hastaElUltimoPasoDelAlgoritmo();
       registro.push('  estructura: ' + retrato);
       afirmar(
         lineasCalculo()[3].includes('ajustado a 1..12'),
@@ -727,7 +779,7 @@
       );
 
       operar(formularios, 'buscar', 1010);
-      afirmar(agotarTraza().includes('encontrada'), 'la búsqueda repite el mismo cálculo y la halla');
+      afirmar(hastaElUltimoPasoDelAlgoritmo().includes('encontrada'), 'la búsqueda repite el mismo cálculo y la halla');
 
       document.querySelector('.pantalla-tema__volver').click();
     }
@@ -872,7 +924,7 @@
 
       operar(formularios, 'buscar', 9912);
       afirmar(
-        agotarTraza().includes('encontrada'),
+        hastaElUltimoPasoDelAlgoritmo().includes('encontrada'),
         'tras redispersar, la búsqueda vuelve a encontrar la clave movida'
       );
 
@@ -896,7 +948,7 @@
 
       // 5312 comparte dirección con 7412 y sin tratamiento no entra.
       operar(formularios, 'insertar', 5312);
-      agotarTraza();
+      hastaElUltimoPasoDelAlgoritmo();
       registro.push('  aviso final: ' + aviso().textContent);
       afirmar(
         aviso().classList.contains('alerta--error') && aviso().textContent.includes('no insertada'),
@@ -1109,7 +1161,7 @@
       // La traza no toca la estructura: el efecto lo aplica la pantalla al
       // llegar al paso y lo deshace al retroceder, también en la cadena.
       operar(formularios, 'insertar', 1112);
-      agotarTraza();
+      hastaElUltimoPasoDelAlgoritmo();
       afirmar(contenido(3) === '7412 5312 9912 1112', 'la clave nueva se engancha al final de la cadena');
       control('anterior').click();
       afirmar(contenido(3) === '7412 5312 9912', 'retroceder saca de la cadena la clave que el paso colocó');
@@ -1185,7 +1237,7 @@
       // El ejercicio de clase: «prueba», en una sola operación.
       operaciones.querySelector('[name="palabra"]').value = 'prueba';
       operaciones.querySelector('[data-accion="insertar-palabra"]').click();
-      const retrato = agotarTraza(60);
+      const retrato = hastaElUltimoPasoDelAlgoritmo();
       registro.push('  traza de la palabra: ' + retrato);
       const bitacora = [...document.querySelectorAll('.bitacora__fila')].map((f) => f.textContent);
       afirmar(
@@ -1381,7 +1433,7 @@
       operar(formularios, 'insertar', 7412);
       agotarTraza();
       operar(formularios, 'buscar', 7412);
-      const retrato = agotarTraza();
+      const retrato = hastaElUltimoPasoDelAlgoritmo();
       afirmar(retrato.includes('encontrada'), 'la búsqueda localiza la clave por su dirección');
       const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
       afirmar(metricas[0] === '1', `una sola comparación, sea cual sea n (reporta ${metricas[0]})`);
@@ -1400,7 +1452,7 @@
       agotarTraza();
       // 5312 mod 10 = 2 → dirección 3, la misma que 7412.
       operar(formularios, 'insertar', 5312);
-      const retrato = agotarTraza();
+      const retrato = hastaElUltimoPasoDelAlgoritmo();
       registro.push('  estructura: ' + retrato);
 
       afirmar(retrato.includes('colision'), 'la casilla en conflicto se marca como colisión');
@@ -1426,11 +1478,12 @@
       registro.push('', '── Función módulo · reasignación ──');
 
       const formularios = entrarAModulo({ n: 10, l: 4, tratamiento: 'reasignacion' });
-      for (const clave of [7412, 5312, 9912]) {
+      for (const clave of [7412, 5312]) {
         operar(formularios, 'insertar', clave);
         agotarTraza();
       }
-      const retrato = retratarEstructura();
+      operar(formularios, 'insertar', 9912);
+      const retrato = hastaElUltimoPasoDelAlgoritmo();
       registro.push('  estructura: ' + retrato);
 
       afirmar(
@@ -1448,7 +1501,7 @@
       afirmar(retrato.includes('sondeada'), 'las casillas recorridas por la prueba lineal quedan marcadas');
 
       operar(formularios, 'buscar', 9912);
-      const retratoBusqueda = agotarTraza();
+      const retratoBusqueda = hastaElUltimoPasoDelAlgoritmo();
       afirmar(retratoBusqueda.includes('encontrada'), 'la búsqueda repite el recorrido y halla la clave');
       const metricas = [...document.querySelectorAll('.metrica__valor')].map((el) => el.textContent);
       afirmar(metricas[0] === '3', `la búsqueda gasta 3 comparaciones (reporta ${metricas[0]})`);
@@ -1468,7 +1521,7 @@
       for (const clave of [10, 20, 30, 40, 50, 60, 70, 80]) operar(formularios, 'insertar', clave);
 
       operar(formularios, 'buscar', 45);
-      for (let i = 0; i < 10; i++) control('siguiente').click();
+      hastaElUltimoPasoDelAlgoritmo();
 
       const cierre = document.querySelector('.apilada__cierre');
       afirmar(!!cierre, 'la última estructura anuncia el rango vacío');
@@ -1714,7 +1767,7 @@
       operar(formularios, 'eliminar', 'a');
       agotarTraza(20);
       operar(formularios, 'eliminar', 'b');
-      agotarTraza(20);
+      hastaElUltimoPasoDelAlgoritmo();
       registro.push(`  tras eliminar a y b: ${letras()} · altura ${metricas()[2]}`);
       afirmar(letras() === 'epru', `las dos claves salen del árbol (${letras()})`);
       afirmar(metricas()[2] === '4', `las que quedan siguen al final de su código (altura ${metricas()[2]})`);
@@ -1892,7 +1945,7 @@
       enviar(formularios[0], { n: 150, l: 4 });
       for (let i = 0; i < 60; i++) operar(formularios, 'insertar', 1000 + 7 * i);
       operar(formularios, 'buscar', 1385);
-      agotarTraza(30);
+      hastaElUltimoPasoDelAlgoritmo();
 
       const tramos = document.querySelectorAll('.tramo-registros').length;
       afirmar(tramos > 0, `con N = 150 los renglones se eliden (${tramos} tramo(s))`);

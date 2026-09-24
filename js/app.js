@@ -299,7 +299,8 @@
         // Sacar la clave no es un descarte: no le corresponde una fila más.
         // Esos pasos se dibujan sobre la estructura completa, que es donde el
         // desplazamiento se ve moverse.
-        aplicaA: (paso) => paso.tipo !== 'eliminacion' && paso.tipo !== 'desplazamiento'
+        // Tampoco el paso final: es la estructura como queda, entera.
+        aplicaA: (paso) => paso.tipo !== 'eliminacion' && paso.tipo !== 'desplazamiento' && !paso.final
       },
       casillasRelevantes: (paso) => [paso.inicio, paso.medio, paso.fin, paso.casilla].filter(Boolean),
       describirCasilla: ({ paso, indice, ocupada }) => {
@@ -582,6 +583,10 @@
       // reducción posible y su código sería la cadena vacía.
       validarPalabra: (entrada) => dominio.huffman.validarPalabra(entrada),
       insertarPalabra: ({ letras }) => algoritmos.huffman.construirDesdePalabra({ letras }),
+      // El árbol y su tabla se dibujan desde el paso, no desde la estructura:
+      // el paso final los hereda para no quedar en blanco. La reducción
+      // también, porque es el resultado del tema y no un resaltado.
+      conservarAlFinal: ['total', 'bosque', 'tabla', 'arbol', 'calculo'],
       casillasRelevantes: () => [],
       describirCasilla: ({ ocupada }) => ({ estado: ocupada ? 'ocupada' : 'vacia' }),
       metricas: [
@@ -807,6 +812,9 @@
           + (p.niveles === dominio.indices.NIVELES.MULTINIVEL ? ' multinivel' : '');
       },
       alCrear: ({ estructura }) => algoritmos.indices.derivar(estructura.parametros),
+      // La derivación se dibuja desde el paso, y sus cuentas son el resultado
+      // del tema: el paso final las hereda todas menos la columna en curso.
+      conservarAlFinal: ['calculo', 'definidas', 'estructura'],
       // El archivo se llamaría `indices-n1-l1.cc2`, que no dice nada: `n` y `l`
       // son de mentira en este tema. Lo que lo distingue en la carpeta de
       // descargas es con qué archivo y qué índice se construyó.

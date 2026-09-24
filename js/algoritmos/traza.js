@@ -40,7 +40,12 @@
     // distintas. `construido` cierra la operación: el árbol está entero y
     // aparece la tabla de codificación.
     UNION: 'union',
-    CONSTRUIDO: 'construido'
+    CONSTRUIDO: 'construido',
+    // Cierre de toda operación (pedido del usuario, 2026-09-24): la estructura
+    // tal como queda para la siguiente, sin nada resaltado. No lo produce
+    // ningún algoritmo —lo agrega la pantalla al reproducir—, porque no es un
+    // paso del algoritmo sino el momento de mirar el resultado.
+    FINAL: 'final'
   });
 
   // Un paso puede declarar el `efecto` que produce sobre la estructura:

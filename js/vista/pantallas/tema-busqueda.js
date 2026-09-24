@@ -143,6 +143,8 @@
     function sincronizarAviso(indicePaso) {
       if (!estado.pasos) return;
       for (let i = Math.min(indicePaso, estado.pasos.length - 1); i >= 0; i--) {
+        // El paso final no trae noticia propia, aunque se llame `encontrada`.
+        if (estado.pasos[i].final) continue;
         const tipo = AVISO_POR_PASO[estado.pasos[i].tipo];
         if (tipo) {
           mostrarAlerta(tipo, estado.pasos[i].mensaje);
@@ -514,7 +516,8 @@
     // se sigue viendo entero porque `casillasRelevantes` ya trae las casillas
     // sondeadas, así que la vecina solo agregaría una casilla vacía por clave.
     function relevantesDelPaso(paso) {
-      const relevantes = paso ? config.casillasRelevantes(paso) : [];
+      let relevantes = [];
+      if (paso) relevantes = paso.vistas || config.casillasRelevantes(paso);
       if (config.modo !== dominio.estructura.MODOS.DISPERSA) return relevantes;
 
       const ocupadas = [];
@@ -1787,9 +1790,47 @@
       return espejarVelocidad(dom.controlVelocidad.value);
     }
 
+    // El paso que cierra toda operación (pedido del usuario, 2026-09-24): la
+    // estructura como queda para la siguiente, sin casilla marcada, sin
+    // sondeo ni rango, y con el panel del cálculo vacío. Hereda del último
+    // paso solo lo que no resalta nada: los contadores, que son el resultado
+    // de la operación, y lo que el tema declare en `conservarAlFinal` porque
+    // su dibujo sale del paso y no de la estructura —el bosque de Huffman, la
+    // derivación de índices—.
+    //
+    // Guarda además qué casillas dibujaba el último paso (`vistas`), para que
+    // la elisión deje a la vista las mismas: la estructura no salta, solo se
+    // apagan los resaltados. Sin eso, una ordenada volvía a sus extremos
+    // —«10 ⋯ 22 ⋯ 24»— y la clave recién hallada desaparecía en un tramo.
+    //
+    // **Una búsqueda que halló la clave la deja marcada** (pedido del usuario,
+    // 2026-09-24): ahí lo que se buscaba es dónde está, y apagarla era hacerla
+    // desaparecer justo al terminar. El paso final se vuelve entonces un
+    // `encontrada` que solo sabe dónde está la clave —`casilla`, `posicion` en
+    // anidados y cubetas, `medio` en binaria—, sin rango, descartes ni
+    // recorrido; `final: true` lo distingue del paso del algoritmo.
+    const CONSERVAR_SIEMPRE = ['comparaciones', 'accesos'];
+    const UBICACION_DE_LA_CLAVE = ['casilla', 'posicion', 'medio'];
+    function pasoFinal(ultimo) {
+      const { TIPOS_PASO } = window.CC2.algoritmos.traza;
+      const hallada = ultimo.tipo === TIPOS_PASO.ENCONTRADA;
+      const final = {
+        tipo: hallada ? TIPOS_PASO.ENCONTRADA : TIPOS_PASO.FINAL,
+        final: true,
+        vistas: config.casillasRelevantes ? config.casillasRelevantes(ultimo) : []
+      };
+      const campos = CONSERVAR_SIEMPRE.concat(config.conservarAlFinal || [], hallada ? UBICACION_DE_LA_CLAVE : []);
+      for (const campo of campos) {
+        if (ultimo[campo] !== undefined) final[campo] = ultimo[campo];
+      }
+      return final;
+    }
+
     // Reproduce cualquier operación con traza —buscar o insertar—, que es lo
     // único que las diferencia desde aquí: el reproductor solo recorre pasos.
-    function reproducirOperacion(pasos, mensajeInicial) {
+    function reproducirOperacion(pasosDelAlgoritmo, mensajeInicial) {
+      const ultimo = pasosDelAlgoritmo[pasosDelAlgoritmo.length - 1];
+      const pasos = ultimo ? pasosDelAlgoritmo.concat(pasoFinal(ultimo)) : pasosDelAlgoritmo;
       estado.pasos = pasos;
       estado.clavesBase = {
         claves: estado.estructura.claves.slice(),
@@ -1812,7 +1853,9 @@
           renderizarEstructura(paso, indice);
           actualizarMetricas(paso);
           sincronizarAviso(indice);
-          if (paso) registrarBitacora(paso.mensaje);
+          // El paso final no dice nada: el aviso sigue con la noticia de la
+          // operación, y repetirla en la bitácora solo sería ruido.
+          if (paso && paso.mensaje && !paso.final) registrarBitacora(paso.mensaje);
         }
       });
       // Toda operación arranca reproduciéndose sola (pedido del usuario,

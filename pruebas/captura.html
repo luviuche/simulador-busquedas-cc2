@@ -30,7 +30,8 @@
 
     Con ?paso=fin se recorre la traza completa en lugar de detenerse en el
     primer paso, que es lo que hay que mirar en la vista apilada y en el
-    cálculo de la dirección. El tratamiento de colisiones se elige con
+    cálculo de la dirección; llega hasta el paso final, sin resaltados. Con
+    ?paso=ultimo se queda un paso antes, en el último del algoritmo. El tratamiento de colisiones se elige con
     ?tratamiento=ninguno|reasignacion (por defecto, reasignación).
 
     Uso:
@@ -125,9 +126,17 @@
     // ?paso= acepta `fin` (recorre la traza entera), un número de pasos —para
     // detenerse en uno concreto, como el que marca la casilla que se elimina—
     // o nada, que se queda en el primero.
+    //
+    // `ultimo` se detiene en el último paso del algoritmo, uno antes del que
+    // cierra toda operación sin resaltados (2026-09-24): es donde se ven la
+    // casilla insertada o encontrada y su marca.
     const pasosAAvanzar = (alFinal = 20) => {
       const paso = parametros.get('paso');
       if (paso === 'fin') return alFinal;
+      if (paso === 'ultimo') {
+        setTimeout(() => document.querySelector('[data-accion="anterior"]').click(), 0);
+        return alFinal;
+      }
       const contados = Number(paso);
       return Number.isFinite(contados) && contados > 0 ? contados : 1;
     };

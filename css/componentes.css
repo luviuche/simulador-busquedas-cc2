@@ -81,7 +81,31 @@
 
 .casilla--encontrada::after {
   content: '✓';
-  margin-left: var(--espacio-1);
+  color: var(--estado-encontrada-borde);
+}
+
+/* Las marcas de insertada, encontrada y eliminada van en la esquina y fuera
+   del flujo (pedido del usuario, 2026-09-24). Al lado del número lo empujaban
+   a la izquierda y la clave dejaba de verse centrada justo en la casilla que
+   más se mira. En la esquina no mueven nada, caben en cualquier tema —fuera
+   de la casilla se montarían sobre la vecina en las estructuras horizontales
+   y en la matriz de anidados— y siguen siendo el refuerzo no cromático del
+   estado (CLAUDE.md 8.1). */
+.casilla--encontrada,
+.casilla--insertada,
+.casilla--eliminada {
+  position: relative;
+}
+
+.casilla--encontrada::after,
+.casilla--insertada::after,
+.casilla--eliminada::after {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .casilla--colision {
@@ -255,7 +279,11 @@ form input[type="checkbox"] {
 
 .casilla--insertada::after {
   content: '◂';
-  margin-left: var(--espacio-1);
+  color: var(--estado-encontrada-borde);
+  /* El triángulo pequeño ocupa menos de la mitad de su caja: al tamaño del
+     ✓ y la ✕ quedaba en un punto que no se entendía. */
+  top: 0;
+  font-size: 18px;
 }
 
 /* Casilla del arreglo anidado de una dirección (CLAUDE.md 5.4). Se separa de
@@ -291,7 +319,7 @@ form input[type="checkbox"] {
 
 .casilla--eliminada::after {
   content: '✕';
-  margin-left: var(--espacio-1);
+  color: var(--estado-colision-borde);
 }
 
 /* Casilla que la prueba lineal recorrió y descartó: el trazo punteado la
